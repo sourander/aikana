@@ -1,0 +1,28 @@
+Spec: Application package
+
+Purpose:
+  The `aikana` Python package. It wires the models, authentication and calendar views together into a FastHTML app
+  and provides the entry point that serves it.
+
+Structure:
+  ./__init__.py: package marker
+  ./main.py: creates the FastHTML app and serves it, binds to the `$PORT` environment variable
+  ./layout.py: shared page shell with the header, Tailwind Play CDN script and HTMX
+  ./models.py: database setup and models
+  ./auth.py: login, logout and the admin guard
+  ./semester_view.py: semester wall planner view
+  ./course_view.py: per-course calendar view
+  ./day_dialog.py: admin dialog and day cell fragments
+
+Owns:
+  ./__init__.py
+  ./main.py
+  ./layout.py
+
+Must:
+  `python -m aikana.main` starts the server on the port given by `$PORT`, defaulting to `8000`.
+  Each module has a same-basename spec in this directory when it has substantial behavior.
+  Views render for unauthenticated visitors without any editing affordances.
+
+Tasks:
+  [ ] Create ./layout.py with the shared page shell

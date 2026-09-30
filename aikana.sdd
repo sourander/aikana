@@ -1,0 +1,68 @@
+Spec: Aikana
+Platform: Python/FastHTML/HTMX/SQLite/Tailwind CSS
+
+Purpose:
+  Aikana is a time-keeping and lesson calendar. A single admin (the teacher) records courses, lessons and holidays.
+  Unauthenticated students can only view the data. The calendar is presented as a semester wall planner and as a
+  classic per-course calendar.
+
+Structure:
+  ./src/aikana/: the application package, with its entry point, models, views and auth
+  ./tests/: automated tests
+  ./data/: local-only directory mounted into the container at `/data`
+  ./README.md: how to launch the app
+  ./CONTRIBUTE.md: how to develop iteratively with SpecDD
+  ./Dockerfile: multi-stage image definition shared by local testing and production
+  ./docker-compose.yml: local run configuration that builds the `dev` stage and mounts `./data` at `/data`
+  ./pyproject.toml: package metadata, dependencies and tool configuration
+  ./uv.lock: locked dependency versions produced by `uv`
+
+Owns:
+  ./pyproject.toml
+  ./uv.lock
+  ./README.md
+  ./CONTRIBUTE.md
+  ./Dockerfile
+  ./docker-compose.yml
+  ./.dockerignore
+  ./.gitignore
+
+Must:
+  The SQLite database file lives at `/data/app.db` so that it can be mounted as a persistent volume.
+  The admin password is read from the `ADMIN_PASSWORD` environment variable and the listening port from `PORT`.
+  Unauthenticated visitors can view all data and cannot create, change or delete anything.
+  Only the authenticated admin can write data.
+  All UI text is in English.
+  Tailwind CSS is delivered through the Play CDN script, so no Node build step exists.
+  Dependencies are declared in `pyproject.toml` and locked in `uv.lock`, and every Docker stage installs exactly the
+  locked set with `uv`.
+  `Dockerfile` has a `base` stage with the common setup, a `dev` stage and a `prod` stage that both inherit from
+  `base`. `prod` is the last stage, so a plain `docker build` produces the production image, and it installs no
+  development dependencies.
+  `docker-compose.yml` builds the `dev` stage through `target: dev`.
+  The container starts the app with `python -m aikana.main`, so no `Procfile` exists.
+  The repository root contains no application source files.
+  Development proceeds in small increments and every increment is tested locally in Docker first.
+
+Must not:
+  Nothing in the repository or its tooling may publish, push or deploy to Dokku or GitHub. The human decides when and
+  how to do that.
+  Secrets, including `ADMIN_PASSWORD` values and database files, must not be committed.
+
+Forbids:
+  Any database other than SQLite.
+  Frontend frameworks other than HTMX and Tailwind CSS.
+
+Tasks:
+  [x] #1 Scaffold `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `requirements.txt`, `Procfile`, `.gitignore` and a minimal `main.py` that serves a page on `$PORT`
+  [x] #2 Update README.md run instructions to match the working Docker setup
+  [x] #3 Decide how the six-month semester range is chosen, then reflect it in ./src/aikana/semester-view.sdd
+  [ ] #4 Implement work items in order: ./src/aikana/models.sdd, ./src/aikana/auth.sdd, ./src/aikana/semester-view.sdd, ./src/aikana/day-dialog.sdd, ./src/aikana/course-view.sdd
+  [x] #5 Restructure into `src/aikana` and `tests`, and migrate dependencies from `requirements.txt` to `uv` and `pyproject.toml`
+  [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `docker-compose.yml` targeting `dev`
+
+Done when:
+  The app starts in local Docker with `ADMIN_PASSWORD` set and serves both calendar views.
+  Data written by the admin survives a container restart through the `./data` volume.
+  `uv run pytest` passes.
+  `specdd lint` passes.

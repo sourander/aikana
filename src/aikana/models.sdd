@@ -1,0 +1,19 @@
+Spec: Data models
+
+Purpose:
+  Persistent domain data for courses, lessons and holidays, stored in SQLite through FastHTML's built-in database
+  support.
+
+Owns:
+  ./models.py
+
+Must:
+  The database file path is `/data/app.db`.
+  A Course has a name and a display color used for lesson squares.
+  A Lesson has a date, a reference to a Course and free-text details.
+  A Holiday has a date and a name.
+  Tables are created automatically on startup when they do not exist.
+
+Tasks:
+  [ ] Implement @Course, @Lesson and @Holiday and database initialization
+  [ ] [?] Decide whether lessons and holidays can be deleted, and whether more than one lesson may exist per day and course

@@ -1,0 +1,23 @@
+[project]
+name = "aikana"
+version = "0.1.0"
+description = "Time-keeping and lesson calendar for teachers"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "python-fasthtml>=0.13.2",
+    "uvicorn>=0.41.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,16 @@
+Spec: Tests
+
+Purpose:
+  Automated `pytest` tests for the `aikana` package, run without a network or a running server.
+
+Structure:
+  ./test_main.py: smoke test of the app entry point
+
+Owns:
+  ./test_main.py
+
+Depends on:
+  /src/aikana/aikana.sdd
+
+Must:
+  Tests exercise the app through an in-process client and leave no files behind in the repository.

@@ -1,0 +1,11 @@
+# Local state
+data/
+.env
+.specdd/bootstrap.local.md.pytest_cache/
+.sesskey
+
+# Python stuff
+.pytest_cache/
+.venv/
+__pycache__/
+*.pyc

@@ -1,0 +1,35 @@
+Spec: Day dialog
+
+Purpose:
+  Admin-only editing of a single day. A `<dialog>` modal lets the admin add or edit a Holiday or a Lesson, and HTMX
+  swaps the updated day cell into the page without a reload.
+
+Owns:
+  ./day_dialog.py
+
+Must:
+  Clicking a day cell opens a `<dialog>` for the admin and does nothing for unauthenticated visitors.
+  The dialog can add a Holiday or a Lesson for the clicked date.
+  Submitting the form is an HTMX request that responds with the updated day cell, which replaces the old one in the
+  DOM without a page reload.
+  The swapped cell keeps the appearance required by the view that contains it.
+  Submissions from non-admin sessions are rejected.
+
+Depends on:
+  ./models.sdd
+  ./auth.sdd
+
+Scenario: Admin adds a lesson
+  Given the admin is logged in and views the semester view
+  When the admin clicks a day row, chooses a course, enters details and submits
+  Then the dialog closes and the day row shows a new colored square without a page reload
+
+Scenario: Visitor clicks a day
+  Given the visitor is not logged in
+  When the visitor clicks a day row
+  Then no dialog opens
+
+Tasks:
+  [ ] Implement the dialog and the holiday form with the HTMX cell swap
+  [ ] Implement the lesson form
+  [ ] Implement editing of existing entries
