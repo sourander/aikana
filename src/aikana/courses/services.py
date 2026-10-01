@@ -1,26 +1,19 @@
-"""Placeholder stand-in for a @CourseRepository-backed service, per ./courses.sdd Tasks."""
+"""@CourseRepository-backed use cases, per ./courses.sdd."""
 
 from .domain import Course
-
-_PLACEHOLDER_COURSES = [
-    Course(
-        id="course-1",
-        name="Machine Learning",
-        description="Introduction to supervised and unsupervised learning techniques.",
-        ects_credits=5,
-    ),
-    Course(
-        id="course-2",
-        name="Web Programming",
-        description="Building server-rendered web applications with modern tools.",
-        ects_credits=5,
-    ),
-]
+from .ports import CourseRepository
 
 
-def list_courses() -> list[Course]:
-    return list(_PLACEHOLDER_COURSES)
+class CourseService:
+    def __init__(self, repo: CourseRepository) -> None:
+        self.repo = repo
 
+    def list_courses(self) -> list[Course]:
+        return self.repo.list()
 
-def get_course(course_id: str) -> Course:
-    return next(course for course in _PLACEHOLDER_COURSES if course.id == course_id)
+    def get_course(self, course_id: str) -> Course | None:
+        return self.repo.get(course_id)
+
+    def add_course(self, name: str, description: str, ects_credits: int) -> Course:
+        return self.repo.add(name, description, ects_credits)
+

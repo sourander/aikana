@@ -18,6 +18,7 @@ References:
 
 Depends on:
   ../shared/shared.sdd
+  ../auth/auth.sdd
   ../courses/courses.sdd
   ../realizations/realizations.sdd
   ../lessons/lessons.sdd
@@ -27,8 +28,15 @@ Depends on:
 Must:
   A Semester has a year and a term of `spring` or `fall`; the year and term combination is unique.
   @SemesterRepository in ./ports.py exposes list, get and add operations backing ./services.py.
-  The semester periods are the four periods of academic year `2026-2027`, with semesters spanning the period groups
-  `2026-08-01` to `2026-12-31` and `2027-01-01` to `2027-06-30`.
+  The admin can create a new Semester by submitting a year and a term through a form; the submission is rejected
+  by ../auth/auth.sdd's guard for non-admin sessions, and rejected with a validation message when the year+term
+  combination already exists.
+  When no Semesters exist, ./routes.py renders the create-Semester form as `/`'s primary content instead of the
+  wall planner. Once at least one Semester exists, a small persistent admin-only "+ New Semester" control sits
+  next to the Semester selector, linking to the same form.
+  The semester periods follow a fixed rule from the year and term alone, so any arbitrary Semester's period is
+  computed, never looked up: a `fall` Semester spans `<year>-08-01` to `<year>-12-31`; a `spring` Semester spans
+  `<year>-01-01` to `<year>-06-30`.
   The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
   semester, `, 1fr)`, and `gap: 10px`. A semester of five months renders five columns.
   The container height is `100vh` minus the header height, so a 1080p screen shows the whole semester without
@@ -61,13 +69,11 @@ Example:
   columns: `repeat(6, 1fr)`
 
 Tasks:
-  [?] Decide whether arbitrary Semesters are creatable by the admin or only the current hardcoded `2026-2027`
-    academic year is supported for now
   [x] Implement @Semester and the hardcoded academic-year-2026-2027 period rules in ./domain.py, and a hardcoded
     ./services.py (standing in for @SemesterRepository) that returns the single fall-2026 Semester and builds the
     aggregated view-model consumed by ./view.py
-  [ ] Replace the hardcoded semester lookup in ./services.py with a @SemesterRepository-backed implementation
-    (./ports.py and ./repository_sqlite.py)
+  [x] Replace the hardcoded semester lookup in ./services.py with a class-based @SemesterRepository-backed
+    `SemesterService` (./ports.py and ./repository_sqlite.py), per ../architecture.sdd's Example
   [x] Render the static month columns and day rows
   [x] Render lesson squares and CSS tooltips through ../realizations/realizations.sdd, ../lessons/lessons.sdd and
     ../courses/courses.sdd services
@@ -76,3 +82,9 @@ Tasks:
   [x] Implement the default-by-date Semester selection in ./domain.py and ./services.py, the Semester dropdown, the
     shareable `semester_id` query parameter, and linking each lesson square to ../realizations/realizations.sdd's
     weekly view
+  [x] Make ./domain.py's `default_semester` and `SemesterService.get_default_semester` return `None` instead of
+    crashing when no Semesters exist
+  [x] Implement ./view.py's create-Semester form and admin-only "+ New Semester" control, and ./routes.py's
+    `GET /semesters/new` and `POST /semesters`, gated by ../auth/auth.sdd's guard, rendering the form as `/`'s
+    primary content whenever no Semesters exist
+

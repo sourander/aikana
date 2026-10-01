@@ -1,23 +1,32 @@
 """Registers the per-CourseRealization weekly view at `/realizations`, the package's only inbound adapter."""
 
-from ..semester import services as semester_services
+from ..auth import view as auth_view
+from ..auth.services import AuthService
 from ..shared import layout
-from . import services, view
+from . import view
+from .services import RealizationService
 
 
-def register_routes(app) -> None:
+def register_routes(app, realization_service: RealizationService, auth_service: AuthService) -> None:
     @app.get("/realizations")
-    def index(realization_id: str = ""):
-        active_semester = semester_services.get_default_semester()
-        options = services.list_realization_options(active_semester.id)
+    def index(session, realization_id: str = ""):
+        admin_link = auth_view.header_link(auth_service.is_admin(session))
+        active_semester = realization_service.semester_service.get_default_semester()
+        if active_semester is None:
+            return layout.page(view.empty_state(), active_nav="realizations", admin_link=admin_link)
+
+        options = realization_service.list_realization_options(active_semester.id)
 
         selected_id = realization_id if any(option_id == realization_id for option_id, _ in options) else (
             options[0][0] if options else ""
         )
 
         if not selected_id:
-            return layout.page(view.empty_state(), active_nav="realizations")
+            return layout.page(view.empty_state(), active_nav="realizations", admin_link=admin_link)
 
-        view_model = services.build_realization_view_model(selected_id)
+        view_model = realization_service.build_realization_view_model(selected_id)
         selector = view.realization_selector(options, selected_id)
-        return layout.page(view.realization_view(view_model), active_nav="realizations", selector=selector)
+        return layout.page(
+            view.realization_view(view_model), active_nav="realizations", selector=selector, admin_link=admin_link
+        )
+

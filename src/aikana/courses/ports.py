@@ -1,0 +1,11 @@
+"""@CourseRepository Protocol backing ./services.py, per ../architecture.sdd."""
+
+from typing import Protocol
+
+from .domain import Course
+
+
+class CourseRepository(Protocol):
+    def list(self) -> list[Course]: ...
+    def get(self, course_id: str) -> Course | None: ...
+    def add(self, name: str, description: str, ects_credits: int) -> Course: ...

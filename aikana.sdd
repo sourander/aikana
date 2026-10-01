@@ -66,6 +66,7 @@ Tasks:
   [x] #5 Restructure into `src/aikana` and `tests`, and migrate dependencies from `requirements.txt` to `uv` and `pyproject.toml`
   [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `docker-compose.yml` targeting `dev`
   [x] #7 Build a hardcoded first-pass visual semester view (one Semester, two placeholder Courses, two placeholder CourseRealizations, placeholder Lessons, one placeholder Holiday) ahead of full persistence, per the Tasks in ./src/aikana/shared/shared.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd and ./src/aikana/holidays/holidays.sdd
+  [x] #8 Remove all hardcoded data: implement `fastlite`-backed persistence (./src/aikana/shared/db.py plus every feature's ports.py/repository_sqlite.py) and minimal admin auth (./src/aikana/auth/auth.sdd), so `/` boots correctly with zero Semesters (showing a create-Semester form) and the admin can create one; ./src/aikana/realizations/realizations.sdd's weekly view still renders nothing but its empty state since no CourseRealizations exist yet
 
 Done when:
   The app starts in local Docker with `ADMIN_PASSWORD` set and serves both calendar views.

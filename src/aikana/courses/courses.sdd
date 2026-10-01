@@ -26,5 +26,5 @@ Must:
 Tasks:
   [x] Implement @Course in ./domain.py and a hardcoded ./services.py returning two placeholder Courses, standing in
     for @CourseRepository until persistence exists
-  [ ] Replace the hardcoded ./services.py with a @CourseRepository-backed implementation (./ports.py and
-    ./repository_sqlite.py)
+  [x] Replace the hardcoded ./services.py with a class-based @CourseRepository-backed `CourseService` (./ports.py
+    and ./repository_sqlite.py), per ../architecture.sdd's Example

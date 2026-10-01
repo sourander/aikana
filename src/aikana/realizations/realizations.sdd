@@ -22,6 +22,7 @@ References:
 
 Depends on:
   ../shared/shared.sdd
+  ../auth/auth.sdd
   ../courses/courses.sdd
   ../semester/semester.sdd
   ../lessons/lessons.sdd
@@ -58,15 +59,19 @@ Must:
   mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
   the boundary.
   For the admin, clicking a day cell opens the dialog specified in ../day_dialog/day_dialog.sdd.
+  ./routes.py must not crash when ../semester/semester.sdd has no active Semester at all (none created yet); it
+  renders ./view.py's `empty_state()` immediately in that case instead of dereferencing a Semester.
 
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
     CourseRealizations (one per placeholder Course) for the single hardcoded Semester, including the display-label
     composition, standing in for @CourseRealizationRepository until persistence exists
-  [ ] Replace the hardcoded ./services.py with a @CourseRealizationRepository-backed implementation (./ports.py and
-    ./repository_sqlite.py)
+  [x] Replace the hardcoded ./services.py with a class-based @CourseRealizationRepository-backed
+    `RealizationService` (./ports.py and ./repository_sqlite.py), per ../architecture.sdd's Example; it is the
+    side of the mutual Semester/Realization pair constructed first, without a `semester_service`, which main.py
+    sets as a plain attribute once ../semester/semester.sdd's `SemesterService` exists
   [x] Implement the weekly grid in ./view.py, the realization dropdown scoped to the active Semester, and
     ./routes.py registering `/realizations` with the shareable `realization_id` query parameter
-  [?] Decide the admin UI for creating a Course, a Semester and a CourseRealization before Lessons can be logged
-    against it
+  [?] Decide the admin UI for creating a Course and a CourseRealization once ../semester/semester.sdd's Semester
+    creation exists (Semester creation UI is resolved in ../semester/semester.sdd)
 

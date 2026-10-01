@@ -20,6 +20,8 @@ Must:
   (`/realizations`), highlighting whichever one the calling route registers as active, and a slot for that page's
   own selector control (for example a Semester or CourseRealization dropdown); it takes the active link name and the
   already-rendered selector as plain arguments so it still needs no feature imports.
+  ./layout.py's header also takes an already-rendered login/logout link as a plain argument, per
+  ../auth/auth.sdd, so it still needs no import of ../auth/auth.sdd's services.py or routes.py.
 
 Must not:
   ./db.py and ./layout.py must not import any feature package's domain.py, ports.py, services.py,
@@ -30,5 +32,5 @@ Tasks:
     first hardcoded semester-view pass
   [x] Extend ./layout.py's header with the horizontal top-bar nav between the Semester and Realization views and a
     slot for each view's own selector dropdown
-  [ ] Implement ./db.py when real persistence begins; not needed while every feature's services.py returns
-    hardcoded placeholder data
+  [x] Implement ./db.py: the shared `fastlite` `Database` connection at `/data/app.db`, now that real persistence
+    begins

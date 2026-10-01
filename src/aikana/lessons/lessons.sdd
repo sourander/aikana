@@ -30,5 +30,5 @@ Tasks:
   [x] Implement @Lesson in ./domain.py and a hardcoded ./services.py returning placeholder Lessons for each
     placeholder CourseRealization across the hardcoded Semester, standing in for @LessonRepository until
     persistence exists
-  [ ] Replace the hardcoded ./services.py with a @LessonRepository-backed implementation (./ports.py and
-    ./repository_sqlite.py)
+  [x] Replace the hardcoded ./services.py with a class-based @LessonRepository-backed `LessonService`
+    (./ports.py and ./repository_sqlite.py), per ../architecture.sdd's Example

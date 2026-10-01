@@ -23,15 +23,17 @@ def _nav(active: str):
     return Div(*[link(*entry) for entry in _NAV_LINKS], cls="flex flex-row gap-4")
 
 
-def page(*content, active_nav: str, selector=None):
+def page(*content, active_nav: str, selector=None, admin_link=None):
+    trailing = [item for item in (selector, admin_link) if item is not None]
     return Div(
         Header(
             H1("Aikana", cls="text-xl font-bold"),
             _nav(active_nav),
-            Div(selector, cls="ml-auto") if selector is not None else "",
-            # TODO: show a login link for visitors and a logout link for the admin once ../auth/auth.sdd exists.
+            Div(*trailing, cls="ml-auto flex items-center gap-3") if trailing else "",
             cls="flex items-center gap-6 px-4 py-2 border-b border-gray-200",
         ),
         Div(*content, cls="flex-1 min-h-0"),
         cls="h-screen flex flex-col",
     )
+
+

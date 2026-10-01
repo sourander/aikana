@@ -12,15 +12,11 @@ class Semester:
     term: Term
 
 
-# Hardcoded periods of academic year 2026-2027, per ./semester.sdd Must/Example.
-_PERIOD_BOUNDS: dict[tuple[int, Term], tuple[date, date]] = {
-    (2026, "fall"): (date(2026, 8, 1), date(2026, 12, 31)),
-    (2027, "spring"): (date(2027, 1, 1), date(2027, 6, 30)),
-}
-
-
+# A fall Semester spans Aug 1 - Dec 31 of its year; a spring Semester spans Jan 1 - Jun 30, per ./semester.sdd.
 def semester_bounds(semester: Semester) -> tuple[date, date]:
-    return _PERIOD_BOUNDS[(semester.year, semester.term)]
+    if semester.term == "fall":
+        return date(semester.year, 8, 1), date(semester.year, 12, 31)
+    return date(semester.year, 1, 1), date(semester.year, 6, 30)
 
 
 def semester_months(semester: Semester) -> list[tuple[int, int]]:
@@ -37,8 +33,10 @@ def semester_months(semester: Semester) -> list[tuple[int, int]]:
     return months
 
 
-def default_semester(semesters: list[Semester], today: date) -> Semester:
+def default_semester(semesters: list[Semester], today: date) -> Semester | None:
     """The Semester whose period most recently started on or before `today`, else the earliest, per ./semester.sdd."""
+    if not semesters:
+        return None
     ordered = sorted(semesters, key=lambda semester: semester_bounds(semester)[0])
     started = [semester for semester in ordered if semester_bounds(semester)[0] <= today]
     return started[-1] if started else ordered[0]

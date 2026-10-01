@@ -6,6 +6,7 @@ Purpose:
 
 Owns:
   ./services.py
+  ./view.py
   ./routes.py
 
 References:
@@ -16,6 +17,8 @@ Depends on:
 
 Exposes:
   An admin guard used by other feature packages' routes.py to reject write requests from non-admin sessions.
+  An `is_admin(session) -> bool` check used by other feature packages' routes.py to conditionally render
+  admin-only controls (for example a "+ New Semester" control), separate from the write-rejecting guard.
 
 Must:
   A login form checks the submitted password against `ADMIN_PASSWORD` and on success stores admin status in the
@@ -29,5 +32,5 @@ Must not:
   The password must not be logged, rendered or stored in the database.
 
 Tasks:
-  [ ] Implement login, logout and the admin guard in ./services.py and ./routes.py
-  [ ] Show the login/logout link through ../shared/shared.sdd's page shell
+  [x] Implement login, logout and the admin check in ./services.py, ./view.py and ./routes.py
+  [x] Show the login/logout link through ../shared/shared.sdd's page shell

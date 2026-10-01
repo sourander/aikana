@@ -22,7 +22,8 @@ Structure:
 
 Must:
   Persistence uses `fastlite`, which implements the MiniDataAPI Spec, as the sole data-access layer. `fastlite` is
-  bundled with `python-fasthtml`, so no additional dependency is added for it.
+  declared as an explicit dependency in `pyproject.toml` (it is only a `dev` extra of `python-fasthtml`, not a
+  transitive runtime dependency, so it must be added directly).
   Each feature's domain.py dataclasses are distinct from any table-bound dataclass that `fastlite` produces;
   repository_sqlite.py converts between the two so persistence shape never leaks into domain.py or services.py.
   ./shared/db.py owns the single `fastlite` `Database` connection opened at `/data/app.db`; every
@@ -40,6 +41,12 @@ Must:
   as domain.py and ports.py never depend on another feature, per the rule above.
   main.py is the composition root: it builds the shared `Database`, constructs each feature's repository and
   service, and passes the constructed services into each feature's routes.py when registering routes on the app.
+  main.py constructs services with no cross-feature dependency first, then services that depend on those. A
+  genuine mutual pair of services (one where each side's constructor would need the other) is wired in two
+  phases: construct one side with its cross-feature dependency omitted, construct the other side with the first
+  instance, then set the omitted dependency as a plain attribute on the first instance once both exist. Each
+  side type-hints the other using a `TYPE_CHECKING`-guarded import so the classes never import each other at
+  runtime, avoiding a real circular import.
 
 Must not:
   domain.py and services.py must not import `fasthtml`, `starlette` or `fastlite`.
@@ -47,10 +54,14 @@ Must not:
   routes.py must not query the database directly; it must call services.py.
 
 Depends on:
-  `fastlite` (bundled with `python-fasthtml`), implementing the MiniDataAPI Spec, for all SQLite access.
+  `fastlite`, an explicit `pyproject.toml` dependency, implementing the MiniDataAPI Spec, for all SQLite access.
 
 Example:
   ports.py: `class CourseRepository(Protocol): def list(self) -> list[Course]: ...`
   services.py: `class CourseService: def __init__(self, repo: CourseRepository) -> None: self.repo = repo`
   repository_sqlite.py: `class SqliteCourseRepository: def list(self) -> list[Course]: return [to_domain(r) for r in table()]`
   routes.py: `@rt.get("/courses") def courses_index(): return view.course_list(service.list_courses())`
+  A genuine mutual pair, wired in main.py: `realization_service = RealizationService(realization_repo, ...)`
+  (constructed without a `semester_service`), then `semester_service = SemesterService(semester_repo, ...,
+  realization_service)`, then `realization_service.semester_service = semester_service`. Each service module
+  type-hints the other under `if TYPE_CHECKING:` so neither imports the other at runtime.

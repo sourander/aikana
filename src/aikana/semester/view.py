@@ -1,8 +1,39 @@
 """Pure rendering of the semester wall planner (one column per month, one row per day)."""
 
-from fasthtml.common import A, Div, Option, Select, Span
+from fasthtml.common import A, Button, Div, Form, Input, Option, P, Select, Span
 
 from .services import DayCell, MonthColumn, SemesterViewModel
+
+
+def create_semester_form(error: str = ""):
+    return Div(
+        Div("Create a Semester to get started.", cls="font-semibold text-lg mb-2"),
+        Form(
+            Select(
+                Option("Fall", value="fall"),
+                Option("Spring", value="spring"),
+                name="term",
+                cls="border border-gray-300 rounded px-2 py-1",
+            ),
+            Input(
+                name="year",
+                type="number",
+                placeholder="Year",
+                required=True,
+                cls="border border-gray-300 rounded px-2 py-1 w-24",
+            ),
+            Button("Create Semester", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+            P(error, cls="text-red-600 text-sm") if error else "",
+            method="post",
+            action="/semesters",
+            cls="flex items-center gap-2",
+        ),
+        cls="p-4",
+    )
+
+
+def new_semester_control():
+    return A("+ New Semester", href="/semesters/new", cls="text-sm text-blue-700 hover:text-blue-900")
 
 
 def semester_selector(options: list[tuple[str, str]], selected_id: str):

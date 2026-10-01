@@ -1,0 +1,36 @@
+"""Adapter implementing @CourseRepository using `fastlite`, per ../architecture.sdd."""
+
+from uuid import uuid4
+
+from ..shared.db import get_db
+from .domain import Course
+
+
+def _to_domain(row: dict) -> Course:
+    return Course(
+        id=row["id"],
+        name=row["name"],
+        description=row["description"],
+        ects_credits=row["ects_credits"],
+    )
+
+
+class SqliteCourseRepository:
+    def __init__(self) -> None:
+        self._table = get_db().t.courses
+        self._table.create(
+            columns={"id": str, "name": str, "description": str, "ects_credits": int},
+            pk="id",
+            if_not_exists=True,
+        )
+
+    def list(self) -> list[Course]:
+        return [_to_domain(row) for row in self._table(order_by="name")]
+
+    def get(self, course_id: str) -> Course | None:
+        row = self._table.get(course_id, default=None)
+        return _to_domain(row) if row else None
+
+    def add(self, name: str, description: str, ects_credits: int) -> Course:
+        row = self._table.insert({"id": uuid4().hex, "name": name, "description": description, "ects_credits": ects_credits})
+        return _to_domain(row)
