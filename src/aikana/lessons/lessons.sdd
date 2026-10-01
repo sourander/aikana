@@ -1,0 +1,27 @@
+Spec: Lesson entity
+
+Purpose:
+  The Lesson entity: a date, a reference to a Course and free-text details. A view-less, route-less package used by
+  ../courses/courses.sdd, ../semester/semester.sdd and ../day_dialog/day_dialog.sdd.
+
+Owns:
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+
+Must:
+  A Lesson has a date, a reference to a Course and free-text details.
+  @LessonRepository in ./ports.py exposes operations to list lessons for a course or a date range and to add one.
+  The table is created automatically on startup when it does not exist.
+
+Tasks:
+  [?] Decide whether a Lesson can be deleted or edited after creation, and whether more than one Lesson may exist
+    for the same day and Course
+  [ ] Implement @Lesson, @LessonRepository and the SQLite adapter

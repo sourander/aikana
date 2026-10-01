@@ -1,0 +1,35 @@
+Spec: Course entity and course view
+
+Purpose:
+  The Course entity (name and display color) and the classic per-course calendar, one row per calendar week and one
+  column per weekday.
+
+Owns:
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+  ./view.py
+  ./routes.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+  ../lessons/lessons.sdd
+  ../holidays/holidays.sdd
+  ../day_dialog/day_dialog.sdd
+
+Must:
+  A Course has a name and a display color used for lesson squares.
+  @CourseRepository in ./ports.py exposes list, get and add operations backing ./services.py.
+  Each row of the course view is one calendar week and columns are days of the week.
+  Lessons and holidays are shown on their day cell, read through ../lessons/lessons.sdd and
+  ../holidays/holidays.sdd services rather than their repositories directly.
+  For the admin, clicking a day cell opens the dialog specified in ../day_dialog/day_dialog.sdd.
+
+Tasks:
+  [?] Decide whether the view shows one selected course, all courses, or a date range, and how the user navigates
+  [ ] Implement @Course, @CourseRepository and the SQLite adapter
+  [ ] Implement the weekly grid in ./view.py and ./routes.py

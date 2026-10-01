@@ -51,6 +51,6 @@ Do not write or maintain tasks manually. Instead, use the LLM as your PM and arc
 
 ```sh
 specdd lint .                       # validate all specs
-specdd resolve app                  # show which specs apply to an existing path
+specdd resolve .                    # show which specs apply to an existing path
 specdd inspect .                    # overview of specs and sections
 ```

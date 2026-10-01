@@ -1,28 +1,34 @@
 Spec: Application package
 
 Purpose:
-  The `aikana` Python package. It wires the models, authentication and calendar views together into a FastHTML app
-  and provides the entry point that serves it.
+  The `aikana` Python package. It is organized into feature packages that follow the layering described in
+  ./architecture.sdd, and it provides the entry point that composes and serves them as a FastHTML app.
 
 Structure:
   ./__init__.py: package marker
-  ./main.py: creates the FastHTML app and serves it, binds to the `$PORT` environment variable
-  ./layout.py: shared page shell with the header, Tailwind Play CDN script and HTMX
-  ./models.py: database setup and models
-  ./auth.py: login, logout and the admin guard
-  ./semester_view.py: semester wall planner view
-  ./course_view.py: per-course calendar view
-  ./day_dialog.py: admin dialog and day cell fragments
+  ./main.py: the composition root; builds the shared database connection and each feature's repository and
+    service, registers every feature's routes on the FastHTML app, and binds to the `$PORT` environment variable
+  ./architecture.sdd: the Clean Architecture / Ports-and-Adapters contract shared by every feature package below
+  ./shared/: cross-cutting kernel (database connection, page layout shell) with no business rules of its own
+  ./auth/: admin login, logout and the write guard used by other feature packages
+  ./courses/: the Course entity and the per-course calendar view
+  ./lessons/: the Lesson entity
+  ./holidays/: the Holiday entity
+  ./semester/: the semester wall planner view
+  ./day_dialog/: the admin dialog for adding or editing a Lesson or a Holiday on a given day
+
+References:
+  ./architecture.sdd
 
 Owns:
   ./__init__.py
   ./main.py
-  ./layout.py
 
 Must:
   `python -m aikana.main` starts the server on the port given by `$PORT`, defaulting to `8000`.
-  Each module has a same-basename spec in this directory when it has substantial behavior.
+  Every feature package below has a same-basename spec inside it, following ./architecture.sdd.
   Views render for unauthenticated visitors without any editing affordances.
 
 Tasks:
-  [ ] Create ./layout.py with the shared page shell
+  [ ] Implement ./shared/, then ./auth/, then ./courses/, ./lessons/ and ./holidays/, then ./semester/ and
+    ./day_dialog/, and finally wire them together in ./main.py

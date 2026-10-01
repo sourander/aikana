@@ -2,18 +2,30 @@ Spec: Semester view
 
 Purpose:
   A multi-column vertical list calendar (wall planner) showing one semester on one desktop screen. Each month is a
-  column and each day is a row.
+  column and each day is a row. A read-only aggregation over ../courses/courses.sdd, ../lessons/lessons.sdd and
+  ../holidays/holidays.sdd, so it owns a view.py and routes.py only.
 
 Owns:
-  ./semester_view.py
+  ./view.py
+  ./routes.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+  ../courses/courses.sdd
+  ../lessons/lessons.sdd
+  ../holidays/holidays.sdd
+  ../day_dialog/day_dialog.sdd
 
 Must:
   The semester periods are the four periods of academic year `2026-2027`, with semesters spanning the period groups
   `2026-08-01` to `2026-12-31` and `2027-01-01` to `2027-07-31`.
   The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
   semester, `, 1fr)`, and `gap: 10px`. A semester of five months renders five columns.
-  The container height is `100vh` minus the header height, so a 1080p screen shows the whole semester without vertical
-  or horizontal scrolling.
+  The container height is `100vh` minus the header height, so a 1080p screen shows the whole semester without
+  vertical or horizontal scrolling.
   The view is desktop-only and has no mobile responsiveness.
   Each month is a flex column (`display: flex; flex-direction: column`) with the month name as header at its top.
   Each month contains one row per day of that month, and each row has `flex: 1` so all rows share height equally.
@@ -21,7 +33,7 @@ Must:
   Lessons appear as inline-block squares of `12px` by `12px` colored by their course.
   Hovering a square shows lesson details through a pure CSS tooltip that does not change the row height.
   Holidays are visibly distinguished on their day row and show their name.
-  For the admin, clicking a day row opens the dialog specified in ./day-dialog.sdd.
+  For the admin, clicking a day row opens the dialog specified in ../day_dialog/day_dialog.sdd.
 
 Example:
   semester 1: `2026-08` to `2026-12`
@@ -29,12 +41,7 @@ Example:
   semester 2: `2027-01` to `2027-07`
   columns: `repeat(7, 1fr)`
 
-Depends on:
-  ./models.sdd
-  ./day-dialog.sdd
-
 Tasks:
   [ ] Render the static month columns and day rows
-  [ ] Render lesson squares and CSS tooltips from the database
-  [ ] Render holidays
-  [x] Decide the semester start and range, since the layout is fixed at six months
+  [ ] Render lesson squares and CSS tooltips through ../lessons/lessons.sdd and ../courses/courses.sdd services
+  [ ] Render holidays through ../holidays/holidays.sdd services

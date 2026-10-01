@@ -27,6 +27,9 @@ Owns:
   ./.dockerignore
   ./.gitignore
 
+References:
+  ./src/aikana/architecture.sdd
+
 Must:
   The SQLite database file lives at `/data/app.db` so that it can be mounted as a persistent volume.
   The admin password is read from the `ADMIN_PASSWORD` environment variable and the listening port from `PORT`.
@@ -51,13 +54,14 @@ Must not:
 
 Forbids:
   Any database other than SQLite.
+  Any ORM other than `fastlite`'s MiniDataAPI Spec implementation, as detailed in ./src/aikana/architecture.sdd.
   Frontend frameworks other than HTMX and Tailwind CSS.
 
 Tasks:
   [x] #1 Scaffold `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `requirements.txt`, `Procfile`, `.gitignore` and a minimal `main.py` that serves a page on `$PORT`
   [x] #2 Update README.md run instructions to match the working Docker setup
-  [x] #3 Decide how the six-month semester range is chosen, then reflect it in ./src/aikana/semester-view.sdd
-  [ ] #4 Implement work items in order: ./src/aikana/models.sdd, ./src/aikana/auth.sdd, ./src/aikana/semester-view.sdd, ./src/aikana/day-dialog.sdd, ./src/aikana/course-view.sdd
+  [x] #3 Decide how the six-month semester range is chosen, then reflect it in ./src/aikana/semester/semester.sdd
+  [ ] #4 Implement feature packages in order, following ./src/aikana/architecture.sdd: ./src/aikana/shared/shared.sdd, ./src/aikana/auth/auth.sdd, ./src/aikana/lessons/lessons.sdd, ./src/aikana/holidays/holidays.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/day_dialog/day_dialog.sdd
   [x] #5 Restructure into `src/aikana` and `tests`, and migrate dependencies from `requirements.txt` to `uv` and `pyproject.toml`
   [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `docker-compose.yml` targeting `dev`
 

@@ -1,0 +1,26 @@
+Spec: Holiday entity
+
+Purpose:
+  The Holiday entity: a date and a name. A view-less, route-less package used by ../courses/courses.sdd,
+  ../semester/semester.sdd and ../day_dialog/day_dialog.sdd.
+
+Owns:
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+
+Must:
+  A Holiday has a date and a name.
+  @HolidayRepository in ./ports.py exposes operations to list holidays for a date range and to add one.
+  The table is created automatically on startup when it does not exist.
+
+Tasks:
+  [?] Decide whether a Holiday can be deleted or edited after creation
+  [ ] Implement @Holiday, @HolidayRepository and the SQLite adapter

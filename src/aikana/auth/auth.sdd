@@ -1,0 +1,33 @@
+Spec: Admin authentication
+
+Purpose:
+  Session-based login for a single admin. Everyone else is a read-only viewer. Has no persisted entity of its own,
+  so it follows ./architecture.sdd without a domain.py, ports.py or repository_sqlite.py.
+
+Owns:
+  ./services.py
+  ./routes.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+
+Exposes:
+  An admin guard used by other feature packages' routes.py to reject write requests from non-admin sessions.
+
+Must:
+  A login form checks the submitted password against `ADMIN_PASSWORD` and on success stores admin status in the
+  signed session.
+  A logout action clears the admin session.
+  The password comparison is constant-time.
+  Login is impossible when `ADMIN_PASSWORD` is unset or empty.
+  The shared page shell shows a login link to visitors and a logout link to the admin.
+
+Must not:
+  The password must not be logged, rendered or stored in the database.
+
+Tasks:
+  [ ] Implement login, logout and the admin guard in ./services.py and ./routes.py
+  [ ] Show the login/logout link through ../shared/shared.sdd's page shell

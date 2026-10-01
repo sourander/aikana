@@ -1,0 +1,50 @@
+Spec: Architecture
+
+Purpose:
+  The lightweight Clean Architecture (Ports and Adapters) convention followed by every feature package under
+  ./ (`src/aikana/`). It keeps FastHTML routes, rendered views and the SQLite adapter at the edges, and keeps domain
+  rules and use cases in plain Python modules with no framework imports. This spec is the shared contract that every
+  feature package's own spec references instead of restating.
+
+Structure:
+  domain.py: plain dataclasses and business rules for the package's entity or entities; no imports beyond the
+    standard library.
+  ports.py: `typing.Protocol` interfaces that `services.py` depends on for persistence or other external effects;
+    depends only on domain.py and `typing`.
+  services.py: application use cases that orchestrate domain.py through ports.py; the only business-logic layer.
+  repository_sqlite.py: the adapter that implements ports.py using `fastlite`'s MiniDataAPI Spec; translates between
+    SQLite rows and domain.py dataclasses.
+  view.py: pure rendering functions that turn domain objects or view-models into FastHTML FT components.
+  routes.py: the package's inbound adapter; the only module allowed to import both FastHTML and the package's
+    services.py, and the place where a feature's routes are registered on the app.
+  A feature package owns only the files it needs; a view-only feature may have no domain.py, ports.py or
+    repository_sqlite.py, and a storage-only feature may have no view.py or routes.py.
+
+Must:
+  Persistence uses `fastlite`, which implements the MiniDataAPI Spec, as the sole data-access layer. `fastlite` is
+  bundled with `python-fasthtml`, so no additional dependency is added for it.
+  Each feature's domain.py dataclasses are distinct from any table-bound dataclass that `fastlite` produces;
+  repository_sqlite.py converts between the two so persistence shape never leaks into domain.py or services.py.
+  ./shared/db.py owns the single `fastlite` `Database` connection opened at `/data/app.db`; every
+  repository_sqlite.py imports it rather than opening its own connection.
+  Each repository_sqlite.py creates its own table on first use, idempotently, through the shared connection.
+  Dependencies point inward only: routes.py depends on services.py and view.py; services.py depends on domain.py and
+  ports.py; repository_sqlite.py depends on domain.py and ports.py; domain.py and ports.py depend on nothing local.
+  Cross-feature use goes through a dependency's services.py or ports.py, never through another feature's
+  repository_sqlite.py or domain.py directly.
+  main.py is the composition root: it builds the shared `Database`, constructs each feature's repository and
+  service, and passes the constructed services into each feature's routes.py when registering routes on the app.
+
+Must not:
+  domain.py and services.py must not import `fasthtml`, `starlette` or `fastlite`.
+  view.py must not import repository_sqlite.py or open a database connection.
+  routes.py must not query the database directly; it must call services.py.
+
+Depends on:
+  `fastlite` (bundled with `python-fasthtml`), implementing the MiniDataAPI Spec, for all SQLite access.
+
+Example:
+  ports.py: `class CourseRepository(Protocol): def list(self) -> list[Course]: ...`
+  services.py: `class CourseService: def __init__(self, repo: CourseRepository) -> None: self.repo = repo`
+  repository_sqlite.py: `class SqliteCourseRepository: def list(self) -> list[Course]: return [to_domain(r) for r in table()]`
+  routes.py: `@rt.get("/courses") def courses_index(): return view.course_list(service.list_courses())`
