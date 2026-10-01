@@ -1,7 +1,7 @@
 Spec: Holiday entity
 
 Purpose:
-  The Holiday entity: a date and a name. A view-less, route-less package used by ../courses/courses.sdd,
+  The Holiday entity: a date and a title. A view-less, route-less package used by ../courses/courses.sdd,
   ../semester/semester.sdd and ../day_dialog/day_dialog.sdd.
 
 Owns:
@@ -17,7 +17,7 @@ Depends on:
   ../shared/shared.sdd
 
 Must:
-  A Holiday has a date and a name.
+  A Holiday has a date and a title.
   @HolidayRepository in ./ports.py exposes operations to list holidays for a date range and to add one.
   The table is created automatically on startup when it does not exist.
 

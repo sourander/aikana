@@ -12,9 +12,10 @@ Structure:
   ./shared/: cross-cutting kernel (database connection, page layout shell) with no business rules of its own
   ./auth/: admin login, logout and the write guard used by other feature packages
   ./courses/: the Course entity and the per-course calendar view
+  ./semester/: the Semester entity and the semester wall planner view
+  ./realizations/: the CourseRealization entity linking a Course, a Semester and a group to its Lessons
   ./lessons/: the Lesson entity
   ./holidays/: the Holiday entity
-  ./semester/: the semester wall planner view
   ./day_dialog/: the admin dialog for adding or editing a Lesson or a Holiday on a given day
 
 References:
@@ -30,5 +31,5 @@ Must:
   Views render for unauthenticated visitors without any editing affordances.
 
 Tasks:
-  [ ] Implement ./shared/, then ./auth/, then ./courses/, ./lessons/ and ./holidays/, then ./semester/ and
-    ./day_dialog/, and finally wire them together in ./main.py
+  [ ] Implement ./shared/, then ./auth/, then ./courses/ and ./semester/ (entities), then ./holidays/, then
+    ./realizations/ and ./lessons/, then ./day_dialog/, and finally wire them together in ./main.py

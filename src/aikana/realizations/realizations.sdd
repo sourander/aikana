@@ -1,0 +1,39 @@
+Spec: CourseRealization entity
+
+Purpose:
+  The CourseRealization entity: one offering of a Course, taught during one Semester for one group. It is the hub
+  that ties a Course and a Semester to the Lessons taught in it. For example, the Course `Machine Learning` has a
+  realization for group `TTV24SP` during the fall 2026 Semester; that realization is what the Lessons actually taught
+  in that offering reference. A view-less, route-less package used by ../courses/courses.sdd,
+  ../semester/semester.sdd, ../lessons/lessons.sdd and ../day_dialog/day_dialog.sdd.
+
+Owns:
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+  ../courses/courses.sdd
+  ../semester/semester.sdd
+
+Must:
+  A CourseRealization has a reference to exactly one Course, a reference to exactly one Semester and a free-text
+  group label such as `TTV24SP`. Both references are stored as plain ids in ./domain.py, per ../architecture.sdd;
+  only ./services.py imports ../courses/courses.sdd's and ../semester/semester.sdd's ports.py to validate them.
+  @CourseRealizationRepository in ./ports.py exposes operations to list realizations for a Course or a Semester and
+  to add one.
+  A CourseRealization's display label is composed from its Course name, group and Semester at render time; it is not
+  stored as its own field.
+  Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
+  ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
+  The table is created automatically on startup when it does not exist.
+
+Tasks:
+  [?] Decide the admin UI for creating a Course, a Semester and a CourseRealization before Lessons can be logged
+    against it
+  [ ] Implement @CourseRealization, @CourseRealizationRepository and the SQLite adapter

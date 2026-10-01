@@ -32,6 +32,12 @@ Must:
   ports.py; repository_sqlite.py depends on domain.py and ports.py; domain.py and ports.py depend on nothing local.
   Cross-feature use goes through a dependency's services.py or ports.py, never through another feature's
   repository_sqlite.py or domain.py directly.
+  A reference from one feature's entity to another feature's entity (for example CourseRealization's reference to
+  a Course or a Semester) is stored as a plain id in domain.py, never as an imported object; only services.py may
+  import the referenced feature's ports.py to validate that id.
+  Two feature packages' Depends on may be mutual when one's view.py or services.py reads the other while the other
+  only validates an id through the first's ports.py in its own services.py; this is not a circular import as long
+  as domain.py and ports.py never depend on another feature, per the rule above.
   main.py is the composition root: it builds the shared `Database`, constructs each feature's repository and
   service, and passes the constructed services into each feature's routes.py when registering routes on the app.
 

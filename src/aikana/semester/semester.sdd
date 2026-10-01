@@ -1,11 +1,15 @@
-Spec: Semester view
+Spec: Semester entity and semester view
 
 Purpose:
-  A multi-column vertical list calendar (wall planner) showing one semester on one desktop screen. Each month is a
-  column and each day is a row. A read-only aggregation over ../courses/courses.sdd, ../lessons/lessons.sdd and
-  ../holidays/holidays.sdd, so it owns a view.py and routes.py only.
+  The Semester entity (year and term) and a multi-column vertical list calendar (wall planner) showing one semester
+  on one desktop screen. Each month is a column and each day is a row. The view is a read-only aggregation over
+  ../courses/courses.sdd, ../realizations/realizations.sdd, ../lessons/lessons.sdd and ../holidays/holidays.sdd.
 
 Owns:
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
   ./view.py
   ./routes.py
 
@@ -15,11 +19,14 @@ References:
 Depends on:
   ../shared/shared.sdd
   ../courses/courses.sdd
+  ../realizations/realizations.sdd
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
+  A Semester has a year and a term of `spring` or `fall`; the year and term combination is unique.
+  @SemesterRepository in ./ports.py exposes list, get and add operations backing ./services.py.
   The semester periods are the four periods of academic year `2026-2027`, with semesters spanning the period groups
   `2026-08-01` to `2026-12-31` and `2027-01-01` to `2027-07-31`.
   The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
@@ -30,9 +37,10 @@ Must:
   Each month is a flex column (`display: flex; flex-direction: column`) with the month name as header at its top.
   Each month contains one row per day of that month, and each row has `flex: 1` so all rows share height equally.
   A day row shows the weekday abbreviation, the date number and a wider space for lesson indicators.
-  Lessons appear as inline-block squares of `12px` by `12px` colored by their course.
+  Lessons appear as inline-block squares of `12px` by `12px`. The view assigns each CourseRealization a color from a
+  fixed palette at render time; no color is stored in the database.
   Hovering a square shows lesson details through a pure CSS tooltip that does not change the row height.
-  Holidays are visibly distinguished on their day row and show their name.
+  Holidays are visibly distinguished on their day row and show their title.
   For the admin, clicking a day row opens the dialog specified in ../day_dialog/day_dialog.sdd.
 
 Example:
@@ -42,6 +50,10 @@ Example:
   columns: `repeat(7, 1fr)`
 
 Tasks:
+  [?] Decide whether arbitrary Semesters are creatable by the admin or only the current hardcoded `2026-2027`
+    academic year is supported for now
+  [ ] Implement @Semester, @SemesterRepository and the SQLite adapter
   [ ] Render the static month columns and day rows
-  [ ] Render lesson squares and CSS tooltips through ../lessons/lessons.sdd and ../courses/courses.sdd services
+  [ ] Render lesson squares and CSS tooltips through ../realizations/realizations.sdd, ../lessons/lessons.sdd and
+    ../courses/courses.sdd services
   [ ] Render holidays through ../holidays/holidays.sdd services

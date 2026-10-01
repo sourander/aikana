@@ -9,8 +9,10 @@ Read `.specdd/bootstrap.md` for the full rules. The essentials are below.
 ## Where things are
 
 - `aikana.sdd`: root spec with global rules, owned top-level files and the project task list.
-- `app/*.sdd`: module and feature specs. A spec named like a source file (`models.sdd` and `models.py`) governs that
-  file. `app/app.sdd` governs the directory.
+- `src/aikana/architecture.sdd`: the Clean Architecture / Ports-and-Adapters contract every feature package follows.
+- `src/aikana/aikana.sdd`: governs the `aikana` package directory and lists its feature packages.
+- `src/aikana/<feature>/<feature>.sdd`: one spec per feature package (e.g. `courses/courses.sdd`), governing the
+  `domain.py`, `ports.py`, `services.py`, `repository_sqlite.py`, `view.py` and `routes.py` it owns.
 - `.specdd/bootstrap.project.md`: project rules for agents. `.specdd/bootstrap.local.md` is personal and git-ignored.
 - `START_IDEAS.md`: the original notes. They are not a spec and can be deleted once nothing is left to transfer.
 

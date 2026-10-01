@@ -2,12 +2,13 @@ Spec: Aikana
 Platform: Python/FastHTML/HTMX/SQLite/Tailwind CSS
 
 Purpose:
-  Aikana is a time-keeping and lesson calendar. A single admin (the teacher) records courses, lessons and holidays.
-  Unauthenticated students can only view the data. The calendar is presented as a semester wall planner and as a
-  classic per-course calendar.
+  Aikana is a time-keeping and lesson calendar. A single admin (the teacher) records courses, course realizations,
+  lessons and holidays. Unauthenticated students can only view the data. The calendar is presented as a semester
+  wall planner and as a classic per-course calendar.
 
 Structure:
-  ./src/aikana/: the application package, with its entry point, models, views and auth
+  ./src/aikana/: the application package, with its entry point and feature packages for the domain entities,
+    calendar views and auth
   ./tests/: automated tests
   ./data/: local-only directory mounted into the container at `/data`
   ./README.md: how to launch the app
@@ -61,7 +62,7 @@ Tasks:
   [x] #1 Scaffold `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `requirements.txt`, `Procfile`, `.gitignore` and a minimal `main.py` that serves a page on `$PORT`
   [x] #2 Update README.md run instructions to match the working Docker setup
   [x] #3 Decide how the six-month semester range is chosen, then reflect it in ./src/aikana/semester/semester.sdd
-  [ ] #4 Implement feature packages in order, following ./src/aikana/architecture.sdd: ./src/aikana/shared/shared.sdd, ./src/aikana/auth/auth.sdd, ./src/aikana/lessons/lessons.sdd, ./src/aikana/holidays/holidays.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/day_dialog/day_dialog.sdd
+  [ ] #4 Implement feature packages in order, following ./src/aikana/architecture.sdd: ./src/aikana/shared/shared.sdd, ./src/aikana/auth/auth.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/holidays/holidays.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd, ./src/aikana/day_dialog/day_dialog.sdd
   [x] #5 Restructure into `src/aikana` and `tests`, and migrate dependencies from `requirements.txt` to `uv` and `pyproject.toml`
   [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `docker-compose.yml` targeting `dev`
 

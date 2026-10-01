@@ -1,7 +1,7 @@
 # Aikana
 
-Aikana ("time" in Finnish) is a small time-keeping app for teachers. One admin records courses, lessons and holidays.
-Students can view the calendar without logging in.
+Aikana ("time" in Finnish) is a small time-keeping app for teachers. One admin records courses, course realizations,
+lessons and holidays. Students can view the calendar without logging in.
 
 Built with Python, FastHTML, HTMX, SQLite and Tailwind CSS (Play CDN).
 
