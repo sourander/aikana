@@ -52,8 +52,13 @@ Example:
 Tasks:
   [?] Decide whether arbitrary Semesters are creatable by the admin or only the current hardcoded `2026-2027`
     academic year is supported for now
-  [ ] Implement @Semester, @SemesterRepository and the SQLite adapter
-  [ ] Render the static month columns and day rows
-  [ ] Render lesson squares and CSS tooltips through ../realizations/realizations.sdd, ../lessons/lessons.sdd and
+  [x] Implement @Semester and the hardcoded academic-year-2026-2027 period rules in ./domain.py, and a hardcoded
+    ./services.py (standing in for @SemesterRepository) that returns the single fall-2026 Semester and builds the
+    aggregated view-model consumed by ./view.py
+  [ ] Replace the hardcoded semester lookup in ./services.py with a @SemesterRepository-backed implementation
+    (./ports.py and ./repository_sqlite.py)
+  [x] Render the static month columns and day rows
+  [x] Render lesson squares and CSS tooltips through ../realizations/realizations.sdd, ../lessons/lessons.sdd and
     ../courses/courses.sdd services
-  [ ] Render holidays through ../holidays/holidays.sdd services
+  [x] Render holidays through ../holidays/holidays.sdd services
+  [x] Implement ./routes.py registering the semester view at the `/` route and wire it into ../main.py

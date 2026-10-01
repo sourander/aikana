@@ -36,4 +36,8 @@ Must:
 Tasks:
   [?] Decide the admin UI for creating a Course, a Semester and a CourseRealization before Lessons can be logged
     against it
-  [ ] Implement @CourseRealization, @CourseRealizationRepository and the SQLite adapter
+  [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
+    CourseRealizations (one per placeholder Course) for the single hardcoded Semester, including the display-label
+    composition, standing in for @CourseRealizationRepository until persistence exists
+  [ ] Replace the hardcoded ./services.py with a @CourseRealizationRepository-backed implementation (./ports.py and
+    ./repository_sqlite.py)

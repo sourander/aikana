@@ -22,5 +22,7 @@ Must not:
   repository_sqlite.py, view.py or routes.py.
 
 Tasks:
-  [ ] Implement ./db.py
-  [ ] Implement ./layout.py with the shared page shell
+  [x] Implement ./layout.py with the shared page shell (header plus the Tailwind Play CDN and HTMX headers) for the
+    first hardcoded semester-view pass
+  [ ] Implement ./db.py when real persistence begins; not needed while every feature's services.py returns
+    hardcoded placeholder data

@@ -35,5 +35,8 @@ Must:
 Tasks:
   [?] Decide whether the view shows one selected course (aggregating all its realizations), one selected
     realization, or a date range, and how the user navigates
-  [ ] Implement @Course, @CourseRepository and the SQLite adapter
+  [x] Implement @Course in ./domain.py and a hardcoded ./services.py returning two placeholder Courses, standing in
+    for @CourseRepository until persistence exists
+  [ ] Replace the hardcoded ./services.py with a @CourseRepository-backed implementation (./ports.py and
+    ./repository_sqlite.py)
   [ ] Implement the weekly grid in ./view.py and ./routes.py

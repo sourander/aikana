@@ -23,4 +23,7 @@ Must:
 
 Tasks:
   [?] Decide whether a Holiday can be deleted or edited after creation
-  [ ] Implement @Holiday, @HolidayRepository and the SQLite adapter
+  [x] Implement @Holiday in ./domain.py and a hardcoded ./services.py returning one placeholder Holiday within the
+    hardcoded Semester's date range, standing in for @HolidayRepository until persistence exists
+  [ ] Replace the hardcoded ./services.py with a @HolidayRepository-backed implementation (./ports.py and
+    ./repository_sqlite.py)

@@ -65,6 +65,7 @@ Tasks:
   [ ] #4 Implement feature packages in order, following ./src/aikana/architecture.sdd: ./src/aikana/shared/shared.sdd, ./src/aikana/auth/auth.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/holidays/holidays.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd, ./src/aikana/day_dialog/day_dialog.sdd
   [x] #5 Restructure into `src/aikana` and `tests`, and migrate dependencies from `requirements.txt` to `uv` and `pyproject.toml`
   [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `docker-compose.yml` targeting `dev`
+  [x] #7 Build a hardcoded first-pass visual semester view (one Semester, two placeholder Courses, two placeholder CourseRealizations, placeholder Lessons, one placeholder Holiday) ahead of full persistence, per the Tasks in ./src/aikana/shared/shared.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd and ./src/aikana/holidays/holidays.sdd
 
 Done when:
   The app starts in local Docker with `ADMIN_PASSWORD` set and serves both calendar views.

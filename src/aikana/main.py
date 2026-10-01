@@ -1,14 +1,13 @@
 import os
 
 import uvicorn
-from fasthtml import FastHTML
+from fasthtml.common import FastHTML
 
-app = FastHTML()
+from aikana.semester import routes as semester_routes
+from aikana.shared import layout
 
-
-@app.get("/")
-def index():
-    return "<p>Aikana</p>"
+app = FastHTML(title="Aikana", hdrs=layout.extra_headers())
+semester_routes.register_routes(app)
 
 
 def main() -> None:

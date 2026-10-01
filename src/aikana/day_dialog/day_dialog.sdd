@@ -21,8 +21,8 @@ Depends on:
 
 Must:
   Clicking a day cell opens a `<dialog>` for the admin and does nothing for unauthenticated visitors.
-  The dialog can add a Holiday (a title) or a Lesson (choosing a CourseRealization, then a time, a topic and notes)
-  for the clicked date.
+  The dialog can add a Holiday (a title) or a Lesson (choosing a CourseRealization, then a start time, an end time,
+  a topic and notes) for the clicked date.
   Submitting the form is an HTMX request that responds with the updated day cell, which replaces the old one in the
   DOM without a page reload.
   The swapped cell keeps the appearance required by the view that contains it.
@@ -30,7 +30,8 @@ Must:
 
 Scenario: Admin adds a lesson
   Given the admin is logged in and views the semester view
-  When the admin clicks a day row, chooses a course realization, enters a time, a topic and notes and submits
+  When the admin clicks a day row, chooses a course realization, enters a start time, an end time, a topic and notes
+  and submits
   Then the dialog closes and the day row shows a new colored square without a page reload
 
 Scenario: Visitor clicks a day

@@ -33,3 +33,9 @@ Must:
 Tasks:
   [ ] Implement ./shared/, then ./auth/, then ./courses/ and ./semester/ (entities), then ./holidays/, then
     ./realizations/ and ./lessons/, then ./day_dialog/, and finally wire them together in ./main.py
+  [x] Build a hardcoded first visual pass instead: ./shared/layout.py, ./courses/domain.py and a placeholder
+    ./courses/services.py, ./semester/ (domain, placeholder services, view, routes), ./realizations/domain.py and a
+    placeholder ./realizations/services.py, ./lessons/domain.py and a placeholder ./lessons/services.py, and
+    ./holidays/domain.py and a placeholder ./holidays/services.py, then register ./semester/routes.py in ./main.py.
+    ./auth/, ./day_dialog/, every ports.py/repository_sqlite.py and ./shared/db.py remain unimplemented until the
+    persistence phase, so ./main.py does not yet construct repositories per ../architecture.sdd
