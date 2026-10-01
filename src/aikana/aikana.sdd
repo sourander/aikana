@@ -28,6 +28,8 @@ Owns:
 
 Must:
   `python -m aikana.main` starts the server on the port given by `$PORT`, defaulting to `8000`.
+  `main.py` registers the compiled Tailwind stylesheet as a static route (`app.static_route`) at `/static/app.css`,
+  using `./shared/layout.py`'s `STATIC_DIR`, per ./shared/shared.sdd.
   Every feature package below has a same-basename spec inside it, following ./architecture.sdd.
   Views render for unauthenticated visitors without any editing affordances.
 

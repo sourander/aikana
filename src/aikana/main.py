@@ -33,6 +33,7 @@ semester_service = SemesterService(
 realization_service.semester_service = semester_service
 
 app = FastHTML(title="Aikana", hdrs=layout.extra_headers())
+app.static_route(ext=".css", prefix="/static/", static_path=str(layout.STATIC_DIR))
 auth_routes.register_routes(app, auth_service)
 semester_routes.register_routes(app, semester_service, auth_service)
 realizations_routes.register_routes(app, realization_service, auth_service)

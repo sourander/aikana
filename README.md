@@ -1,9 +1,9 @@
 # Aikana
 
-Aikana ("time" in Finnish) is a small time-keeping app for teachers. One admin records courses, course realizations,
+Aikana (_"time" or "within time" in Finnish_) is a small time-keeping app for teachers. One admin records courses, course realizations,
 lessons and holidays. Students can view the calendar without logging in.
 
-Built with Python, FastHTML, HTMX, SQLite and Tailwind CSS (Play CDN).
+Built with Python, FastHTML, HTMX, SQLite and Tailwind CSS (compiled with the Tailwind CLI).
 
 Views:
 
@@ -30,7 +30,7 @@ mkdir -p data
 ADMIN_PASSWORD=change-me docker compose up --build
 ```
 
-Then open <http://localhost:8000>. The `./data` directory is mounted at `/data` in the container, so the database
+Then open [localhost:8000](http://localhost:8000). The `./data` directory is mounted at `/data` in the container, so the database
 survives restarts. Stop the app with `docker compose down`.
 
 ## Develop without Docker
@@ -41,6 +41,13 @@ Requires [uv](https://docs.astral.sh/uv/).
 uv sync                    # create .venv and install locked dependencies
 uv run pytest              # run the tests in tests/
 uv run python -m aikana.main
+```
+
+The compiled stylesheet (`src/aikana/shared/static/app.css`) is normally produced by `Dockerfile`'s `css` stage. For
+this run mode, generate it once with the [standalone Tailwind CLI](https://tailwindcss.com/blog/standalone-cli):
+
+```sh
+tailwindcss -i src/aikana/shared/static/input.css -o src/aikana/shared/static/app.css
 ```
 
 ## Deployment

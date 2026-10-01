@@ -1,8 +1,12 @@
-"""The shared page shell: header plus the Tailwind Play CDN and HTMX headers."""
+"""The shared page shell: header plus the compiled Tailwind stylesheet and HTMX headers."""
 
-from fasthtml.common import A, Div, H1, Header, Script
+from pathlib import Path
 
-_TAILWIND_CDN_SRC = "https://cdn.tailwindcss.com"
+from fasthtml.common import A, Div, H1, Header, Link
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+_TAILWIND_CSS_HREF = "/static/app.css"
 
 _NAV_LINKS = (
     ("semester", "Semester", "/"),
@@ -12,7 +16,8 @@ _NAV_LINKS = (
 
 def extra_headers() -> tuple:
     """Extra <head> tags to pass into FastHTML(hdrs=...); HTMX is already added by FastHTML itself."""
-    return (Script(src=_TAILWIND_CDN_SRC),)
+    return (Link(rel="stylesheet", href=_TAILWIND_CSS_HREF),)
+
 
 
 def _nav(active: str):

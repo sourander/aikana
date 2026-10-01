@@ -37,7 +37,8 @@ Must:
   Unauthenticated visitors can view all data and cannot create, change or delete anything.
   Only the authenticated admin can write data.
   All UI text is in English.
-  Tailwind CSS is delivered through the Play CDN script, so no Node build step exists.
+  Tailwind CSS is compiled ahead of time with the standalone Tailwind CLI in `Dockerfile`'s `css` stage (no
+  Node.js/npm toolchain) and served as a static file; the Play CDN script (`cdn.tailwindcss.com`) must not be used.
   Dependencies are declared in `pyproject.toml` and locked in `uv.lock`, and every Docker stage installs exactly the
   locked set with `uv`.
   `Dockerfile` has a `base` stage with the common setup, a `dev` stage and a `prod` stage that both inherit from
@@ -67,6 +68,7 @@ Tasks:
   [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `docker-compose.yml` targeting `dev`
   [x] #7 Build a hardcoded first-pass visual semester view (one Semester, two placeholder Courses, two placeholder CourseRealizations, placeholder Lessons, one placeholder Holiday) ahead of full persistence, per the Tasks in ./src/aikana/shared/shared.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd and ./src/aikana/holidays/holidays.sdd
   [x] #8 Remove all hardcoded data: implement `fastlite`-backed persistence (./src/aikana/shared/db.py plus every feature's ports.py/repository_sqlite.py) and minimal admin auth (./src/aikana/auth/auth.sdd), so `/` boots correctly with zero Semesters (showing a create-Semester form) and the admin can create one; ./src/aikana/realizations/realizations.sdd's weekly view still renders nothing but its empty state since no CourseRealizations exist yet
+  [x] #9 Stop serving Tailwind CSS from the Play CDN (`cdn.tailwindcss.com`, unsupported for production): add a `css` build stage to `Dockerfile` that compiles `./src/aikana/shared/static/app.css` from a new `./src/aikana/shared/static/input.css` with the standalone Tailwind CLI, serve it from `./src/aikana/main.py` via a static route, and update `./src/aikana/shared/layout.py` to link it instead of injecting the CDN `<script>`
 
 Done when:
   The app starts in local Docker with `ADMIN_PASSWORD` set and serves both calendar views.

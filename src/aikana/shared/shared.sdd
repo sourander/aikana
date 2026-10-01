@@ -7,15 +7,24 @@ Purpose:
 Owns:
   ./db.py
   ./layout.py
+  ./static/input.css
+  ./static/app.css
 
 References:
   ../architecture.sdd
+  /Dockerfile
 
 Must:
   ./db.py opens the `fastlite` `Database` at `/data/app.db`, creating the parent directory when it does not exist,
   and exposes the single connection that every feature's repository_sqlite.py imports.
-  ./layout.py renders the shared page shell: header, the Tailwind Play CDN script tag and the HTMX script tag, used
-  by every feature's view.py.
+  ./layout.py renders the shared page shell: header, a `<link>` to the compiled Tailwind stylesheet and the HTMX
+  script tag, used by every feature's view.py.
+  ./static/input.css is the Tailwind CLI input (`@import "tailwindcss"` plus an explicit `@source` covering every
+  feature package's Python files, since utility classes live in `cls="..."` strings rather than templates).
+  ./static/app.css is the compiled, minified stylesheet produced from ./static/input.css by the standalone
+  Tailwind CLI in the `css` stage of /Dockerfile; it is a build artifact and is `.gitignore`d, not hand edited.
+  `main.py` serves ./static/app.css at `/static/app.css` via `app.static_route`, using `layout.STATIC_DIR` so the
+  path resolves regardless of the process's working directory.
   ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`) and the Realization view
   (`/realizations`), highlighting whichever one the calling route registers as active, and a slot for that page's
   own selector control (for example a Semester or CourseRealization dropdown); it takes the active link name and the
@@ -34,3 +43,7 @@ Tasks:
     slot for each view's own selector dropdown
   [x] Implement ./db.py: the shared `fastlite` `Database` connection at `/data/app.db`, now that real persistence
     begins
+  [x] Replace the Tailwind Play CDN script (cdn.tailwindcss.com is unsupported for production) with a Tailwind CLI
+    build: add ./static/input.css, compile ./static/app.css with the standalone CLI in the `css` stage of
+    /Dockerfile, serve it from `main.py` via `app.static_route`, and update ./layout.py to link it instead of
+    injecting the CDN `<script>`

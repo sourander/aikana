@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Utility classes live in Python `cls="..."` strings, not templates, so scan every feature package's source. */
+@source "../../**/*.py";
