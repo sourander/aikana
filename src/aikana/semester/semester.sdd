@@ -28,7 +28,7 @@ Must:
   A Semester has a year and a term of `spring` or `fall`; the year and term combination is unique.
   @SemesterRepository in ./ports.py exposes list, get and add operations backing ./services.py.
   The semester periods are the four periods of academic year `2026-2027`, with semesters spanning the period groups
-  `2026-08-01` to `2026-12-31` and `2027-01-01` to `2027-07-31`.
+  `2026-08-01` to `2026-12-31` and `2027-01-01` to `2027-06-30`.
   The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
   semester, `, 1fr)`, and `gap: 10px`. A semester of five months renders five columns.
   The container height is `100vh` minus the header height, so a 1080p screen shows the whole semester without
@@ -46,8 +46,8 @@ Must:
 Example:
   semester 1: `2026-08` to `2026-12`
   columns: `repeat(5, 1fr)`
-  semester 2: `2027-01` to `2027-07`
-  columns: `repeat(7, 1fr)`
+  semester 2: `2027-01` to `2027-06`
+  columns: `repeat(6, 1fr)`
 
 Tasks:
   [?] Decide whether arbitrary Semesters are creatable by the admin or only the current hardcoded `2026-2027`
