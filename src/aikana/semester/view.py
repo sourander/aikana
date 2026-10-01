@@ -32,6 +32,10 @@ def create_semester_form(error: str = ""):
     )
 
 
+def no_semester_notice():
+    return P("No Semester has been created yet.", cls="p-4 text-sm text-gray-500")
+
+
 def new_semester_control():
     return A("+ New Semester", href="/semesters/new", cls="text-sm text-blue-700 hover:text-blue-900")
 

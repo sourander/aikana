@@ -1,16 +1,36 @@
+import pytest
 from starlette.testclient import TestClient
 
+ADMIN_PASSWORD = "test-password"
 
-def test_index_serves_empty_state_page(tmp_path, monkeypatch):
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
     # FastHTML writes a session key file into the working directory on import.
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ADMIN_PASSWORD", ADMIN_PASSWORD)
     from aikana.shared import db
 
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "app.db")
+    monkeypatch.setattr(db, "_db", None)
     from aikana.main import app
 
-    response = TestClient(app).get("/")
+    return TestClient(app)
+
+
+def test_index_shows_no_semester_notice_to_a_visitor(client):
+    response = client.get("/")
+
     assert response.status_code == 200
     assert "Aikana" in response.text
-    assert "Create Semester" in response.text
+    assert "No Semester has been created yet." in response.text
+    assert "Create Semester" not in response.text
 
+
+def test_index_shows_the_create_semester_form_to_the_admin(client):
+    client.post("/login", data={"password": ADMIN_PASSWORD}, follow_redirects=True)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Create a Semester to get started." in response.text

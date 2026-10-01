@@ -31,9 +31,10 @@ Must:
   The admin can create a new Semester by submitting a year and a term through a form; the submission is rejected
   by ../auth/auth.sdd's guard for non-admin sessions, and rejected with a validation message when the year+term
   combination already exists.
-  When no Semesters exist, ./routes.py renders the create-Semester form as `/`'s primary content instead of the
-  wall planner. Once at least one Semester exists, a small persistent admin-only "+ New Semester" control sits
-  next to the Semester selector, linking to the same form.
+  When no Semesters exist, ./routes.py renders the create-Semester form as `/`'s primary content for an admin
+  session instead of the wall planner; a visitor instead sees a neutral notice and no form. Once at least one
+  Semester exists, a small persistent admin-only "+ New Semester" control sits next to the Semester selector, linking
+  to the same form.
   The semester periods follow a fixed rule from the year and term alone, so any arbitrary Semester's period is
   computed, never looked up: a `fall` Semester spans `<year>-08-01` to `<year>-12-31`; a `spring` Semester spans
   `<year>-01-01` to `<year>-06-30`.

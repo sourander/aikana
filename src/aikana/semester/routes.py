@@ -15,14 +15,16 @@ def register_routes(app, semester_service: SemesterService, auth_service: AuthSe
     @app.get("/")
     def index(session, semester_id: str = ""):
         semester = semester_service.get_semester(semester_id) or semester_service.get_default_semester()
-        admin_link = auth_view.header_link(auth_service.is_admin(session))
+        is_admin = auth_service.is_admin(session)
+        admin_link = auth_view.header_link(is_admin)
 
         if semester is None:
-            return layout.page(view.create_semester_form(), active_nav="semester", admin_link=admin_link)
+            content = view.create_semester_form() if is_admin else view.no_semester_notice()
+            return layout.page(content, active_nav="semester", admin_link=admin_link)
 
         view_model = semester_service.build_semester_view_model(semester)
         selector = view.semester_selector(semester_service.list_semester_options(), semester.id)
-        if auth_service.is_admin(session):
+        if is_admin:
             selector = Div(selector, view.new_semester_control(), cls="flex items-center gap-3")
         return layout.page(
             view.semester_view(view_model), active_nav="semester", selector=selector, admin_link=admin_link
