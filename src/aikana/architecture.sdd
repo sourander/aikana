@@ -1,10 +1,19 @@
 Spec: Architecture
 
 Purpose:
-  The lightweight Clean Architecture (Ports and Adapters) convention followed by every feature package under
+  The lightweight Ports and Adapters (Hexagonal) convention followed by every feature package under
   ./ (`src/aikana/`). It keeps FastHTML routes, rendered views and the SQLite adapter at the edges, and keeps domain
   rules and use cases in plain Python modules with no framework imports. This spec is the shared contract that every
   feature package's own spec references instead of restating.
+  Architectural Pattern: This project strictly adheres to Ports and Adapters.
+  Justification: Each feature package draws the inside/outside boundary with core-owned ports.py `typing.Protocol`
+    interfaces (for example @CourseRepository and @SemesterRepository) that repository_sqlite.py implements as
+    driven adapters, while routes.py is the driving adapter, and ./main.py wires adapters to services as the
+    composition root. The core is two flat modules per feature package (domain.py and services.py) inside vertical
+    feature slices, not concentric Entities, Use Cases, Interface Adapters and Frameworks and Drivers layers.
+  Hybrid characteristics: The domain.py (entity rules) versus services.py (use case orchestration) split and the
+    inward-only dependency rule echo Clean Architecture, but only driven ports exist and routes.py calls concrete
+    service classes rather than a primary port, and there are no controller or presenter layers beyond view.py.
 
 Structure:
   domain.py: plain dataclasses and business rules for the package's entity or entities; no imports beyond the

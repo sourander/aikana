@@ -9,7 +9,7 @@ Read `.specdd/bootstrap.md` for the full rules. The essentials are below.
 ## Where things are
 
 - `aikana.sdd`: root spec with global rules, owned top-level files and the project task list.
-- `src/aikana/architecture.sdd`: the Clean Architecture / Ports-and-Adapters contract every feature package follows.
+- `src/aikana/architecture.sdd`: the Ports and Adapters (Hexagonal) contract every feature package follows.
 - `src/aikana/aikana.sdd`: governs the `aikana` package directory and lists its feature packages.
 - `src/aikana/<feature>/<feature>.sdd`: one spec per feature package (e.g. `courses/courses.sdd`), governing the
   `domain.py`, `ports.py`, `services.py`, `repository_sqlite.py`, `view.py` and `routes.py` it owns.
