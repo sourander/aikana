@@ -17,7 +17,7 @@ COPY src/ ./src/
 RUN tailwindcss -i ./src/aikana/shared/static/input.css -o ./src/aikana/shared/static/app.css --minify
 
 
-# ---- base: setup shared by dev and prod ----
+# ---- base: setup shared by test and prod ----
 FROM python:3.13-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /uvx /bin/
@@ -39,13 +39,17 @@ EXPOSE 8000
 CMD ["python", "-m", "aikana.main"]
 
 
-# ---- dev: base plus the development dependency group ----
-FROM base AS dev
+# ---- test: base plus the application and the development dependency group, then
+# run the suite during the build ----
+FROM base AS test
 
+# Development dependencies only. This layer is cached until the lock file changes.
 RUN uv sync --locked --no-install-project
 COPY src/ ./src/
 COPY --from=css /app/src/aikana/shared/static/app.css ./src/aikana/shared/static/app.css
 RUN uv sync --locked
+COPY tests/ ./tests/
+RUN pytest
 
 
 # ---- prod: base plus the application only. Keep this the LAST stage, so that

@@ -30,7 +30,8 @@ Do not write or maintain tasks manually. Instead, use the LLM as your PM and arc
    Specs describe the lasting contract, not the ticket that caused the change.
 4. **Ask the agent to do that one task.** Name the spec or path. The agent works only in files that the spec owns or
    may modify, and it stops to ask otherwise.
-5. **Test locally in Docker.** Run the app and check the behavior yourself.
+5. **Test locally in Docker.** Run `docker build --target test .` for the suite, then `docker compose up --build` and
+   check the behavior yourself.
 6. **Lint the specs.** Run `specdd lint .`.
 7. **Close the task.** Mark it `[x]` only after the change and its checks are done. Use `[!]` for blocked work and
    `[?]` for an open decision, and resolve `[?]` items before the code depends on them.
@@ -55,4 +56,6 @@ Do not write or maintain tasks manually. Instead, use the LLM as your PM and arc
 specdd lint .                       # validate all specs
 specdd resolve .                    # show which specs apply to an existing path
 specdd inspect .                    # overview of specs and sections
+uv run pytest                       # run the tests on the host
+docker build --target test .        # run the tests in the test stage
 ```

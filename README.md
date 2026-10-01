@@ -33,6 +33,15 @@ ADMIN_PASSWORD=change-me docker compose up --build
 Then open [localhost:8000](http://localhost:8000). The `./data` directory is mounted at `/data` in the container, so the database
 survives restarts. Stop the app with `docker compose down`.
 
+`docker compose` builds the `prod` stage, so you run locally exactly the image that gets deployed.
+
+## Run the tests in Docker
+
+```sh
+docker build --target test -t aikana:test .    # builds the app and runs the suite
+docker run --rm aikana:test pytest             # run it again without rebuilding
+```
+
 ## Develop without Docker
 
 Requires [uv](https://docs.astral.sh/uv/).
@@ -56,10 +65,9 @@ Deployment is set up and run by the maintainer and is out of scope for this repo
 Docker image: a plain `docker build .` builds the last stage of `Dockerfile` (`prod`), which contains no development
 dependencies. A persistent volume must be mounted at `/data`, and `ADMIN_PASSWORD` must be set.
 
-To build the stages by hand:
+To build the production image by hand:
 
 ```sh
-docker build --target dev  -t aikana:dev  .    # what docker compose uses
 docker build --target prod -t aikana:prod .    # same as a plain `docker build .`
 ```
 

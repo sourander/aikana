@@ -14,7 +14,7 @@ Structure:
   ./README.md: how to launch the app
   ./CONTRIBUTE.md: how to develop iteratively with SpecDD
   ./Dockerfile: multi-stage image definition shared by local testing and production
-  ./docker-compose.yml: local run configuration that builds the `dev` stage and mounts `./data` at `/data`
+  ./docker-compose.yml: local run configuration that builds the `prod` stage and mounts `./data` at `/data`
   ./pyproject.toml: package metadata, dependencies and tool configuration
   ./uv.lock: locked dependency versions produced by `uv`
 
@@ -41,10 +41,11 @@ Must:
   Node.js/npm toolchain) and served as a static file; the Play CDN script (`cdn.tailwindcss.com`) must not be used.
   Dependencies are declared in `pyproject.toml` and locked in `uv.lock`, and every Docker stage installs exactly the
   locked set with `uv`.
-  `Dockerfile` has a `base` stage with the common setup, a `dev` stage and a `prod` stage that both inherit from
-  `base`. `prod` is the last stage, so a plain `docker build` produces the production image, and it installs no
-  development dependencies.
-  `docker-compose.yml` builds the `dev` stage through `target: dev`.
+  `Dockerfile` has a `base` stage with the common setup, a `test` stage and a `prod` stage that both inherit from
+  `base`. `test` installs the application the same way `prod` does, adds the `dev` dependency group, copies `./tests`
+  and runs `pytest` during the build. `prod` is the last stage, so a plain `docker build` produces the production
+  image without development dependencies or tests.
+  `docker-compose.yml` builds the `prod` stage through `target: prod`, so local runs exercise the deployed image.
   The container starts the app with `python -m aikana.main`, so no `Procfile` exists.
   The repository root contains no application source files.
   Development proceeds in small increments and every increment is tested locally in Docker first.
@@ -74,4 +75,5 @@ Done when:
   The app starts in local Docker with `ADMIN_PASSWORD` set and serves both calendar views.
   Data written by the admin survives a container restart through the `./data` volume.
   `uv run pytest` passes.
+  `docker build --target test .` passes.
   `specdd lint` passes.
