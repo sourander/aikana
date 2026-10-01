@@ -16,6 +16,10 @@ Must:
   and exposes the single connection that every feature's repository_sqlite.py imports.
   ./layout.py renders the shared page shell: header, the Tailwind Play CDN script tag and the HTMX script tag, used
   by every feature's view.py.
+  ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`) and the Realization view
+  (`/realizations`), highlighting whichever one the calling route registers as active, and a slot for that page's
+  own selector control (for example a Semester or CourseRealization dropdown); it takes the active link name and the
+  already-rendered selector as plain arguments so it still needs no feature imports.
 
 Must not:
   ./db.py and ./layout.py must not import any feature package's domain.py, ports.py, services.py,
@@ -24,5 +28,7 @@ Must not:
 Tasks:
   [x] Implement ./layout.py with the shared page shell (header plus the Tailwind Play CDN and HTMX headers) for the
     first hardcoded semester-view pass
+  [x] Extend ./layout.py's header with the horizontal top-bar nav between the Semester and Realization views and a
+    slot for each view's own selector dropdown
   [ ] Implement ./db.py when real persistence begins; not needed while every feature's services.py returns
     hardcoded placeholder data

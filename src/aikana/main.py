@@ -3,11 +3,13 @@ import os
 import uvicorn
 from fasthtml.common import FastHTML
 
+from aikana.realizations import routes as realizations_routes
 from aikana.semester import routes as semester_routes
 from aikana.shared import layout
 
 app = FastHTML(title="Aikana", hdrs=layout.extra_headers())
 semester_routes.register_routes(app)
+realizations_routes.register_routes(app)
 
 
 def main() -> None:

@@ -1,17 +1,21 @@
-Spec: CourseRealization entity
+Spec: CourseRealization entity and weekly view
 
 Purpose:
   The CourseRealization entity: one offering of a Course, taught during one Semester for one group. It is the hub
   that ties a Course and a Semester to the Lessons taught in it. For example, the Course `Machine Learning` has a
   realization for group `TTV24SP` during the fall 2026 Semester; that realization is what the Lessons actually taught
-  in that offering reference. A view-less, route-less package used by ../courses/courses.sdd,
-  ../semester/semester.sdd, ../lessons/lessons.sdd and ../day_dialog/day_dialog.sdd.
+  in that offering reference. The package also owns the per-CourseRealization weekly table (one row per calendar
+  week, with `Week`, `Lessons` and `Notes` columns), the single view a visitor or the admin lands on to see one
+  realization's Lessons, resolving ../courses/courses.sdd's former open decision in favor of "one selected
+  realization" over an aggregated per-Course or date-range view.
 
 Owns:
   ./domain.py
   ./ports.py
   ./services.py
   ./repository_sqlite.py
+  ./view.py
+  ./routes.py
 
 References:
   ../architecture.sdd
@@ -20,6 +24,8 @@ Depends on:
   ../shared/shared.sdd
   ../courses/courses.sdd
   ../semester/semester.sdd
+  ../lessons/lessons.sdd
+  ../holidays/holidays.sdd
 
 Must:
   A CourseRealization has a reference to exactly one Course, a reference to exactly one Semester and a free-text
@@ -32,12 +38,35 @@ Must:
   Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
   ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
   The table is created automatically on startup when it does not exist.
+  ./routes.py registers the weekly view at `/realizations`, reading the realization to show from the `realization_id`
+  query parameter so a link to one realization's weekly view is shareable; when the parameter is absent or unknown,
+  it falls back to the first realization of the currently active Semester (../semester/semester.sdd's
+  default-selection rule).
+  The weekly view's realization dropdown lists only the realizations of the currently active Semester, never every
+  realization ever created, to avoid clutter; switching it updates the `realization_id` query parameter without a
+  full page reload.
+  Each week is one table row: a `Week` column with the ISO week number (in a larger, dominant font) and the week's
+  date range underneath, a `Lessons` column and a `Notes` column. A week with more than one Lesson (or a Lesson and a
+  Holiday) shows one sub-row per entry under that single week; the `Week` cell spans all of that week's sub-rows
+  (`rowspan`) so it still reads as one row. A Lesson sub-row shows its time range and topic in the `Lessons` column
+  and its free-text notes in the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in
+  the `Lessons` column with an empty `Notes` cell. A week with neither shows a single empty sub-row.
+  Clicking a lesson square in ../semester/semester.sdd's wall planner navigates to this view with that lesson's
+  `realization_id`.
+  ./view.py and ./routes.py depend on ../lessons/lessons.sdd even though ../lessons/lessons.sdd also depends on this
+  package: this is the same safe join-entity pattern as the ../courses/courses.sdd and ../semester/semester.sdd
+  mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
+  the boundary.
+  For the admin, clicking a day cell opens the dialog specified in ../day_dialog/day_dialog.sdd.
 
 Tasks:
-  [?] Decide the admin UI for creating a Course, a Semester and a CourseRealization before Lessons can be logged
-    against it
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
     CourseRealizations (one per placeholder Course) for the single hardcoded Semester, including the display-label
     composition, standing in for @CourseRealizationRepository until persistence exists
   [ ] Replace the hardcoded ./services.py with a @CourseRealizationRepository-backed implementation (./ports.py and
     ./repository_sqlite.py)
+  [x] Implement the weekly grid in ./view.py, the realization dropdown scoped to the active Semester, and
+    ./routes.py registering `/realizations` with the shareable `realization_id` query parameter
+  [?] Decide the admin UI for creating a Course, a Semester and a CourseRealization before Lessons can be logged
+    against it
+

@@ -1,42 +1,30 @@
-Spec: Course entity and course view
+Spec: Course entity
 
 Purpose:
-  The Course entity (a unique name, a description and an ECTS credit count) and the classic per-course calendar,
-  one row per calendar week and one column per weekday.
+  The Course entity: a unique name, a description and an ECTS credit count. A view-less, route-less package; the
+  weekly calendar is per-CourseRealization and lives in ../realizations/realizations.sdd, which reads Courses
+  through ./services.py to compose its display label.
 
 Owns:
   ./domain.py
   ./ports.py
   ./services.py
   ./repository_sqlite.py
-  ./view.py
-  ./routes.py
 
 References:
   ../architecture.sdd
 
 Depends on:
   ../shared/shared.sdd
-  ../realizations/realizations.sdd
-  ../lessons/lessons.sdd
-  ../holidays/holidays.sdd
-  ../day_dialog/day_dialog.sdd
 
 Must:
   A Course has a unique name, a description and an ECTS credit count.
   No color is stored on a Course; ../semester/semester.sdd's view assigns display colors dynamically per
   CourseRealization.
   @CourseRepository in ./ports.py exposes list, get and add operations backing ./services.py.
-  Each row of the course view is one calendar week and columns are days of the week.
-  Lessons and holidays are shown on their day cell, read through ../realizations/realizations.sdd,
-  ../lessons/lessons.sdd and ../holidays/holidays.sdd services rather than their repositories directly.
-  For the admin, clicking a day cell opens the dialog specified in ../day_dialog/day_dialog.sdd.
 
 Tasks:
-  [?] Decide whether the view shows one selected course (aggregating all its realizations), one selected
-    realization, or a date range, and how the user navigates
   [x] Implement @Course in ./domain.py and a hardcoded ./services.py returning two placeholder Courses, standing in
     for @CourseRepository until persistence exists
   [ ] Replace the hardcoded ./services.py with a @CourseRepository-backed implementation (./ports.py and
     ./repository_sqlite.py)
-  [ ] Implement the weekly grid in ./view.py and ./routes.py

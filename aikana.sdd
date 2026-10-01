@@ -4,7 +4,7 @@ Platform: Python/FastHTML/HTMX/SQLite/Tailwind CSS
 Purpose:
   Aikana is a time-keeping and lesson calendar. A single admin (the teacher) records courses, course realizations,
   lessons and holidays. Unauthenticated students can only view the data. The calendar is presented as a semester
-  wall planner and as a classic per-course calendar.
+  wall planner and as a per-CourseRealization weekly calendar.
 
 Structure:
   ./src/aikana/: the application package, with its entry point and feature packages for the domain entities,

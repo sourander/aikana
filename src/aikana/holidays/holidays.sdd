@@ -1,7 +1,7 @@
 Spec: Holiday entity
 
 Purpose:
-  The Holiday entity: a date and a title. A view-less, route-less package used by ../courses/courses.sdd,
+  The Holiday entity: a date and a title. A view-less, route-less package used by ../realizations/realizations.sdd,
   ../semester/semester.sdd and ../day_dialog/day_dialog.sdd.
 
 Owns:

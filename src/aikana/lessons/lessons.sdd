@@ -2,8 +2,8 @@ Spec: Lesson entity
 
 Purpose:
   The Lesson entity: a date, a start time and an end time, a topic, free-text notes and a reference to a
-  CourseRealization. A view-less, route-less package used by ../courses/courses.sdd, ../semester/semester.sdd and
-  ../day_dialog/day_dialog.sdd.
+  CourseRealization. A view-less, route-less package used by ../realizations/realizations.sdd,
+  ../semester/semester.sdd and ../day_dialog/day_dialog.sdd.
 
 Owns:
   ./domain.py

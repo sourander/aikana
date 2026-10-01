@@ -11,9 +11,10 @@ Structure:
   ./architecture.sdd: the Clean Architecture / Ports-and-Adapters contract shared by every feature package below
   ./shared/: cross-cutting kernel (database connection, page layout shell) with no business rules of its own
   ./auth/: admin login, logout and the write guard used by other feature packages
-  ./courses/: the Course entity and the per-course calendar view
+  ./courses/: the Course entity
   ./semester/: the Semester entity and the semester wall planner view
-  ./realizations/: the CourseRealization entity linking a Course, a Semester and a group to its Lessons
+  ./realizations/: the CourseRealization entity linking a Course, a Semester and a group to its Lessons, and the
+    per-CourseRealization weekly calendar view
   ./lessons/: the Lesson entity
   ./holidays/: the Holiday entity
   ./day_dialog/: the admin dialog for adding or editing a Lesson or a Holiday on a given day
@@ -39,3 +40,7 @@ Tasks:
     ./holidays/domain.py and a placeholder ./holidays/services.py, then register ./semester/routes.py in ./main.py.
     ./auth/, ./day_dialog/, every ports.py/repository_sqlite.py and ./shared/db.py remain unimplemented until the
     persistence phase, so ./main.py does not yet construct repositories per ../architecture.sdd
+  [x] Add the top-bar navigation and default-by-date Semester selection in ./shared/layout.py and ./semester/, and
+    the per-CourseRealization weekly view with its own dropdown in ./realizations/view.py and ./realizations/routes.py,
+    resolving ./courses/courses.sdd's former open per-view decision in favor of ./realizations/realizations.sdd;
+    wire ./realizations/routes.py into ./main.py alongside ./semester/routes.py

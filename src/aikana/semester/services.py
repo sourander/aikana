@@ -14,7 +14,10 @@ from ..lessons import services as lessons_services
 from ..realizations import services as realizations_services
 from . import domain
 
-_SEMESTERS = {"semester-1": domain.Semester(id="semester-1", year=2026, term="fall")}
+_SEMESTERS = {
+    "semester-1": domain.Semester(id="semester-1", year=2026, term="fall"),
+    "semester-2": domain.Semester(id="semester-2", year=2027, term="spring"),
+}
 
 PALETTE = [
     "#2563eb",  # blue
@@ -29,6 +32,7 @@ PALETTE = [
 @dataclass(frozen=True)
 class LessonSquare:
     color: str
+    realization_id: str
     realization_label: str
     start_time: time
     end_time: time
@@ -56,8 +60,28 @@ class SemesterViewModel:
     months: list[MonthColumn]
 
 
-def get_current_semester() -> domain.Semester:
-    return _SEMESTERS["semester-1"]
+def list_semesters() -> list[domain.Semester]:
+    return list(_SEMESTERS.values())
+
+
+def get_semester(semester_id: str) -> domain.Semester | None:
+    return _SEMESTERS.get(semester_id)
+
+
+def get_default_semester(today: date | None = None) -> domain.Semester:
+    return domain.default_semester(list(_SEMESTERS.values()), today or date.today())
+
+
+def semester_bounds(semester: domain.Semester) -> tuple[date, date]:
+    return domain.semester_bounds(semester)
+
+
+def semester_label(semester: domain.Semester) -> str:
+    return f"{semester.term.capitalize()} {semester.year}"
+
+
+def list_semester_options() -> list[tuple[str, str]]:
+    return [(semester.id, semester_label(semester)) for semester in list_semesters()]
 
 
 def build_semester_view_model(semester: domain.Semester) -> SemesterViewModel:
@@ -74,6 +98,7 @@ def build_semester_view_model(semester: domain.Semester) -> SemesterViewModel:
             squares_by_day.setdefault(lesson.date, []).append(
                 LessonSquare(
                     color=colors[realization.id],
+                    realization_id=realization.id,
                     realization_label=labels[realization.id],
                     start_time=lesson.start_time,
                     end_time=lesson.end_time,

@@ -41,7 +41,18 @@ Must:
   fixed palette at render time; no color is stored in the database.
   Hovering a square shows lesson details through a pure CSS tooltip that does not change the row height.
   Holidays are visibly distinguished on their day row and show their title.
+  Saturdays and Sundays are visibly distinguished with the same mild tint as a Holiday row, even on a week with no
+  Holiday, since no lessons are taught on weekends by default.
   For the admin, clicking a day row opens the dialog specified in ../day_dialog/day_dialog.sdd.
+  Clicking a lesson square navigates to ../realizations/realizations.sdd's weekly view for that lesson's
+  CourseRealization.
+  ./routes.py registers the view at `/`, reading the Semester to show from the `semester_id` query parameter so a
+  link to one Semester's wall planner is shareable; when the parameter is absent or unknown, it defaults to the
+  Semester whose period has most recently started on or before today, or the earliest Semester if none has started
+  yet. For example, today `2026-10-01` defaults to fall 2026, and a visit on `2027-07-15` (after spring 2027 ends
+  and before any later Semester starts) still defaults to spring 2027, the previous one.
+  A dropdown lists every Semester from ./services.py so the admin or visitor can switch; switching it updates the
+  `semester_id` query parameter without a full page reload.
 
 Example:
   semester 1: `2026-08` to `2026-12`
@@ -62,3 +73,6 @@ Tasks:
     ../courses/courses.sdd services
   [x] Render holidays through ../holidays/holidays.sdd services
   [x] Implement ./routes.py registering the semester view at the `/` route and wire it into ../main.py
+  [x] Implement the default-by-date Semester selection in ./domain.py and ./services.py, the Semester dropdown, the
+    shareable `semester_id` query parameter, and linking each lesson square to ../realizations/realizations.sdd's
+    weekly view

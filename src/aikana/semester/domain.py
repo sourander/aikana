@@ -35,3 +35,10 @@ def semester_months(semester: Semester) -> list[tuple[int, int]]:
             month = 1
             year += 1
     return months
+
+
+def default_semester(semesters: list[Semester], today: date) -> Semester:
+    """The Semester whose period most recently started on or before `today`, else the earliest, per ./semester.sdd."""
+    ordered = sorted(semesters, key=lambda semester: semester_bounds(semester)[0])
+    started = [semester for semester in ordered if semester_bounds(semester)[0] <= today]
+    return started[-1] if started else ordered[0]
