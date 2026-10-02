@@ -7,6 +7,6 @@ services:
       - "8000:8000"
     environment:
       PORT: "8000"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      AIKANA_PASSWD: "${AIKANA_PASSWD:-}"
     volumes:
       - ./data:/data

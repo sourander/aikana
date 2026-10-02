@@ -6,6 +6,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .specdd/
-docker-compose.yml
+compose.yml
 CONTRIBUTE.md
 *.sdd

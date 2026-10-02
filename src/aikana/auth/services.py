@@ -4,11 +4,11 @@ import hmac
 
 
 class AuthService:
-    def __init__(self, admin_password: str) -> None:
-        self.admin_password = admin_password
+    def __init__(self, AIKANA_PASSWD: str) -> None:
+        self.AIKANA_PASSWD = AIKANA_PASSWD
 
     def login(self, session: dict, password: str) -> bool:
-        if not self.admin_password or not hmac.compare_digest(password, self.admin_password):
+        if not self.AIKANA_PASSWD or not hmac.compare_digest(password, self.AIKANA_PASSWD):
             return False
         session["admin"] = True
         return True

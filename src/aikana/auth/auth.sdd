@@ -21,11 +21,11 @@ Exposes:
   admin-only controls (for example a "+ New Semester" control), separate from the write-rejecting guard.
 
 Must:
-  A login form checks the submitted password against `ADMIN_PASSWORD` and on success stores admin status in the
+  A login form checks the submitted password against `AIKANA_PASSWD` and on success stores admin status in the
   signed session.
   A logout action clears the admin session.
   The password comparison is constant-time.
-  Login is impossible when `ADMIN_PASSWORD` is unset or empty.
+  Login is impossible when `AIKANA_PASSWD` is unset or empty.
   The shared page shell shows a login link to visitors and a logout link to the admin.
 
 Must not:

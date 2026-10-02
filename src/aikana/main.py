@@ -22,7 +22,7 @@ from aikana.shared import layout
 course_service = CourseService(SqliteCourseRepository())
 holiday_service = HolidayService(SqliteHolidayRepository())
 lesson_service = LessonService(SqliteLessonRepository())
-auth_service = AuthService(os.environ.get("ADMIN_PASSWORD", ""))
+auth_service = AuthService(os.environ.get("AIKANA_PASSWD", ""))
 
 # RealizationService and SemesterService are a genuine mutual pair; realization_service is constructed first
 # without a semester_service, then wired onto it once semester_service exists, per ../architecture.sdd.

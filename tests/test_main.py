@@ -1,14 +1,14 @@
 import pytest
 from starlette.testclient import TestClient
 
-ADMIN_PASSWORD = "test-password"
+AIKANA_PASSWD = "test-password"
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     # FastHTML writes a session key file into the working directory on import.
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("ADMIN_PASSWORD", ADMIN_PASSWORD)
+    monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
     from aikana.shared import db
 
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "app.db")
@@ -28,7 +28,7 @@ def test_index_shows_no_semester_notice_to_a_visitor(client):
 
 
 def test_index_shows_the_create_semester_form_to_the_admin(client):
-    client.post("/login", data={"password": ADMIN_PASSWORD}, follow_redirects=True)
+    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
 
     response = client.get("/")
 

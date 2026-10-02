@@ -18,7 +18,7 @@ Views:
 
 | Variable         | Purpose                                                  |
 |------------------|----------------------------------------------------------|
-| `ADMIN_PASSWORD` | Password of the single admin. Login is disabled if unset |
+| `AIKANA_PASSWD` | Password of the single admin. Login is disabled if unset |
 | `PORT`           | Port the app listens on (set automatically by Dokku)     |
 
 The SQLite database is stored at `/data/app.db`. Mount a volume at `/data` to persist it.
@@ -27,7 +27,7 @@ The SQLite database is stored at `/data/app.db`. Mount a volume at `/data` to pe
 
 ```sh
 mkdir -p data
-ADMIN_PASSWORD=change-me docker compose up --build
+AIKANA_PASSWD=change-me docker compose up --build
 ```
 
 Then open [localhost:8000](http://localhost:8000). The `./data` directory is mounted at `/data` in the container, so the database
@@ -63,7 +63,7 @@ tailwindcss -i src/aikana/shared/static/input.css -o src/aikana/shared/static/ap
 
 Deployment is set up and run by the maintainer and is out of scope for this repository's tooling. The app deploys as a
 Docker image: a plain `docker build .` builds the last stage of `Dockerfile` (`prod`), which contains no development
-dependencies. A persistent volume must be mounted at `/data`, and `ADMIN_PASSWORD` must be set.
+dependencies. A persistent volume must be mounted at `/data`, and `AIKANA_PASSWD` must be set.
 
 To build the production image by hand:
 
