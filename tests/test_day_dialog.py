@@ -1,0 +1,362 @@
+"""In-process client tests of the admin day dialog, per ./tests.sdd."""
+
+from datetime import date, time
+from types import SimpleNamespace
+
+import pytest
+from starlette.testclient import TestClient
+
+from aikana.courses.repository_sqlite import SqliteCourseRepository
+from aikana.courses.services import CourseService
+from aikana.holidays.repository_sqlite import SqliteHolidayRepository
+from aikana.holidays.services import HolidayService
+from aikana.lessons.repository_sqlite import SqliteLessonRepository
+from aikana.lessons.services import LessonService
+from aikana.main import create_app
+from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
+from aikana.no_teach_weeks.services import NoTeachWeekService
+from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
+from aikana.realizations.services import RealizationService
+from aikana.semester.repository_sqlite import SqliteSemesterRepository
+from aikana.semester.services import SemesterService
+from aikana.shared.db import create_database
+
+AIKANA_PASSWD = "test-password"
+
+# The dialog is only reachable through an HTMX request, per ./src/aikana/day_dialog/day_dialog.sdd.
+HTMX = {"HX-Request": "true"}
+
+# A free week of the fall 2026 Semester, outside its default NoTeachWeeks in weeks 42 and 51.
+FREE_DAY = "2026-10-20"
+FREE_WEEK = "43"
+
+
+@pytest.fixture
+def db(tmp_path):
+    return create_database(tmp_path / "app.db")
+
+
+@pytest.fixture
+def client(db, tmp_path, monkeypatch):
+    # FastHTML writes a session key file into the working directory on app construction.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
+    return TestClient(create_app(db))
+
+
+@pytest.fixture
+def admin_client(client):
+    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
+    return client
+
+
+@pytest.fixture
+def services(db):
+    """Every feature's service, wired on a temporary database the way main.py's composition root does it."""
+    course_service = CourseService(SqliteCourseRepository(db))
+    semester_repo = SqliteSemesterRepository(db)
+    no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
+    realization_repo = SqliteCourseRealizationRepository(db)
+    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
+    holiday_service = HolidayService(SqliteHolidayRepository(db))
+    realization_service = RealizationService(
+        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
+    )
+    semester_service = SemesterService(
+        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
+    )
+    realization_service.semester_service = semester_service
+    return SimpleNamespace(
+        courses=course_service,
+        holidays=holiday_service,
+        lessons=lesson_service,
+        no_teach_weeks=no_teach_week_service,
+        realizations=realization_service,
+        semesters=semester_service,
+    )
+
+
+@pytest.fixture
+def semester(services):
+    """A fall 2026 Semester, seeded on the same temporary database the app was built on."""
+    return services.semesters.create_semester(2026, "fall")
+
+
+def _open_dialog(client, semester, kind="holiday", day=FREE_DAY):
+    return client.get(
+        "/day/dialog",
+        params={"semester_id": semester.id, "day": day, "kind": kind},
+        headers=HTMX,
+    )
+
+
+def _add_realization(services, semester, group="TTV24SP"):
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    return services.realizations.add_realization(course.id, semester.id, group)
+
+
+def _assert_bare_grid(response):
+    """A successful write responds with the bare grid, never a second dialog container."""
+    assert response.text.count('id="semester-grid"') == 1
+    assert 'id="day-dialog"' not in response.text
+
+
+def test_admin_sees_a_day_dialog_trigger_on_every_day_row(admin_client, semester):
+    response = admin_client.get(f"/?semester_id={semester.id}")
+
+    assert response.status_code == 200
+    assert 'id="semester-grid"' in response.text
+    assert 'id="day-dialog"' in response.text
+    assert f'hx-get="/day/dialog?semester_id={semester.id}&amp;day={FREE_DAY}&amp;kind=holiday"' in response.text
+
+
+def test_visitor_sees_no_day_dialog_trigger(client, semester):
+    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
+    client.post("/logout", follow_redirects=True)
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert "/day/dialog" not in response.text
+    assert 'id="day-dialog"' not in response.text
+
+
+def test_lesson_square_stays_a_link_to_the_weekly_view(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+    services.lessons.add_lesson(
+        realization.id, date(2026, 10, 20), time(8, 30), time(10, 0), "Intro", ""
+    )
+
+    response = admin_client.get(f"/?semester_id={semester.id}")
+
+    assert f'href="/realizations?realization_id={realization.id}"' in response.text
+    # The square is a link, so it must not also open the dialog of the row it sits in.
+    assert "event.stopPropagation()" in response.text
+
+
+def test_admin_opens_the_dialog_for_a_day(admin_client, semester):
+    response = _open_dialog(admin_client, semester)
+
+    assert response.status_code == 200
+    assert '<dialog id="day-dialog-modal"' in response.text
+    # The response is the bare <dialog>, so swapping it into the container cannot nest a second #day-dialog.
+    assert 'id="day-dialog"' not in response.text
+    assert "Tuesday, 20 October 2026" in response.text
+    assert 'name="day" type="hidden" value="2026-10-20"' in response.text
+    assert 'hx-post="/day/dialog/holiday"' in response.text
+    assert 'hx-target="#semester-grid"' in response.text
+
+
+def test_dialog_offers_a_tab_per_kind(admin_client, semester, services):
+    _add_realization(services, semester)
+
+    for kind, expected in (
+        ("holiday", "/day/dialog/holiday"),
+        ("no_teach_week", "/day/dialog/no-teach-week"),
+        ("lesson", "/day/dialog/lesson"),
+    ):
+        response = _open_dialog(admin_client, semester, kind=kind)
+        assert response.status_code == 200
+        assert f'hx-post="{expected}"' in response.text
+
+
+def test_no_teach_week_form_prefills_the_clicked_day_s_iso_week(admin_client, semester):
+    response = _open_dialog(admin_client, semester, kind="no_teach_week")
+
+    assert 'name="week_number"' in response.text
+    assert f'value="{FREE_WEEK}"' in response.text
+    assert 'value="No teaching week"' in response.text
+
+
+def test_lesson_form_lists_the_semester_course_realizations(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+
+    response = _open_dialog(admin_client, semester, kind="lesson")
+
+    assert 'name="course_realization_id"' in response.text
+    assert f'<option value="{realization.id}" selected>' in response.text
+    assert "Machine Learning (TTV24SP)" in response.text
+
+
+def test_lesson_form_says_so_when_the_semester_has_no_realization(admin_client, semester):
+    response = _open_dialog(admin_client, semester, kind="lesson")
+
+    assert "No CourseRealizations in this Semester yet." in response.text
+    assert 'hx-post="/day/dialog/lesson"' not in response.text
+
+
+def test_admin_adds_a_holiday(admin_client, semester, services):
+    response = admin_client.post(
+        "/day/dialog/holiday",
+        data={"semester_id": semester.id, "day": FREE_DAY, "title": "Autumn break"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    _assert_bare_grid(response)
+    assert "Autumn break" in response.text
+    assert [holiday.title for holiday in services.holidays.list_holidays_for_range(*_range(FREE_DAY))] == [
+        "Autumn break"
+    ]
+
+
+def test_admin_adds_a_no_teach_week(admin_client, semester, services):
+    response = admin_client.post(
+        "/day/dialog/no-teach-week",
+        data={"semester_id": semester.id, "day": FREE_DAY, "week_number": FREE_WEEK, "title": "Staff training"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    # One NoTeachWeek tints all five of its Monday-to-Friday rows, so the whole grid comes back.
+    _assert_bare_grid(response)
+    assert response.text.count("Staff training") == 5
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 43)
+    assert week.title == "Staff training"
+    assert week.week_start == date(2026, 10, 19)
+
+
+def test_admin_adds_a_lesson(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+
+    response = admin_client.post(
+        "/day/dialog/lesson",
+        data={
+            "semester_id": semester.id,
+            "day": FREE_DAY,
+            "course_realization_id": realization.id,
+            "start_time": "08:30",
+            "end_time": "10:00",
+            "topic": "Intro",
+            "notes": "Bring the dataset",
+        },
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    _assert_bare_grid(response)
+    assert "Intro" in response.text
+    lesson = services.lessons.list_lessons_for_realization(realization.id)[0]
+    assert (lesson.date, lesson.start_time, lesson.end_time, lesson.topic) == (
+        date(2026, 10, 20),
+        time(8, 30),
+        time(10, 0),
+        "Intro",
+    )
+    assert lesson.notes == "Bring the dataset"
+
+
+def test_a_rejected_holiday_is_not_stored_and_the_dialog_reports_it(admin_client, semester, services):
+    response = admin_client.post(
+        "/day/dialog/holiday",
+        data={"semester_id": semester.id, "day": FREE_DAY, "title": "   "},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert response.headers["HX-Retarget"] == "#day-dialog"
+    assert response.headers["HX-Reswap"] == "innerHTML"
+    assert "non-empty title" in response.text
+    assert services.holidays.list_holidays_for_range(*_range(FREE_DAY)) == []
+
+
+def test_a_duplicate_no_teach_week_is_rejected(admin_client, semester, services):
+    data = {"semester_id": semester.id, "day": FREE_DAY, "week_number": FREE_WEEK, "title": "Staff training"}
+    admin_client.post("/day/dialog/no-teach-week", data=data, headers=HTMX)
+
+    response = admin_client.post("/day/dialog/no-teach-week", data=data, headers=HTMX)
+
+    assert response.status_code == 422
+    assert "already a NoTeachWeek" in response.text
+    assert len(services.no_teach_weeks.list_no_teach_weeks(semester.id)) == 3
+
+
+def test_a_lesson_inside_a_no_teach_week_is_rejected(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+    admin_client.post(
+        "/day/dialog/no-teach-week",
+        data={"semester_id": semester.id, "day": FREE_DAY, "week_number": FREE_WEEK, "title": ""},
+        headers=HTMX,
+    )
+
+    response = admin_client.post(
+        "/day/dialog/lesson",
+        data={
+            "semester_id": semester.id,
+            "day": FREE_DAY,
+            "course_realization_id": realization.id,
+            "start_time": "08:30",
+            "end_time": "10:00",
+            "topic": "Blocked",
+            "notes": "",
+        },
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "NoTeachWeek" in response.text
+    assert services.lessons.list_lessons_for_realization(realization.id) == []
+
+
+def test_a_malformed_form_field_is_reported_instead_of_reaching_the_services(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+
+    response = admin_client.post(
+        "/day/dialog/lesson",
+        data={
+            "semester_id": semester.id,
+            "day": FREE_DAY,
+            "course_realization_id": realization.id,
+            "start_time": "half past eight",
+            "end_time": "10:00",
+            "topic": "Intro",
+            "notes": "",
+        },
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "Enter a valid start time as HH:MM." in response.text
+    assert services.lessons.list_lessons_for_realization(realization.id) == []
+
+
+def test_a_rejected_form_keeps_what_the_admin_typed(admin_client, semester):
+    response = admin_client.post(
+        "/day/dialog/holiday",
+        data={"semester_id": semester.id, "day": FREE_DAY, "title": "   "},
+        headers=HTMX,
+    )
+
+    assert 'value="   "' in response.text
+    assert 'name="day" type="hidden" value="2026-10-20"' in response.text
+
+
+def test_a_visitor_can_neither_open_the_dialog_nor_add_through_it(client, semester, services):
+    _add_realization(services, semester)
+
+    response = client.get(
+        "/day/dialog",
+        params={"semester_id": semester.id, "day": FREE_DAY, "kind": "holiday"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+    for path, data in (
+        ("/day/dialog/holiday", {"semester_id": semester.id, "day": FREE_DAY, "title": "Nope"}),
+        ("/day/dialog/no-teach-week", {"semester_id": semester.id, "day": FREE_DAY, "week_number": FREE_WEEK}),
+        (
+            "/day/dialog/lesson",
+            {"semester_id": semester.id, "day": FREE_DAY, "start_time": "08:00", "end_time": "10:00", "topic": "Nope"},
+        ),
+    ):
+        response = client.post(path, data=data, follow_redirects=False)
+        assert response.status_code == 303
+        assert response.headers["location"] == "/login"
+
+    assert services.holidays.list_holidays_for_range(*_range(FREE_DAY)) == []
+    assert len(services.no_teach_weeks.list_no_teach_weeks(semester.id)) == 2
+
+
+def _range(day: str):
+    parsed = date.fromisoformat(day)
+    return parsed, parsed

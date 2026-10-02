@@ -30,6 +30,11 @@ class NoTeachWeekService:
         # per ../architecture.sdd.
         self.semester_repo = semester_repo
 
+    @property
+    def default_title(self) -> str:
+        """The shared default title, exposed so other packages' views can prefill it without importing ./domain.py."""
+        return DEFAULT_TITLE
+
     def list_no_teach_weeks(self, semester_id: str) -> list[NoTeachWeek]:
         return self.repo.list_for_semester(semester_id)
 

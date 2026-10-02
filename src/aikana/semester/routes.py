@@ -28,7 +28,7 @@ def register_routes(app, semester_service: SemesterService, auth_service: AuthSe
         view_model = semester_service.build_semester_view_model(semester)
         selector = view.new_semester_control() if is_admin else None
         return layout.page(
-            view.semester_view(view_model),
+            view.semester_view(view_model, is_admin=is_admin),
             active_nav="semester",
             semester_options=semester_options,
             selected_semester_id=semester.id,

@@ -1,11 +1,12 @@
 Spec: Day dialog
-
 Purpose:
-  Admin-only editing of a single day. A `<dialog>` modal lets the admin add or edit a Holiday or a Lesson, and HTMX
-  swaps the updated day cell into the page without a reload. Orchestrates ../realizations/realizations.sdd,
-  ../lessons/lessons.sdd and ../holidays/holidays.sdd services, so it owns a view.py and routes.py only.
+  Admin-only editing of a single day. A `<dialog>` modal lets the admin add a Holiday, a NoTeachWeek or a Lesson, and
+  HTMX swaps the updated wall planner into the page without a reload. Orchestrates ../realizations/realizations.sdd,
+  ../lessons/lessons.sdd, ../holidays/holidays.sdd and ../no_teach_weeks/no_teach_weeks.sdd services and renders through
+  ../semester/semester.sdd's view, so it owns a view.py and routes.py only.
 
 Owns:
+  ./__init__.py
   ./view.py
   ./routes.py
 
@@ -15,19 +16,37 @@ References:
 Depends on:
   ../shared/shared.sdd
   ../auth/auth.sdd
+  ../semester/semester.sdd
   ../realizations/realizations.sdd
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
 
+Exposes:
+  ./view.py's @dialog_container, @GRID_ID, @CONTAINER_ID and @DIALOG_PATH: the container, grid id, swap target and
+  dialog path that ../semester/semester.sdd's view.py needs to render the wall planner's admin affordances.
+
 Must:
-  Clicking a day cell opens a `<dialog>` for the admin and does nothing for unauthenticated visitors.
-  The dialog can add a Holiday (a title) or a Lesson (choosing a CourseRealization, then a start time, an end time,
-  a topic and notes) for the clicked date.
-  Submitting the form is an HTMX request that responds with the updated day cell, which replaces the old one in the
-  DOM without a page reload.
-  The swapped cell keeps the appearance required by the view that contains it.
-  Submissions from non-admin sessions are rejected by the ../auth/auth.sdd guard.
+  Clicking a day row in ../semester/semester.sdd's wall planner opens a `<dialog>` for the admin and does nothing for
+  unauthenticated visitors, who are shown no day-row trigger at all.
+  ./view.py exposes @dialog_container, the empty element the containing view renders once; every dialog response is
+  the bare `<dialog>` that is swapped into it, never the container itself, so a swap cannot nest a duplicate id.
+  The dialog offers one tab per kind of entry the admin can add on the clicked date: a Holiday, a NoTeachWeek or a
+  Lesson. Switching tabs re-renders the dialog in place through HTMX.
+  The Holiday form takes a title. The NoTeachWeek form takes a week number, prefilled with the clicked date's ISO week
+  and editable, and a title, prefilled with ../no_teach_weeks/no_teach_weeks.sdd's shared default title and editable.
+  The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a start time, an
+  end time, a topic and notes. It reports that the Semester has no realization instead of offering an unusable form.
+  Each form is an HTMX request whose response is the whole re-rendered wall planner, since one entry can change more
+  than the clicked row: a NoTeachWeek tints all five of its Monday-to-Friday rows.
+  That response is the bare `semester-grid` element rendered through ../semester/semester.sdd's @semester_grid,
+  never the dialog container, so the planner keeps the appearance ../semester/semester.sdd requires and the
+  container is rendered exactly once by the containing page.
+  A submission that the underlying service rejects, or whose form field cannot be parsed, leaves the entry unstored
+  and re-renders the dialog with a validation message and the values the admin submitted.
+  Opening the dialog and every submission are rejected by the ../auth/auth.sdd guard for non-admin sessions.
+  This package crosses into ../semester/semester.sdd only through its view.py and services.py, never through its
+  domain.py or ports.py, so the pair is the mutual dependency ../architecture.sdd permits.
 
 Scenario: Admin adds a lesson
   Given the admin is logged in and views the semester view
@@ -40,9 +59,24 @@ Scenario: Visitor clicks a day
   When the visitor clicks a day row
   Then no dialog opens
 
+Scenario: Admin adds a holiday
+  Given the admin is logged in and views the semester view
+  When the admin clicks a day row, types a title and submits
+  Then the dialog closes and the day row shows the title tinted as a Holiday
+
+Scenario: Admin blocks a week
+  Given the admin is logged in and views the semester view
+  When the admin clicks a day row, chooses the NoTeachWeek tab and submits the prefilled week
+  Then all five of that week's weekdays are tinted and titled without a page reload
+
+Scenario: Rejected entry is not stored
+  Given the admin submits an entry the underlying service rejects
+  When the response arrives
+  Then the dialog stays open with a validation message and the entry is not stored
+
 Tasks:
-  [ ] Implement the dialog and the holiday form with the HTMX cell swap
-  [ ] Implement the lesson form
+  [x] Implement the dialog, its tab per kind and the holiday form with the HTMX grid swap
+  [x] Implement the lesson form
+  [x] Implement the NoTeachWeek form, prefilled with the clicked day's ISO week
   [ ] Implement editing of existing entries
-  [ ] Let the admin add, edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd, which
-    currently only gets its defaults when the Semester is created
+  [ ] Let the admin edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd

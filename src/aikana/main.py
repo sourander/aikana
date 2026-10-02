@@ -9,6 +9,7 @@ from aikana.auth.services import AuthService
 from aikana.courses import routes as courses_routes
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
+from aikana.day_dialog import routes as day_dialog_routes
 from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
@@ -65,6 +66,15 @@ def create_app(db: Database) -> FastHTML:
     courses_routes.register_routes(app, course_service, semester_service, auth_service)
     semester_routes.register_routes(app, semester_service, auth_service)
     realizations_routes.register_routes(app, realization_service, semester_service, auth_service)
+    day_dialog_routes.register_routes(
+        app,
+        semester_service,
+        holiday_service,
+        no_teach_week_service,
+        lesson_service,
+        realization_service,
+        auth_service,
+    )
     return app
 
 

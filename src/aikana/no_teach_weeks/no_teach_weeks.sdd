@@ -37,6 +37,8 @@ Must:
   @NoTeachWeekService.titles_by_teaching_day maps each blocked Monday-to-Friday date of a Semester to its NoTeachWeek's
   title, and lists NoTeachWeeks ordered by week number.
   @NoTeachWeekRepository in ./ports.py exposes list, get, add, update and delete operations backing ./services.py.
+  @NoTeachWeekService's `default_title` exposes the shared default title to other feature packages' views, so an
+  admin UI can prefill it without importing ./domain.py.
   The table is created automatically on startup when it does not exist.
 
 Must not:
@@ -52,4 +54,5 @@ Tasks:
     @SemesterService.create_semester
   [x] Block the week in ../semester/semester.sdd's wall planner and as a single line in
     ../realizations/realizations.sdd's weekly view, and reject a Lesson inside one in ../lessons/lessons.sdd
-  [ ] Add the admin UI that edits a Semester's NoTeachWeeks in ../day_dialog/day_dialog.sdd
+  [x] Expose the shared default title through @NoTeachWeekService for ../day_dialog/day_dialog.sdd's form
+  [ ] Add the admin UI that edits and removes a Semester's NoTeachWeeks in ../day_dialog/day_dialog.sdd

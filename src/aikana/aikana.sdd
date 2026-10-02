@@ -18,7 +18,7 @@ Structure:
   ./lessons/: the Lesson entity
   ./holidays/: the Holiday entity
   ./no_teach_weeks/: the NoTeachWeek entity, a Monday-to-Friday week of a Semester in which nothing is taught
-  ./day_dialog/: the admin dialog for adding or editing a Lesson or a Holiday on a given day
+  ./day_dialog/: the admin dialog for adding a Holiday, a NoTeachWeek or a Lesson on a given day
 
 References:
   ./architecture.sdd
@@ -47,3 +47,6 @@ Tasks:
     the per-CourseRealization weekly view with its own dropdown in ./realizations/view.py and ./realizations/routes.py,
     resolving ./courses/courses.sdd's former open per-view decision in favor of ./realizations/realizations.sdd;
     wire ./realizations/routes.py into ./main.py alongside ./semester/routes.py
+  [x] Implement ./day_dialog/ (view.py and routes.py) and wire it into ./main.py, so an admin can add a Holiday, a
+    NoTeachWeek or a Lesson on a clicked day of ../semester/semester.sdd's wall planner through the HTMX swap that
+    semester view's grid id is the target of

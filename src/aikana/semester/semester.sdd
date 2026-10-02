@@ -61,7 +61,12 @@ Must:
   row keeps the plain weekend tint.
   Saturdays and Sundays are visibly distinguished with the same mild tint as a Holiday row, even on a week with no
   Holiday, since no lessons are taught on weekends by default.
-  For the admin, clicking a day row opens the dialog specified in ../day_dialog/day_dialog.sdd.
+  The wall planner's grid carries the id `semester-grid`, which is the swap target ../day_dialog/day_dialog.sdd's forms
+  post to, so a successful write re-renders this view's own grid rather than a copy of it; ./view.py's @semester_grid
+  renders that bare grid without the dialog container for exactly those write responses.
+  For the admin, clicking a day row opens the dialog specified in ../day_dialog/day_dialog.sdd. The wall planner
+  renders the dialog's empty container once, and renders day rows with that trigger, a lesson square still links to
+  ../realizations/realizations.sdd's weekly view instead of opening the dialog, and a visitor is shown neither.
   Clicking a lesson square navigates to ../realizations/realizations.sdd's weekly view for that lesson's
   CourseRealization.
   ./routes.py registers the view at `/`, reading the Semester to show from the `semester_id` query parameter so a
@@ -102,4 +107,7 @@ Tasks:
   [x] Create the term's default NoTeachWeeks from @SemesterService.create_semester through
     ../no_teach_weeks/no_teach_weeks.sdd, and render a NoTeachWeek's Monday-to-Friday rows as tinted, titled rows
     without lesson squares in ./view.py
+  [x] Render the wall planner's grid under the id `semester-grid`, and for an admin render the day-row trigger,
+    the link-preserving lesson square and the dialog container that ../day_dialog/day_dialog.sdd swaps into, passing
+    the admin flag from ./routes.py into ./view.py
 
