@@ -35,8 +35,8 @@ Must:
   combination already exists.
   When no Semesters exist, ./routes.py renders the create-Semester form as `/`'s primary content for an admin
   session instead of the wall planner; a visitor instead sees a neutral notice and no form. Once at least one
-  Semester exists, a small persistent admin-only "+ New Semester" control sits next to the Semester selector, linking
-  to the same form.
+  Semester exists, a small persistent admin-only "+ New Semester" control sits in the header next to the shared
+  persistent Semester selector, linking to the same form.
   The semester periods follow a fixed rule from the year and term alone, so any arbitrary Semester's period is
   computed, never looked up: a `fall` Semester spans `<year>-08-01` to `<year>-12-31`; a `spring` Semester spans
   `<year>-01-01` to `<year>-06-30`.
@@ -62,7 +62,8 @@ Must:
   Semester whose period has most recently started on or before today, or the earliest Semester if none has started
   yet. For example, today `2026-10-01` defaults to fall 2026, and a visit on `2027-07-15` (after spring 2027 ends
   and before any later Semester starts) still defaults to spring 2027, the previous one.
-  A dropdown lists every Semester from ./services.py so the admin or visitor can switch; switching it updates the
+  ./routes.py passes every Semester from ./services.py and the shown Semester's id to ../shared/shared.sdd's
+  persistent Semester selector, so the admin or visitor can switch Semesters from any tab; switching updates the
   `semester_id` query parameter without a full page reload.
 
 Example:

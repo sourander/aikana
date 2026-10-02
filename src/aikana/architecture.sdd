@@ -46,9 +46,9 @@ Must:
   A reference from one feature's entity to another feature's entity (for example CourseRealization's reference to
   a Course or a Semester) is stored as a plain id in domain.py, never as an imported object; only services.py may
   import the referenced feature's ports.py to validate that id.
-  Two feature packages' Depends on may be mutual when one's view.py or services.py reads the other while the other
-  only validates an id through the first's ports.py in its own services.py; this is not a circular import as long
-  as domain.py and ports.py never depend on another feature, per the rule above.
+  Two feature packages' Depends on may be mutual when every crossing import goes through routes.py, view.py,
+  services.py or ports.py and neither package's domain.py or ports.py imports another feature; this is not a
+  circular import as long as domain.py and ports.py never depend on another feature, per the rule above.
   main.py is the composition root: @create_app builds every feature's repository and service from a given
   `Database` and registers each feature's routes on the app, and @main opens the shared `Database` through
   ./shared/db.py and serves the app. Importing main.py has no side effects, so tests can build an app on a

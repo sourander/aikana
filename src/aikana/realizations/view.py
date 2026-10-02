@@ -1,7 +1,8 @@
 """Pure rendering of the per-CourseRealization weekly table and its realization selector."""
 
-from fasthtml.common import Div, Option, P, Select, Table, Tbody, Td, Th, Thead, Tr
+from fasthtml.common import Div, P, Table, Tbody, Td, Th, Thead, Tr
 
+from ..shared import layout
 from .services import RealizationViewModel, WeekEntry, WeekRow
 
 _HEADER_CLS = "text-left text-xs font-semibold text-gray-500 px-2 py-1 border-b border-gray-200"
@@ -9,14 +10,12 @@ _CELL_CLS = "px-2 py-2 border-b border-gray-100 align-top"
 
 
 def realization_selector(options: list[tuple[str, str]], selected_id: str):
-    return Select(
-        *[Option(label, value=option_id, selected=(option_id == selected_id)) for option_id, label in options],
-        name="realization_id",
-        hx_get="/realizations",
-        hx_trigger="change",
-        hx_target="body",
-        hx_push_url="true",
-        cls="border border-gray-300 rounded text-sm px-2 py-1",
+    return layout.dropdown(
+        "realization_id",
+        options,
+        selected_id,
+        "/realizations",
+        hx_include=f"#{layout.SEMESTER_SELECT_ID}",
     )
 
 

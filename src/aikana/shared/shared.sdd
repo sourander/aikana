@@ -28,9 +28,16 @@ Must:
   path resolves regardless of the process's working directory.
   ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`), the Courses view
   (`/courses`) and the Realization view (`/realizations`) in that order, highlighting whichever one the calling
-  route registers as active, and a slot for that page's own selector control (for example a Semester or
-  CourseRealization dropdown); it takes the active link name and the already-rendered selector as plain arguments
-  so it still needs no feature imports.
+  route registers as active, a persistent Semester selector, and a slot for that page's own selector control (for
+  example a CourseRealization dropdown); it takes the active link name, the Semester selector's `(id, label)`
+  options and selected id, and the already-rendered page selector as plain arguments so it still needs no feature
+  imports.
+  The header renders the persistent Semester selector whenever the calling route passes at least one option, on
+  every tab. Changing it re-renders the current tab through the `semester_id` query parameter without a full page
+  reload, and the nav links carry the selected `semester_id`, so the selection persists across tabs.
+  ./layout.py exposes @dropdown as the shared header select renderer: name, `(id, label)` options, selected id, the
+  `hx_get` path to re-render, and an optional `hx_include`; the shell's Semester selector and each feature view.py's
+  own selector use it, so all header selects behave consistently.
   ./layout.py's header also takes an already-rendered login/logout link as a plain argument, per
   ../auth/auth.sdd, so it still needs no import of ../auth/auth.sdd's services.py or routes.py.
 

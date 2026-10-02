@@ -19,6 +19,7 @@ References:
 Depends on:
   ../shared/shared.sdd
   ../auth/auth.sdd
+  ../semester/semester.sdd
 
 Must:
   A Course has a unique name, a description and an ECTS credit count.
@@ -31,6 +32,9 @@ Must:
   @CourseRepository in ./ports.py exposes list, get, add and update operations backing ./services.py.
   ./routes.py registers the courses page at `/courses`, shown as the Courses tab between Semester and Realizations
   in ../shared/shared.sdd's nav.
+  The courses page shows ../shared/shared.sdd's persistent Semester selector with every Semester from
+  ../semester/semester.sdd's @SemesterService; the selection has no effect on the page because Courses are not
+  scoped to a Semester.
   When no Courses exist, the page shows the create-Course form as its primary content to an admin session, and a
   neutral notice to a visitor.
   When Courses exist, the page lists every Course with its name, description and ECTS credits.

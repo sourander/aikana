@@ -12,11 +12,21 @@ def register_routes(
     app, realization_service: RealizationService, semester_service: SemesterService, auth_service: AuthService
 ) -> None:
     @app.get("/realizations")
-    def index(session, realization_id: str = ""):
+    def index(session, realization_id: str = "", semester_id: str = ""):
         admin_link = auth_view.header_link(auth_service.is_admin(session))
-        active_semester = semester_service.get_default_semester()
+        if not semester_id and realization_id:
+            realization = realization_service.get_realization(realization_id)
+            if realization is not None:
+                semester_id = realization.semester_id
+        semester_options = semester_service.list_semester_options()
+        active_semester = semester_service.get_semester(semester_id) or semester_service.get_default_semester()
         if active_semester is None:
-            return layout.page(view.no_semester_state(), active_nav="realizations", admin_link=admin_link)
+            return layout.page(
+                view.no_semester_state(),
+                active_nav="realizations",
+                semester_options=semester_options,
+                admin_link=admin_link,
+            )
 
         options = realization_service.list_realization_options(active_semester.id)
 
@@ -25,11 +35,22 @@ def register_routes(
         )
 
         if not selected_id:
-            return layout.page(view.empty_state(), active_nav="realizations", admin_link=admin_link)
+            return layout.page(
+                view.empty_state(),
+                active_nav="realizations",
+                semester_options=semester_options,
+                selected_semester_id=active_semester.id,
+                admin_link=admin_link,
+            )
 
         view_model = realization_service.build_realization_view_model(selected_id)
         selector = view.realization_selector(options, selected_id)
         return layout.page(
-            view.realization_view(view_model), active_nav="realizations", selector=selector, admin_link=admin_link
+            view.realization_view(view_model),
+            active_nav="realizations",
+            semester_options=semester_options,
+            selected_semester_id=active_semester.id,
+            selector=selector,
+            admin_link=admin_link,
         )
 

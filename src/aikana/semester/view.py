@@ -40,18 +40,6 @@ def new_semester_control():
     return A("+ New Semester", href="/semesters/new", cls="text-sm text-blue-700 hover:text-blue-900")
 
 
-def semester_selector(options: list[tuple[str, str]], selected_id: str):
-    return Select(
-        *[Option(label, value=option_id, selected=(option_id == selected_id)) for option_id, label in options],
-        name="semester_id",
-        hx_get="/",
-        hx_trigger="change",
-        hx_target="body",
-        hx_push_url="true",
-        cls="border border-gray-300 rounded text-sm px-2 py-1",
-    )
-
-
 def semester_view(vm: SemesterViewModel):
     return Div(
         *[_month_column(month) for month in vm.months],

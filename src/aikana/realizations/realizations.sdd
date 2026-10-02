@@ -41,13 +41,17 @@ Must:
   Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
   ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
   The table is created automatically on startup when it does not exist.
-  ./routes.py registers the weekly view at `/realizations`, reading the realization to show from the `realization_id`
-  query parameter so a link to one realization's weekly view is shareable; when the parameter is absent or unknown,
-  it falls back to the first realization of the currently active Semester (../semester/semester.sdd's
-  default-selection rule).
-  The weekly view's realization dropdown lists only the realizations of the currently active Semester, never every
-  realization ever created, to avoid clutter; switching it updates the `realization_id` query parameter without a
-  full page reload.
+  ./routes.py registers the weekly view at `/realizations`, reading the Semester to filter by from the
+  `semester_id` query parameter and the realization to show from the `realization_id` query parameter, so a link to
+  one realization's weekly view is shareable; when `semester_id` is absent or unknown, the active Semester is the
+  known `realization_id`'s own Semester when one is given, otherwise ../semester/semester.sdd's default-selection
+  rule; when `realization_id` is absent, unknown, or belongs to another Semester, the view falls back to the first
+  realization of the active Semester.
+  ./routes.py passes the Semester options and the active Semester's id to ../shared/shared.sdd's persistent
+  Semester selector, so switching the Semester filters the realizations shown; the weekly view's realization
+  dropdown lists only the realizations of the active Semester, never every realization ever created, to avoid
+  clutter; switching either dropdown updates its own query parameter without a full page reload and preserves the
+  other.
   Each week is one table row: a `Week` column with the ISO week number (in a larger, dominant font) and the week's
   date range underneath, a `Lessons` column and a `Notes` column. A week with more than one Lesson (or a Lesson and a
   Holiday) shows one sub-row per entry under that single week; the `Week` cell spans all of that week's sub-rows
