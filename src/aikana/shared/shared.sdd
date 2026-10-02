@@ -26,10 +26,11 @@ Must:
   Tailwind CLI in the `css` stage of /Dockerfile; it is a build artifact and is `.gitignore`d, not hand edited.
   `main.py` serves ./static/app.css at `/static/app.css` via `app.static_route`, using `layout.STATIC_DIR` so the
   path resolves regardless of the process's working directory.
-  ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`) and the Realization view
-  (`/realizations`), highlighting whichever one the calling route registers as active, and a slot for that page's
-  own selector control (for example a Semester or CourseRealization dropdown); it takes the active link name and the
-  already-rendered selector as plain arguments so it still needs no feature imports.
+  ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`), the Courses view
+  (`/courses`) and the Realization view (`/realizations`) in that order, highlighting whichever one the calling
+  route registers as active, and a slot for that page's own selector control (for example a Semester or
+  CourseRealization dropdown); it takes the active link name and the already-rendered selector as plain arguments
+  so it still needs no feature imports.
   ./layout.py's header also takes an already-rendered login/logout link as a plain argument, per
   ../auth/auth.sdd, so it still needs no import of ../auth/auth.sdd's services.py or routes.py.
 

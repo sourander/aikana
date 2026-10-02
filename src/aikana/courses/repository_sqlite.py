@@ -35,3 +35,9 @@ class SqliteCourseRepository:
     def add(self, name: str, description: str, ects_credits: int) -> Course:
         row = self._table.insert({"id": uuid4().hex, "name": name, "description": description, "ects_credits": ects_credits})
         return _to_domain(row)
+
+    def update(self, course_id: str, name: str, description: str, ects_credits: int) -> Course:
+        row = self._table.update(
+            {"id": course_id, "name": name, "description": description, "ects_credits": ects_credits}
+        )
+        return _to_domain(row)

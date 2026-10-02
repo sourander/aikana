@@ -10,6 +10,7 @@ _TAILWIND_CSS_HREF = "/static/app.css"
 
 _NAV_LINKS = (
     ("semester", "Semester", "/"),
+    ("courses", "Courses", "/courses"),
     ("realizations", "Realizations", "/realizations"),
 )
 

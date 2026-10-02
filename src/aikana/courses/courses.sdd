@@ -1,29 +1,71 @@
-Spec: Course entity
+Spec: Course entity and courses page
 
 Purpose:
-  The Course entity: a unique name, a description and an ECTS credit count. A view-less, route-less package; the
-  weekly calendar is per-CourseRealization and lives in ../realizations/realizations.sdd, which reads Courses
-  through ./services.py to compose its display label.
+  The Course entity: a unique name, a description and an ECTS credit count, and the admin page that lists Courses
+  and creates or edits them. The weekly calendar is per-CourseRealization and lives in
+  ../realizations/realizations.sdd, which reads Courses through ./services.py to compose its display label.
 
 Owns:
   ./domain.py
   ./ports.py
   ./services.py
   ./repository_sqlite.py
+  ./view.py
+  ./routes.py
 
 References:
   ../architecture.sdd
 
 Depends on:
   ../shared/shared.sdd
+  ../auth/auth.sdd
 
 Must:
   A Course has a unique name, a description and an ECTS credit count.
   @CourseService.add_course rejects an empty name with @InvalidCourseError and a name matching an existing
   Course's (ignoring surrounding whitespace and letter case) with @DuplicateCourseError, before storage.
+  @CourseService.update_course applies the same name checks, ignores the Course being edited when looking for a
+  duplicate, and rejects an unknown id with @UnknownCourseError before storage.
   No color is stored on a Course; ../semester/semester.sdd's view assigns display colors dynamically per
   CourseRealization.
-  @CourseRepository in ./ports.py exposes list, get and add operations backing ./services.py.
+  @CourseRepository in ./ports.py exposes list, get, add and update operations backing ./services.py.
+  ./routes.py registers the courses page at `/courses`, shown as the Courses tab between Semester and Realizations
+  in ../shared/shared.sdd's nav.
+  When no Courses exist, the page shows the create-Course form as its primary content to an admin session, and a
+  neutral notice to a visitor.
+  When Courses exist, the page lists every Course with its name, description and ECTS credits.
+  For the admin, clicking a listed Course opens a `<dialog>` modal whose form is prefilled with that Course's
+  values and submitting it updates the Course; the admin-only `+ New Course` control links to `GET /courses/new`,
+  which renders the same create form.
+  Course write routes are rejected by ../auth/auth.sdd's guard for non-admin sessions and re-render a validation
+  message when the name is empty or already used.
+  Visitors see the Course list without editing affordances.
+
+Done when:
+  Every scenario has a test.
+
+Scenario: Admin creates the first Course
+  Given no Courses exist
+  And the admin is logged in
+  When the admin opens the courses page and submits a name, a description and an ECTS credit count
+  Then the courses page lists the new Course
+
+Scenario: Visitor sees the empty courses page
+  Given no Courses exist
+  And the visitor is not logged in
+  When the visitor opens the courses page
+  Then the page shows a neutral notice and no create form
+
+Scenario: Admin edits a Course
+  Given a Course exists
+  And the admin is logged in
+  When the admin clicks the Course, changes its values in the dialog and submits
+  Then the courses page lists the updated Course
+
+Scenario: Editing to a duplicate name is rejected
+  Given two Courses exist
+  When the admin renames one to the other's name
+  Then the update is rejected with a validation message
 
 Tasks:
   [x] Implement @Course in ./domain.py and a hardcoded ./services.py returning two placeholder Courses, standing in
@@ -32,3 +74,5 @@ Tasks:
     and ./repository_sqlite.py), per ../architecture.sdd's Example
   [x] Enforce unique, non-empty Course names in @CourseService.add_course with @InvalidCourseError and
     @DuplicateCourseError
+  [x] Add the courses page in ./view.py and ./routes.py: create form when no Courses exist, Course list with the
+    admin-only `+ New Course` control and edit `<dialog>`, and @CourseService.update_course with @UnknownCourseError

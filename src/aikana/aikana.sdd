@@ -11,7 +11,7 @@ Structure:
   ./architecture.sdd: the Ports and Adapters (Hexagonal) contract shared by every feature package below
   ./shared/: cross-cutting kernel (database connection, page layout shell) with no business rules of its own
   ./auth/: admin login, logout and the write guard used by other feature packages
-  ./courses/: the Course entity
+  ./courses/: the Course entity and the courses page
   ./semester/: the Semester entity and the semester wall planner view
   ./realizations/: the CourseRealization entity linking a Course, a Semester and a group to its Lessons, and the
     per-CourseRealization weekly calendar view

@@ -5,8 +5,14 @@ from types import SimpleNamespace
 
 import pytest
 
+from aikana.courses.domain import Course
 from aikana.courses.repository_sqlite import SqliteCourseRepository
-from aikana.courses.services import CourseService, DuplicateCourseError, InvalidCourseError
+from aikana.courses.services import (
+    CourseService,
+    DuplicateCourseError,
+    InvalidCourseError,
+    UnknownCourseError as UnknownCourseIdError,
+)
 from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService, InvalidHolidayError
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
@@ -64,6 +70,31 @@ def test_add_course_rejects_a_duplicate_name_ignoring_case_and_whitespace(servic
     services.courses.add_course("Machine Learning", "An introduction.", 5)
     with pytest.raises(DuplicateCourseError):
         services.courses.add_course("  machine learning ", "Another one.", 5)
+
+
+def test_update_course_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownCourseIdError):
+        services.courses.update_course("no-such-course", "Machine Learning", "An introduction.", 5)
+
+
+def test_update_course_rejects_an_empty_name(services):
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    with pytest.raises(InvalidCourseError):
+        services.courses.update_course(course.id, "   ", "An introduction.", 5)
+
+
+def test_update_course_rejects_a_duplicate_name_ignoring_case_and_whitespace(services):
+    services.courses.add_course("Machine Learning", "An introduction.", 5)
+    course = services.courses.add_course("Databases", "Another one.", 5)
+    with pytest.raises(DuplicateCourseError):
+        services.courses.update_course(course.id, "  machine learning ", "Another one.", 5)
+
+
+def test_update_course_changes_the_stored_values(services):
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    updated = services.courses.update_course(course.id, "Deep Learning", "Advanced.", 8)
+    assert updated == Course(id=course.id, name="Deep Learning", description="Advanced.", ects_credits=8)
+    assert services.courses.get_course(course.id) == updated
 
 
 # Semesters
