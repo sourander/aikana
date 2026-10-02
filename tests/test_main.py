@@ -17,18 +17,13 @@ from aikana.realizations.repository_sqlite import SqliteCourseRealizationReposit
 from aikana.realizations.services import RealizationService
 from aikana.semester.repository_sqlite import SqliteSemesterRepository
 from aikana.semester.services import SemesterService
+from aikana.shared import dates
 from aikana.shared.db import create_database
 
 AIKANA_PASSWD = "test-password"
 
 # A date whose `today()` is fixed, so the time-dependent highlighting is testable.
 FIXED_TODAY = date(2026, 10, 20)
-
-
-class _FrozenDate(date):
-    @classmethod
-    def today(cls):
-        return FIXED_TODAY
 
 
 @pytest.fixture
@@ -220,7 +215,7 @@ def test_realizations_view_appends_a_custom_no_teach_week_title(client, services
 
 def test_wall_planner_renders_a_green_bar_on_today(client, services, monkeypatch):
     semester = services.semesters.create_semester(2026, "fall")
-    monkeypatch.setattr("aikana.semester.services.date", _FrozenDate)
+    monkeypatch.setattr(dates, "today", lambda: FIXED_TODAY)
 
     response = client.get(f"/?semester_id={semester.id}")
 
@@ -230,7 +225,7 @@ def test_wall_planner_renders_a_green_bar_on_today(client, services, monkeypatch
 
 def test_wall_planner_renders_no_green_bar_when_today_is_outside_the_semester(client, services, monkeypatch):
     semester = services.semesters.create_semester(2027, "spring")
-    monkeypatch.setattr("aikana.semester.services.date", _FrozenDate)
+    monkeypatch.setattr(dates, "today", lambda: FIXED_TODAY)
 
     response = client.get(f"/?semester_id={semester.id}")
 
@@ -242,9 +237,21 @@ def test_realizations_view_renders_a_green_bar_on_the_current_week(client, servi
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
-    monkeypatch.setattr("aikana.realizations.services.date", _FrozenDate)
+    monkeypatch.setattr(dates, "today", lambda: FIXED_TODAY)
 
     response = client.get(f"/realizations?realization_id={realization.id}")
 
     assert response.status_code == 200
     assert response.text.count("border-l-green-500") == 1
+
+
+def test_realizations_view_renders_week_date_ranges_in_the_european_form(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    response = client.get(f"/realizations?realization_id={realization.id}")
+
+    assert response.status_code == 200
+    # Fall 2026 starts Saturday 2026-08-01, so its first table week runs Monday 2026-07-27 to Sunday 2026-08-02.
+    assert "27.7.2026 \u2013 2.8.2026" in response.text

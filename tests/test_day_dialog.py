@@ -140,7 +140,7 @@ def test_admin_opens_the_dialog_for_a_day(admin_client, semester):
     assert '<dialog id="day-dialog-modal"' in response.text
     # The response is the bare <dialog>, so swapping it into the container cannot nest a second #day-dialog.
     assert 'id="day-dialog"' not in response.text
-    assert "Tuesday, 20 October 2026" in response.text
+    assert "Tuesday, 20.10.2026" in response.text
     assert 'name="day" type="hidden" value="2026-10-20"' in response.text
     assert 'hx-post="/day/dialog/holiday"' in response.text
     assert 'hx-target="#semester-grid"' in response.text

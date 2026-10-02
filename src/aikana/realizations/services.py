@@ -9,6 +9,7 @@ from ..courses.services import CourseService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
 from ..no_teach_weeks.services import NoTeachWeekService
+from ..shared import dates
 from .domain import CourseRealization
 from .ports import CourseRealizationRepository
 
@@ -90,7 +91,7 @@ class RealizationService:
         realization = self.get_realization(realization_id)
         if realization is None:
             return None
-        today = today or date.today()
+        today = today or dates.today()
 
         course = self.course_service.get_course(realization.course_id)
         semester = self._semesters().get_semester(realization.semester_id)

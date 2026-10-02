@@ -4,6 +4,7 @@ from datetime import date, time
 
 from ..no_teach_weeks.services import NoTeachWeekService
 from ..realizations.ports import CourseRealizationRepository
+from ..shared import dates
 from .domain import Lesson
 from .ports import LessonRepository
 
@@ -49,7 +50,7 @@ class LessonService:
             raise UnknownRealizationError(f"No CourseRealization with id {course_realization_id!r}.")
         blocked = self.no_teach_week_service.titles_by_teaching_day(realization.semester_id)
         if lesson_date in blocked:
-            raise InvalidLessonError(f"{lesson_date.isoformat()} falls inside a NoTeachWeek.")
+            raise InvalidLessonError(f"{dates.format_date(lesson_date)} falls inside a NoTeachWeek.")
         topic = topic.strip()
         if not topic:
             raise InvalidLessonError("A Lesson needs a non-empty topic.")

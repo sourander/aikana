@@ -11,6 +11,7 @@ from ..courses.services import CourseService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
 from ..no_teach_weeks.services import NoTeachWeekService
+from ..shared import dates
 from . import domain
 from .domain import Semester, Term
 from .ports import SemesterRepository
@@ -93,7 +94,7 @@ class SemesterService:
         return self.repo.get(semester_id) if semester_id else None
 
     def get_default_semester(self, today: date | None = None) -> Semester | None:
-        return domain.default_semester(self.repo.list(), today or date.today())
+        return domain.default_semester(self.repo.list(), today or dates.today())
 
     def create_semester(self, year: int, term: Term) -> Semester:
         if term not in ("spring", "fall"):
@@ -116,7 +117,7 @@ class SemesterService:
         return [(semester.id, self.semester_label(semester)) for semester in self.list_semesters()]
 
     def build_semester_view_model(self, semester: Semester, today: date | None = None) -> SemesterViewModel:
-        today = today or date.today()
+        today = today or dates.today()
         courses_by_id = {course.id: course for course in self.course_service.list_courses()}
         realizations = self.realization_service.list_realizations_for_semester(semester.id)
         colors = {r.id: PALETTE[i % len(PALETTE)] for i, r in enumerate(realizations)}

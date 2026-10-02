@@ -37,6 +37,12 @@ Must:
   Unauthenticated visitors can view all data and cannot create, change or delete anything.
   Only the authenticated admin can write data.
   All UI text is in English.
+  The application is used only in the `Europe/Helsinki` time zone: calendar dates, "today" and week boundaries are
+  computed in Europe/Helsinki regardless of the host's time zone.
+  Calendar dates are displayed in the European `d.m.yyyy` form (for example `2.10.2026`), never in the ISO
+  `yyyy-mm-dd` or US `mm/dd/yyyy` form.
+  Weeks start on Monday and week numbering follows the ISO 8601 European standard, where week `1` is the week that
+  contains the year's first Thursday.
   Tailwind CSS is compiled ahead of time with the standalone Tailwind CLI in `Dockerfile`'s `css` stage (no
   Node.js/npm toolchain) and served as a static file; the Play CDN script (`cdn.tailwindcss.com`) must not be used.
   Dependencies are declared in `pyproject.toml` and locked in `uv.lock`, and every Docker stage installs exactly the

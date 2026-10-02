@@ -1,12 +1,13 @@
 Spec: Shared kernel
 
 Purpose:
-  Cross-cutting pieces used by every feature package: the single SQLite connection and the shared page shell. It
-  holds no domain rules and no routes.
+  Cross-cutting pieces used by every feature package: the single SQLite connection, the shared page shell and the
+  Europe/Helsinki date policy. It holds no domain rules and no routes.
 
 Owns:
   ./db.py
   ./layout.py
+  ./dates.py
   ./static/input.css
   ./static/app.css
 
@@ -40,6 +41,9 @@ Must:
   own selector use it, so all header selects behave consistently.
   ./layout.py's header also takes an already-rendered login/logout link as a plain argument, per
   ../auth/auth.sdd, so it still needs no import of ../auth/auth.sdd's services.py or routes.py.
+  ./dates.py is the single source of the date policy in ../aikana.sdd: @today returns the current date in
+  `Europe/Helsinki` regardless of the host's time zone, and @format_date renders a calendar date in the European
+  `d.m.yyyy` form.
 
 Must not:
   ./db.py and ./layout.py must not import any feature package's domain.py, ports.py, services.py,

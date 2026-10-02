@@ -16,6 +16,7 @@ from ..no_teach_weeks.services import (
 from ..realizations.services import RealizationService
 from ..semester import view as semester_view
 from ..semester.services import SemesterService
+from ..shared import dates
 from . import view
 
 _ERROR_HEADERS = {"HX-Retarget": f"#{view.CONTAINER_ID}", "HX-Reswap": "innerHTML"}
@@ -59,7 +60,7 @@ def register_routes(
         try:
             day = parsed_day(day_str)
         except _Rejected:
-            day = date.today()
+            day = dates.today()
         return FtResponse(dialog(kind, semester_id, day, values, error), status_code=422, headers=_ERROR_HEADERS)
 
     @app.get(view.DIALOG_PATH)
@@ -70,7 +71,7 @@ def register_routes(
             return dialog(kind, semester_id, parsed_day(day), {}, "")
         except _Rejected as exc:
             return FtResponse(
-                dialog(kind, semester_id, date.today(), {}, str(exc)),
+                dialog(kind, semester_id, dates.today(), {}, str(exc)),
                 status_code=422,
                 headers=_ERROR_HEADERS,
             )

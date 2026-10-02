@@ -5,6 +5,8 @@ from urllib.parse import urlencode
 
 from fasthtml.common import Button, Dialog, Div, Form, Input, Option, P, Select, Span
 
+from ..shared import dates
+
 # The containing view renders dialog_container() once and never replaces it, so its hx-on::after-swap handler stays
 # attached and re-opens the <dialog> that every dialog response swaps into it. The response must therefore be the
 # bare <dialog>, never this container, or an innerHTML swap would nest a second element under the same id.
@@ -43,7 +45,7 @@ def day_dialog(
     values = values or {}
     return Dialog(
         _tabs(kind, semester_id, day),
-        Div(day.strftime("%A, %d %B %Y"), cls="font-semibold text-sm text-gray-700"),
+        Div(f"{day.strftime('%A')}, {dates.format_date(day)}", cls="font-semibold text-sm text-gray-700"),
         _body(kind, day, semester_id, realization_options, default_no_teach_title, values),
         P(error, cls="text-red-600 text-sm mt-2") if error else "",
         Button(

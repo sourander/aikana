@@ -5,6 +5,7 @@ Purpose:
 
 Structure:
   ./test_main.py: smoke tests of the app entry point through an in-process client
+  ./test_dates.py: unit tests for the shared Europe/Helsinki date policy
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit dialog

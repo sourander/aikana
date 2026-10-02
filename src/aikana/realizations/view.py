@@ -3,7 +3,7 @@
 from fasthtml.common import Div, P, Table, Tbody, Td, Th, Thead, Tr
 
 from ..no_teach_weeks.domain import DEFAULT_TITLE
-from ..shared import layout
+from ..shared import dates, layout
 from .services import RealizationViewModel, WeekEntry, WeekRow
 
 _HEADER_CLS = "text-left text-xs font-semibold text-gray-500 px-2 py-1 border-b border-gray-200"
@@ -49,7 +49,7 @@ def _week_rows(week: WeekRow):
 
 
 def _week_cell(week: WeekRow, rowspan: int):
-    date_range = f"{week.start.isoformat()} \u2013 {week.end.isoformat()}"
+    date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
     today_cls = " border-l-4 border-l-green-500" if week.is_current_week else ""
     return Td(
         Div(str(week.week_number), cls="text-2xl font-bold text-gray-900 leading-none"),
