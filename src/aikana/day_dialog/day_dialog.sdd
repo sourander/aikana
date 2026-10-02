@@ -35,8 +35,9 @@ Must:
   Lesson. Switching tabs re-renders the dialog in place through HTMX.
   The Holiday form takes a title. The NoTeachWeek form takes a week number, prefilled with the clicked date's ISO week
   and editable, and a title, prefilled with ../no_teach_weeks/no_teach_weeks.sdd's shared default title and editable.
-  The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a start time, an
-  end time, a topic and notes. It reports that the Semester has no realization instead of offering an unusable form.
+  The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a start time and
+  an end time as 24-hour `HH:MM` values, a topic and notes. It reports that the Semester has no realization instead of
+  offering an unusable form.
   Each form is an HTMX request whose response is the whole re-rendered wall planner, since one entry can change more
   than the clicked row: a NoTeachWeek tints all five of its Monday-to-Friday rows.
   That response is the bare `semester-grid` element rendered through ../semester/semester.sdd's @semester_grid,

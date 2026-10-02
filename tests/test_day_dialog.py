@@ -184,6 +184,16 @@ def test_lesson_form_says_so_when_the_semester_has_no_realization(admin_client, 
     assert 'hx-post="/day/dialog/lesson"' not in response.text
 
 
+def test_lesson_form_uses_a_24_hour_clock(admin_client, semester, services):
+    _add_realization(services, semester)
+
+    response = _open_dialog(admin_client, semester, kind="lesson")
+
+    assert 'pattern="([01][0-9]|2[0-3]):[0-5][0-9]"' in response.text
+    assert response.text.count('placeholder="HH:MM"') == 2
+    assert 'type="time"' not in response.text
+
+
 def test_admin_adds_a_holiday(admin_client, semester, services):
     response = admin_client.post(
         "/day/dialog/holiday",

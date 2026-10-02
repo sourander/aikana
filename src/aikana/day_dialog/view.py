@@ -20,6 +20,7 @@ _ALLOW_ERROR_SWAP_JS = "if (event.detail.xhr.status === 422) event.detail.should
 _CLOSE_ON_SUCCESS_JS = "if (event.detail.successful) this.closest('dialog').close()"
 
 _INPUT_CLS = "border border-gray-300 rounded px-2 py-1"
+_TIME_PATTERN = r"([01][0-9]|2[0-3]):[0-5][0-9]"
 _TAB_CLS = "rounded px-2 py-1 text-sm"
 _ACTIVE_TAB_CLS = "bg-blue-600 text-white"
 _TABS = (
@@ -119,9 +120,25 @@ def lesson_form(day: date, semester_id: str, realization_options, values: dict):
             cls=_INPUT_CLS,
         ),
         Span("Start time", cls="text-xs font-semibold text-gray-500"),
-        Input(name="start_time", type="time", value=values.get("start_time", "08:00"), required=True, cls=_INPUT_CLS),
+        Input(
+            name="start_time",
+            value=values.get("start_time", "08:00"),
+            required=True,
+            pattern=_TIME_PATTERN,
+            placeholder="HH:MM",
+            maxlength="5",
+            cls=_INPUT_CLS,
+        ),
         Span("End time", cls="text-xs font-semibold text-gray-500"),
-        Input(name="end_time", type="time", value=values.get("end_time", "10:00"), required=True, cls=_INPUT_CLS),
+        Input(
+            name="end_time",
+            value=values.get("end_time", "10:00"),
+            required=True,
+            pattern=_TIME_PATTERN,
+            placeholder="HH:MM",
+            maxlength="5",
+            cls=_INPUT_CLS,
+        ),
         Span("Topic", cls="text-xs font-semibold text-gray-500"),
         Input(name="topic", value=values.get("topic", ""), required=True, cls=_INPUT_CLS),
         Span("Notes", cls="text-xs font-semibold text-gray-500"),
