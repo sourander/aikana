@@ -13,7 +13,8 @@ def register_routes(
 ) -> None:
     @app.get("/realizations")
     def index(session, realization_id: str = "", semester_id: str = ""):
-        admin_link = auth_view.header_link(auth_service.is_admin(session))
+        is_admin = auth_service.is_admin(session)
+        admin_link = auth_view.header_link(is_admin)
         if not semester_id and realization_id:
             realization = realization_service.get_realization(realization_id)
             if realization is not None:
@@ -46,7 +47,7 @@ def register_routes(
         view_model = realization_service.build_realization_view_model(selected_id)
         selector = view.realization_selector(options, selected_id)
         return layout.page(
-            view.realization_view(view_model),
+            view.realization_view(view_model, is_admin=is_admin),
             active_nav="realizations",
             semester_options=semester_options,
             selected_semester_id=active_semester.id,

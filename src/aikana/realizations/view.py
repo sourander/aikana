@@ -2,6 +2,7 @@
 
 from fasthtml.common import Div, P, Table, Tbody, Td, Th, Thead, Tr
 
+from ..day_dialog import view as day_dialog_view
 from ..no_teach_weeks.domain import DEFAULT_TITLE
 from ..shared import dates, layout
 from .services import RealizationViewModel, WeekEntry, WeekRow
@@ -28,24 +29,54 @@ def empty_state():
     return P("No CourseRealizations in the active Semester yet.", cls="p-4 text-sm text-gray-500")
 
 
-def realization_view(vm: RealizationViewModel):
+def realization_view(vm: RealizationViewModel, is_admin: bool = False):
+    """The weekly table and, for the admin, the dialog container every dialog response swaps into."""
+    table = week_table(vm, is_admin)
+    if not is_admin:
+        return table
+    return Div(table, day_dialog_view.dialog_container(), cls="h-full min-h-0 flex flex-col")
+
+
+def week_table(vm: RealizationViewModel, is_admin: bool = False):
+    """The bare weekly table, the swap target of the dialog's write responses, per ./realizations.sdd."""
     return Div(
         Div(vm.label, cls="font-semibold text-lg px-4 pt-3 pb-2"),
         Table(
             Thead(Tr(Th("Week", cls=_HEADER_CLS), Th("Lessons", cls=_HEADER_CLS), Th("Notes", cls=_HEADER_CLS))),
-            Tbody(*[row for week in vm.weeks for row in _week_rows(week)]),
+            Tbody(*[row for week in vm.weeks for row in _week_rows(week, vm.realization, is_admin)]),
             cls="w-full border-collapse",
         ),
+        id=day_dialog_view.WEEK_TABLE_ID,
         cls="h-full overflow-y-auto px-4 pb-4",
     )
 
 
-def _week_rows(week: WeekRow):
+def _week_rows(week: WeekRow, realization, is_admin: bool):
     entries: list[WeekEntry | None] = list(week.entries) or [None]
     return [
-        Tr(*([_week_cell(week, len(entries))] if i == 0 else []), _lessons_cell(entry), _notes_cell(entry))
+        Tr(
+            *([_week_cell(week, len(entries))] if i == 0 else []),
+            _lessons_cell(entry),
+            _notes_cell(entry),
+            **_week_row_attrs(week, realization, is_admin),
+        )
         for i, entry in enumerate(entries)
     ]
+
+
+def _week_row_attrs(week: WeekRow, realization, is_admin: bool):
+    """Clicking a week row opens the dialog for that week's Monday, per ./realizations.sdd."""
+    if not is_admin:
+        return {}
+    return {
+        "hx_get": (
+            f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
+            f"&day={week.start.isoformat()}&kind=holiday&realization_id={realization.id}"
+        ),
+        "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
+        "hx_swap": "innerHTML",
+        "cls": "cursor-pointer hover:bg-gray-100",
+    }
 
 
 def _week_cell(week: WeekRow, rowspan: int):

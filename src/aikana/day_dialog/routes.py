@@ -13,6 +13,7 @@ from ..no_teach_weeks.services import (
     NoTeachWeekService,
     UnknownSemesterError,
 )
+from ..realizations import view as realizations_view
 from ..realizations.services import RealizationService
 from ..semester import view as semester_view
 from ..semester.services import SemesterService
@@ -38,7 +39,18 @@ def register_routes(
             return ""
         return semester_view.semester_grid(semester_service.build_semester_view_model(semester), is_admin=True)
 
-    def dialog(kind: str, semester_id: str, day: date, values: dict, error: str):
+    def write_response(semester_id: str, realization_id: str):
+        """The bare containing view a successful write swaps in: the weekly table or the wall planner grid."""
+        if realization_id:
+            view_model = realization_service.build_realization_view_model(realization_id)
+            if view_model is None:
+                return ""
+            return realizations_view.week_table(view_model, is_admin=True)
+        return grid(semester_id)
+
+    def dialog(
+        kind: str, semester_id: str, day: date, values: dict, error: str, realization_id: str = ""
+    ):
         return view.day_dialog(
             kind=kind,
             day=day,
@@ -47,6 +59,7 @@ def register_routes(
             default_no_teach_title=no_teach_week_service.default_title,
             values=values,
             error=error,
+            realization_id=realization_id,
         )
 
     def parsed_day(day_str: str) -> date:
@@ -55,40 +68,51 @@ def register_routes(
         except ValueError:
             raise _Rejected("That day is not a valid date.") from None
 
-    def reject(day_str: str, semester_id: str, kind: str, values: dict, error: str):
+    def reject(day_str: str, semester_id: str, kind: str, values: dict, error: str, realization_id: str = ""):
         """Re-render the dialog in place with a validation message, leaving the entry unstored."""
         try:
             day = parsed_day(day_str)
         except _Rejected:
             day = dates.today()
-        return FtResponse(dialog(kind, semester_id, day, values, error), status_code=422, headers=_ERROR_HEADERS)
+        return FtResponse(
+            dialog(kind, semester_id, day, values, error, realization_id),
+            status_code=422,
+            headers=_ERROR_HEADERS,
+        )
 
     @app.get(view.DIALOG_PATH)
-    def open_dialog(session, semester_id: str = "", day: str = "", kind: str = "holiday"):
+    def open_dialog(session, semester_id: str = "", day: str = "", kind: str = "holiday", realization_id: str = ""):
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         try:
-            return dialog(kind, semester_id, parsed_day(day), {}, "")
+            return dialog(kind, semester_id, parsed_day(day), {}, "", realization_id)
         except _Rejected as exc:
             return FtResponse(
-                dialog(kind, semester_id, dates.today(), {}, str(exc)),
+                dialog(kind, semester_id, dates.today(), {}, str(exc), realization_id),
                 status_code=422,
                 headers=_ERROR_HEADERS,
             )
 
     @app.post(f"{view.DIALOG_PATH}/holiday")
-    def add_holiday(session, semester_id: str = "", day: str = "", title: str = ""):
+    def add_holiday(session, semester_id: str = "", day: str = "", title: str = "", realization_id: str = ""):
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         values = {"title": title}
         try:
             holiday_service.add_holiday(parsed_day(day), title)
         except (_Rejected, InvalidHolidayError) as exc:
-            return reject(day, semester_id, "holiday", values, str(exc))
-        return grid(semester_id)
+            return reject(day, semester_id, "holiday", values, str(exc), realization_id)
+        return write_response(semester_id, realization_id)
 
     @app.post(f"{view.DIALOG_PATH}/no-teach-week")
-    def add_no_teach_week(session, semester_id: str = "", day: str = "", week_number: str = "", title: str = ""):
+    def add_no_teach_week(
+        session,
+        semester_id: str = "",
+        day: str = "",
+        week_number: str = "",
+        title: str = "",
+        realization_id: str = "",
+    ):
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         values = {"week_number": week_number, "title": title}
@@ -105,8 +129,8 @@ def register_routes(
             InvalidNoTeachWeekError,
             DuplicateNoTeachWeekError,
         ) as exc:
-            return reject(day, semester_id, "no_teach_week", values, str(exc))
-        return grid(semester_id)
+            return reject(day, semester_id, "no_teach_week", values, str(exc), realization_id)
+        return write_response(semester_id, realization_id)
 
     @app.post(f"{view.DIALOG_PATH}/lesson")
     def add_lesson(
@@ -118,6 +142,7 @@ def register_routes(
         end_time: str = "",
         topic: str = "",
         notes: str = "",
+        realization_id: str = "",
     ):
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
@@ -138,8 +163,8 @@ def register_routes(
                 notes,
             )
         except (_Rejected, UnknownRealizationError, InvalidLessonError) as exc:
-            return reject(day, semester_id, "lesson", values, str(exc))
-        return grid(semester_id)
+            return reject(day, semester_id, "lesson", values, str(exc), realization_id)
+        return write_response(semester_id, realization_id)
 
 
 class _Rejected(Exception):

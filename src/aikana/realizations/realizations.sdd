@@ -28,6 +28,7 @@ Depends on:
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
+  ../day_dialog/day_dialog.sdd
 
 Must:
   A CourseRealization has a reference to exactly one Course, a reference to exactly one Semester and a free-text
@@ -70,7 +71,10 @@ Must:
   package: this is the same safe join-entity pattern as the ../courses/courses.sdd and ../semester/semester.sdd
   mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
   the boundary.
-  For the admin, clicking a day cell opens the dialog specified in ../day_dialog/day_dialog.sdd.
+  For the admin, clicking a week row opens the dialog specified in ../day_dialog/day_dialog.sdd to add a Holiday,
+  a NoTeachWeek or a Lesson for that week; a visitor is shown no week-row trigger.
+  A successful write re-renders the weekly table in place: the table carries the id
+  ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
   ./routes.py must not crash when ../semester/semester.sdd has no active Semester at all (none created yet); it
   renders ./view.py's `no_semester_state()` immediately in that case instead of dereferencing a Semester, while an
   active Semester without CourseRealizations renders `empty_state()`.
@@ -92,4 +96,7 @@ Tasks:
     through ../no_teach_weeks/no_teach_weeks.sdd, and render it in ./view.py
   [?] Decide the admin UI for creating a Course and a CourseRealization once ../semester/semester.sdd's Semester
     creation exists (Semester creation UI is resolved in ../semester/semester.sdd)
+  [x] Add the admin week-row trigger in ./view.py and the dialog context in ./routes.py and
+    ../day_dialog/day_dialog.sdd that adds a Holiday, a NoTeachWeek or a Lesson from the weekly table and re-renders
+    it in place
 

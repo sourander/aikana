@@ -1,6 +1,6 @@
 """Pure rendering of the admin day dialog and its Holiday, NoTeachWeek and Lesson forms, per ./day_dialog.sdd."""
 
-from datetime import date
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from fasthtml.common import Button, Dialog, Div, Form, Input, Option, P, Select, Span
@@ -13,6 +13,7 @@ from ..shared import dates
 CONTAINER_ID = "day-dialog"
 DIALOG_ID = "day-dialog-modal"
 GRID_ID = "semester-grid"
+WEEK_TABLE_ID = "realization-week-table"
 DIALOG_PATH = "/day/dialog"
 
 # showModal() throws on an already-open dialog, so the reopen is a no-op once the swap has opened it.
@@ -40,13 +41,18 @@ def day_dialog(
     default_no_teach_title: str = "",
     values: dict | None = None,
     error: str = "",
+    realization_id: str = "",
 ):
-    """The dialog for one day, with a tab per kind of entry the admin can add on that day."""
+    """The dialog for one day, with a tab per kind of entry the admin can add on that day.
+
+    A `realization_id` marks the dialog as opened from that realization's weekly table: the date is editable and a
+    successful write re-renders the weekly table instead of the wall planner grid.
+    """
     values = values or {}
     return Dialog(
-        _tabs(kind, semester_id, day),
+        _tabs(kind, semester_id, day, realization_id),
         Div(f"{day.strftime('%A')}, {dates.format_date(day)}", cls="font-semibold text-sm text-gray-700"),
-        _body(kind, day, semester_id, realization_options, default_no_teach_title, values),
+        _body(kind, day, semester_id, realization_options, default_no_teach_title, values, realization_id),
         P(error, cls="text-red-600 text-sm mt-2") if error else "",
         Button(
             "Close",
@@ -64,13 +70,15 @@ def dialog_container():
     return Div(id=CONTAINER_ID, **{"hx-on::after-swap": _REOPEN_JS})
 
 
-def holiday_form(day: date, semester_id: str, values: dict):
+def holiday_form(day: date, semester_id: str, values: dict, realization_id: str = ""):
     return _form(
         f"{DIALOG_PATH}/holiday",
         day,
         semester_id,
         Span("Title", cls="text-xs font-semibold text-gray-500"),
         Input(name="title", value=values.get("title", ""), required=True, cls=_INPUT_CLS),
+        realization_id=realization_id,
+        editable_day=bool(realization_id),
     )
 
 
@@ -103,11 +111,14 @@ def no_teach_week_form(day: date, semester_id: str, default_no_teach_title: str,
     )
 
 
-def lesson_form(day: date, semester_id: str, realization_options, values: dict):
+def lesson_form(day: date, semester_id: str, realization_options, values: dict, realization_id: str = ""):
     options = list(realization_options)
     if not options:
         return P("No CourseRealizations in this Semester yet.", cls="text-sm text-gray-500")
-    selected = values.get("course_realization_id") or options[0][0]
+    option_ids = [option_id for option_id, _ in options]
+    selected = values.get("course_realization_id") or (
+        realization_id if realization_id in option_ids else options[0][0]
+    )
     return _form(
         f"{DIALOG_PATH}/lesson",
         day,
@@ -145,20 +156,39 @@ def lesson_form(day: date, semester_id: str, realization_options, values: dict):
         Input(name="topic", value=values.get("topic", ""), required=True, cls=_INPUT_CLS),
         Span("Notes", cls="text-xs font-semibold text-gray-500"),
         Input(name="notes", value=values.get("notes", ""), cls=_INPUT_CLS),
+        realization_id=realization_id,
+        editable_day=bool(realization_id),
     )
 
 
-def _form(action: str, day: date, semester_id: str, *fields):
-    """A form that posts the write and lets the response re-render the whole wall planner."""
+def _form(action: str, day: date, semester_id: str, *fields, realization_id: str = "", editable_day: bool = False):
+    """A form that posts the write and lets the response re-render the whole containing view."""
+    if editable_day:
+        week_start = day - timedelta(days=day.weekday())
+        day_fields = (
+            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            Input(
+                name="day",
+                type="date",
+                value=day.isoformat(),
+                min=week_start.isoformat(),
+                max=(week_start + timedelta(days=6)).isoformat(),
+                required=True,
+                cls=_INPUT_CLS,
+            ),
+        )
+    else:
+        day_fields = (Input(name="day", type="hidden", value=day.isoformat()),)
     return Form(
         Input(name="semester_id", type="hidden", value=semester_id),
-        Input(name="day", type="hidden", value=day.isoformat()),
+        Input(name="realization_id", type="hidden", value=realization_id) if realization_id else "",
+        *day_fields,
         *fields,
         Button("Save", type="submit", cls="mt-3 bg-blue-600 text-white rounded px-3 py-1"),
         action=action,
         method="post",
         hx_post=action,
-        hx_target=f"#{GRID_ID}",
+        hx_target=f"#{WEEK_TABLE_ID if realization_id else GRID_ID}",
         hx_swap="outerHTML",
         **{
             "hx-on::before-swap": _ALLOW_ERROR_SWAP_JS,
@@ -168,13 +198,16 @@ def _form(action: str, day: date, semester_id: str, *fields):
     )
 
 
-def _tabs(kind: str, semester_id: str, day: date):
+def _tabs(kind: str, semester_id: str, day: date, realization_id: str = ""):
+    params = {"semester_id": semester_id, "day": day.isoformat()}
+    if realization_id:
+        params["realization_id"] = realization_id
     return Div(
         *[
             Button(
                 label,
                 type="button",
-                hx_get=f"{DIALOG_PATH}?{urlencode({'semester_id': semester_id, 'day': day.isoformat(), 'kind': tab_kind})}",
+                hx_get=f"{DIALOG_PATH}?{urlencode({**params, 'kind': tab_kind})}",
                 hx_target=f"#{CONTAINER_ID}",
                 hx_swap="innerHTML",
                 cls=f"{_TAB_CLS} {_ACTIVE_TAB_CLS if tab_kind == kind else 'text-gray-600 hover:bg-gray-100'}",
@@ -185,9 +218,9 @@ def _tabs(kind: str, semester_id: str, day: date):
     )
 
 
-def _body(kind, day, semester_id, realization_options, default_no_teach_title, values):
+def _body(kind, day, semester_id, realization_options, default_no_teach_title, values, realization_id: str = ""):
     if kind == "no_teach_week":
         return no_teach_week_form(day, semester_id, default_no_teach_title, values)
     if kind == "lesson":
-        return lesson_form(day, semester_id, realization_options, values)
-    return holiday_form(day, semester_id, values)
+        return lesson_form(day, semester_id, realization_options, values, realization_id)
+    return holiday_form(day, semester_id, values, realization_id)

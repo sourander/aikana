@@ -1,9 +1,10 @@
 Spec: Day dialog
 Purpose:
   Admin-only editing of a single day. A `<dialog>` modal lets the admin add a Holiday, a NoTeachWeek or a Lesson, and
-  HTMX swaps the updated wall planner into the page without a reload. Orchestrates ../realizations/realizations.sdd,
+  HTMX swaps the updated wall planner, or the realization weekly table when the dialog is opened from
+  ../realizations/realizations.sdd, into the page without a reload. Orchestrates ../realizations/realizations.sdd,
   ../lessons/lessons.sdd, ../holidays/holidays.sdd and ../no_teach_weeks/no_teach_weeks.sdd services and renders through
-  ../semester/semester.sdd's view, so it owns a view.py and routes.py only.
+  ../semester/semester.sdd's and ../realizations/realizations.sdd's views, so it owns a view.py and routes.py only.
 
 Owns:
   ./__init__.py
@@ -23,8 +24,9 @@ Depends on:
   ../no_teach_weeks/no_teach_weeks.sdd
 
 Exposes:
-  ./view.py's @dialog_container, @GRID_ID, @CONTAINER_ID and @DIALOG_PATH: the container, grid id, swap target and
-  dialog path that ../semester/semester.sdd's view.py needs to render the wall planner's admin affordances.
+  ./view.py's @dialog_container, @GRID_ID, @WEEK_TABLE_ID, @CONTAINER_ID and @DIALOG_PATH: the container, the wall
+  planner grid id, the weekly table id, the swap targets and the dialog path that ../semester/semester.sdd's and
+  ../realizations/realizations.sdd's view.py need to render their admin affordances.
 
 Must:
   Clicking a day row in ../semester/semester.sdd's wall planner opens a `<dialog>` for the admin and does nothing for
@@ -33,16 +35,20 @@ Must:
   the bare `<dialog>` that is swapped into it, never the container itself, so a swap cannot nest a duplicate id.
   The dialog offers one tab per kind of entry the admin can add on the clicked date: a Holiday, a NoTeachWeek or a
   Lesson. Switching tabs re-renders the dialog in place through HTMX.
+  The dialog can also be opened from ../realizations/realizations.sdd's weekly table through a `realization_id`
+  query parameter; then the Holiday and Lesson forms show an editable date field prefilled with the clicked week's
+  Monday and limited to that week, and the Lesson form defaults to that realization.
   The Holiday form takes a title. The NoTeachWeek form takes a week number, prefilled with the clicked date's ISO week
   and editable, and a title, prefilled with ../no_teach_weeks/no_teach_weeks.sdd's shared default title and editable.
   The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a start time and
   an end time as 24-hour `HH:MM` values, a topic and notes. It reports that the Semester has no realization instead of
   offering an unusable form.
-  Each form is an HTMX request whose response is the whole re-rendered wall planner, since one entry can change more
-  than the clicked row: a NoTeachWeek tints all five of its Monday-to-Friday rows.
-  That response is the bare `semester-grid` element rendered through ../semester/semester.sdd's @semester_grid,
-  never the dialog container, so the planner keeps the appearance ../semester/semester.sdd requires and the
-  container is rendered exactly once by the containing page.
+  Each form is an HTMX request whose response is the whole re-rendered wall planner, or the whole re-rendered
+  weekly table when a `realization_id` was given, since one entry can change more than the clicked row: a
+  NoTeachWeek tints all five of its Monday-to-Friday rows.
+  That response is the bare `semester-grid` element rendered through ../semester/semester.sdd's @semester_grid or
+  the bare @WEEK_TABLE_ID element rendered through ../realizations/realizations.sdd's view, never the dialog
+  container, so the containing page keeps its appearance and renders the container exactly once.
   A submission that the underlying service rejects, or whose form field cannot be parsed, leaves the entry unstored
   and re-renders the dialog with a validation message and the values the admin submitted.
   Opening the dialog and every submission are rejected by the ../auth/auth.sdd guard for non-admin sessions.
@@ -75,9 +81,17 @@ Scenario: Rejected entry is not stored
   When the response arrives
   Then the dialog stays open with a validation message and the entry is not stored
 
+Scenario: Admin adds a lesson from the weekly view
+  Given the admin is logged in and views a realization's weekly table
+  When the admin clicks a week row, chooses a course realization, enters a date within that week, a start time, an
+  end time and a topic and submits
+  Then the weekly table re-renders in place with the new lesson
+
 Tasks:
   [x] Implement the dialog, its tab per kind and the holiday form with the HTMX grid swap
   [x] Implement the lesson form
   [x] Implement the NoTeachWeek form, prefilled with the clicked day's ISO week
   [ ] Implement editing of existing entries
   [ ] Let the admin edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd
+  [x] Open the dialog from ../realizations/realizations.sdd's week rows, with the editable date field for the
+    Holiday and Lesson forms and the weekly-table swap
