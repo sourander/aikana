@@ -47,6 +47,9 @@ def semester_grid(vm: SemesterViewModel, is_admin: bool):
     return Div(
         *[_month_column(month, vm.semester.id, is_admin) for month in vm.months],
         id=day_dialog_view.GRID_ID,
+        # The grid is the tooltip area, so a hovered lesson square's tooltip is kept inside it instead of running off
+        # the screen at the left-most column or under the header at the first rows.
+        **{"data-tip-area": ""},
         style=f"display:grid; grid-template-columns:repeat({len(vm.months)}, 1fr); gap:10px; "
         "height:100%; overflow:hidden;",
         cls="p-4",
@@ -97,7 +100,7 @@ def _day_row(day: DayCell, semester_id: str, is_admin: bool):
             *[_lesson_square(square, is_admin) for square in squares],
             cls="flex-1 flex items-center gap-1 flex-wrap",
         ),
-        Span(title, cls="text-xs text-red-600 truncate") if title else "",
+        Span(title, cls="text-xs text-red-600 truncate pr-2") if title else "",
         style="flex:1;",
         **row_attrs,
     )
@@ -113,6 +116,9 @@ def _lesson_square(square, is_admin: bool):
             Div(time_range, cls="text-gray-500"),
             Div(square.topic, cls="text-gray-800"),
             Div(square.notes, cls="text-gray-400 italic mt-1") if square.notes else "",
+            **{"data-tip-body": ""},
+            # The classes position the tooltip centred above the square; ../shared/shared.sdd's script moves it
+            # inside the grid when that would not fit.
             cls="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden w-56 "
             "flex-col gap-0.5 whitespace-normal break-words rounded-lg border border-gray-200 bg-white "
             "p-3 text-xs leading-snug shadow-lg group-hover:flex z-20",
@@ -120,5 +126,7 @@ def _lesson_square(square, is_admin: bool):
         href=f"/realizations?realization_id={square.realization_id}",
         cls="group relative inline-block w-3 h-3 rounded-sm",
         style=f"background-color:{square.color};",
+        # The square is the tooltip's anchor; the script follows this marker on hover.
+        **{"data-tip": ""},
         **square_attrs,
     )

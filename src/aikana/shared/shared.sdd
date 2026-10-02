@@ -21,6 +21,12 @@ Must:
   connection into every feature's repository_sqlite.py constructor, per ../architecture.sdd.
   ./layout.py renders the shared page shell: header, a `<link>` to the compiled Tailwind stylesheet and the HTMX
   script tag, used by every feature's view.py.
+  ./layout.py also emits one inline script for the whole page that keeps a hover tooltip inside the visible area:
+    an element marked `data-tip` is the tooltip's anchor, its `data-tip-body` child is the tooltip, and the tooltip
+    is kept inside the nearest `data-tip-area` ancestor, or the viewport when there is none. On hover the script
+    centres the tooltip on its anchor, opens it below the anchor when there is no room above, and clamps it to the
+    area's edges, so a tooltip never leaves the viewport or slides under the header. The reveal stays in CSS, so an
+    anchor still shows its tooltip when the script is unavailable.
   ./static/input.css is the Tailwind CLI input (`@import "tailwindcss"` plus an explicit `@source` covering every
   feature package's Python files, since utility classes live in `cls="..."` strings rather than templates).
   ./static/app.css is the compiled, minified stylesheet produced from ./static/input.css by the standalone
@@ -62,3 +68,5 @@ Tasks:
     build: add ./static/input.css, compile ./static/app.css with the standalone CLI in the `css` stage of
     /Dockerfile, serve it from `main.py` via `app.static_route`, and update ./layout.py to link it instead of
     injecting the CDN `<script>`
+  [x] Emit the page-wide tooltip positioning script from ./layout.py's `extra_headers`, so any view.py's hover
+    tooltip can be marked as an anchor and kept inside its area

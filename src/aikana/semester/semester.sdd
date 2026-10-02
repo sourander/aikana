@@ -55,7 +55,10 @@ Must:
   The day row for today carries a green bar along its left edge; no other day row does.
   Lessons appear as inline-block squares of `12px` by `12px`. The view assigns each CourseRealization a color from a
   fixed palette at render time; no color is stored in the database.
-  Hovering a square shows lesson details through a pure CSS tooltip that does not change the row height.
+  Hovering a square shows lesson details through a tooltip that does not change the row height. The tooltip always
+  fits the grid area: ../shared/shared.sdd's script opens it above the square when there is room and below it
+  otherwise, and keeps it clear of the left-most and right-most month columns, so the first days of a month are
+  never cut off by the screen edge or hidden behind the top bar.
   Holidays are visibly distinguished on their day row and show their title.
   The Monday-to-Friday rows of a NoTeachWeek are distinguished like a Holiday row, with the same tint and the same
   per-row title, and the row shows no lesson squares, since nothing is taught during the week. A Saturday or Sunday
@@ -111,4 +114,6 @@ Tasks:
   [x] Render the wall planner's grid under the id `semester-grid`, and for an admin render the day-row trigger,
     the link-preserving lesson square and the dialog container that ../day_dialog/day_dialog.sdd swaps into, passing
     the admin flag from ./routes.py into ./view.py
+  [x] Mark the grid as the tooltip area and each lesson square as a tooltip anchor in ./view.py, so a hovered square's
+    tooltip opens below the first rows and inside the left-most column instead of leaving the grid
 
