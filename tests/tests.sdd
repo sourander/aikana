@@ -9,6 +9,8 @@ Structure:
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit dialog
+  ./test_realizations.py: in-process client tests of the add-realization dialog on the courses page and of the
+    realization it creates
   ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
   ./test_day_dialog.py: in-process client tests of the admin day dialog's forms, its guard and its grid and
     weekly-table swaps

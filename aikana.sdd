@@ -70,12 +70,20 @@ Tasks:
   [x] #1 Scaffold `Dockerfile`, `compose.yml`, `.dockerignore`, `requirements.txt`, `Procfile`, `.gitignore` and a minimal `main.py` that serves a page on `$PORT`
   [x] #2 Update README.md run instructions to match the working Docker setup
   [x] #3 Decide how the six-month semester range is chosen, then reflect it in ./src/aikana/semester/semester.sdd
-  [ ] #4 Implement feature packages in order, following ./src/aikana/architecture.sdd: ./src/aikana/shared/shared.sdd, ./src/aikana/auth/auth.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/holidays/holidays.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd, ./src/aikana/day_dialog/day_dialog.sdd
+  [ ] #4 Finish the feature packages listed in ./src/aikana/architecture.sdd, which now all have `fastlite`
+    persistence and an admin write UI (Semester creation, Course creation and editing, CourseRealization creation,
+    and Holiday, NoTeachWeek and Lesson creation through ./src/aikana/day_dialog/day_dialog.sdd): editing and
+    removing existing entries, tracked in ./src/aikana/day_dialog/day_dialog.sdd,
+    ./src/aikana/no_teach_weeks/no_teach_weeks.sdd, ./src/aikana/holidays/holidays.sdd and
+    ./src/aikana/lessons/lessons.sdd
   [x] #5 Restructure into `src/aikana` and `tests`, and migrate dependencies from `requirements.txt` to `uv` and `pyproject.toml`
   [x] #6 Drop `Procfile` and restructure `Dockerfile` into `base`, `dev` and `prod` stages, with `compose.yml` targeting `dev`
   [x] #7 Build a hardcoded first-pass visual semester view (one Semester, two placeholder Courses, two placeholder CourseRealizations, placeholder Lessons, one placeholder Holiday) ahead of full persistence, per the Tasks in ./src/aikana/shared/shared.sdd, ./src/aikana/courses/courses.sdd, ./src/aikana/semester/semester.sdd, ./src/aikana/realizations/realizations.sdd, ./src/aikana/lessons/lessons.sdd and ./src/aikana/holidays/holidays.sdd
   [x] #8 Remove all hardcoded data: implement `fastlite`-backed persistence (./src/aikana/shared/db.py plus every feature's ports.py/repository_sqlite.py) and minimal admin auth (./src/aikana/auth/auth.sdd), so `/` boots correctly with zero Semesters (showing a create-Semester form) and the admin can create one; ./src/aikana/realizations/realizations.sdd's weekly view still renders nothing but its empty state since no CourseRealizations exist yet
   [x] #9 Stop serving Tailwind CSS from the Play CDN (`cdn.tailwindcss.com`, unsupported for production): add a `css` build stage to `Dockerfile` that compiles `./src/aikana/shared/static/app.css` from a new `./src/aikana/shared/static/input.css` with the standalone Tailwind CLI, serve it from `./src/aikana/main.py` via a static route, and update `./src/aikana/shared/layout.py` to link it instead of injecting the CDN `<script>`
+  [x] #10 Add a CourseRealization from the Courses tab: every listed Course lists its realizations across every
+    Semester, each linking to ./src/aikana/realizations/realizations.sdd's weekly view, and the admin adds one
+    through a per-Course `<dialog>` posting to `/courses/{course_id}/realizations`
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

@@ -7,7 +7,8 @@ Purpose:
   in that offering reference. The package also owns the per-CourseRealization weekly table (one row per calendar
   week, with `Week`, `Lessons` and `Notes` columns), the single view a visitor or the admin lands on to see one
   realization's Lessons, resolving ../courses/courses.sdd's former open decision in favor of "one selected
-  realization" over an aggregated per-Course or date-range view.
+  realization" over an aggregated per-Course or date-range view. Creating one is driven from
+  ../courses/courses.sdd's page, which lists a Course's realizations.
 
 Owns:
   ./domain.py
@@ -36,6 +37,9 @@ Must:
   only ./services.py imports ../courses/courses.sdd's and ../semester/semester.sdd's ports.py to validate them.
   @CourseRealizationRepository in ./ports.py exposes operations to list realizations for a Course or a Semester and
   to add one.
+  A Course's realizations are listed across every Semester through @RealizationService, which labels each one from
+  its group and its Semester, so ../courses/courses.sdd's page never reads this package's repository or domain
+  directly.
   A CourseRealization's display label is composed from its Course name, group and Semester at render time; it is not
   stored as its own field.
   @RealizationService.add_realization validates that the Course and Semester ids exist and that the group label is
@@ -94,9 +98,12 @@ Tasks:
     two-phase-wired attribute
   [x] Replace a NoTeachWeek's week with a single `No teaching week` entry in @RealizationService's weekly view-model
     through ../no_teach_weeks/no_teach_weeks.sdd, and render it in ./view.py
-  [?] Decide the admin UI for creating a Course and a CourseRealization once ../semester/semester.sdd's Semester
-    creation exists (Semester creation UI is resolved in ../semester/semester.sdd)
+  [x] Decide the admin UI for creating a Course and a CourseRealization once ../semester/semester.sdd's Semester
+    creation exists (Semester creation UI is resolved in ../semester/semester.sdd): a CourseRealization is created
+    from a per-Course `<dialog>` on ../courses/courses.sdd's page, not from this package's weekly view
   [x] Add the admin week-row trigger in ./view.py and the dialog context in ./routes.py and
     ../day_dialog/day_dialog.sdd that adds a Holiday, a NoTeachWeek or a Lesson from the weekly table and re-renders
     it in place
+  [x] Add @CourseRealizationRepository.list_for_course and @RealizationService.list_realizations_for_course, so
+    ../courses/courses.sdd's page can list a Course's realizations across every Semester
 

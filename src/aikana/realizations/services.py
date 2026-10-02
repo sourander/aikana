@@ -54,6 +54,9 @@ class RealizationService:
             raise RuntimeError("RealizationService.semester_service was not wired by the composition root.")
         return self.semester_service
 
+    def list_realizations_for_course(self, course_id: str) -> list[CourseRealization]:
+        return self.repo.list_for_course(course_id)
+
     def list_realizations_for_semester(self, semester_id: str) -> list[CourseRealization]:
         return self.repo.list_for_semester(semester_id)
 

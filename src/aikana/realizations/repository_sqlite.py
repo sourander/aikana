@@ -25,6 +25,10 @@ class SqliteCourseRealizationRepository:
             if_not_exists=True,
         )
 
+    def list_for_course(self, course_id: str) -> list[CourseRealization]:
+        rows = self._table(where="course_id = ?", where_args=[course_id])
+        return [_to_domain(row) for row in rows]
+
     def list_for_semester(self, semester_id: str) -> list[CourseRealization]:
         rows = self._table(where="semester_id = ?", where_args=[semester_id])
         return [_to_domain(row) for row in rows]
