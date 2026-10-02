@@ -2,6 +2,7 @@
 
 from fasthtml.common import Div, P, Table, Tbody, Td, Th, Thead, Tr
 
+from ..no_teach_weeks.domain import DEFAULT_TITLE
 from ..shared import layout
 from .services import RealizationViewModel, WeekEntry, WeekRow
 
@@ -60,11 +61,15 @@ def _week_cell(week: WeekRow, rowspan: int):
 def _lessons_cell(entry: WeekEntry | None):
     if entry is None:
         return Td("\u2014", cls=f"{_CELL_CLS} text-gray-300")
+    if entry.is_no_teach_week:
+        # A NoTeachWeek's default title is already "No teaching week", so only a custom title is appended.
+        label = entry.title if entry.title == DEFAULT_TITLE else f"No teaching week \u2013 {entry.title}"
+        return Td(label, cls=f"{_CELL_CLS} text-red-600 italic")
     if entry.is_holiday:
         return Td(f"Holiday \u2013 {entry.title}", cls=f"{_CELL_CLS} text-red-600 italic")
     return Td(Div(entry.title, cls="text-gray-900"), Div(entry.time_range, cls="text-xs text-gray-500"), cls=_CELL_CLS)
 
 
 def _notes_cell(entry: WeekEntry | None):
-    text = entry.notes if entry and not entry.is_holiday else ""
+    text = entry.notes if entry and not (entry.is_holiday or entry.is_no_teach_week) else ""
     return Td(text, cls=f"{_CELL_CLS} text-gray-600 text-sm")

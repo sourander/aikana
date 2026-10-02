@@ -17,6 +17,7 @@ References:
 Depends on:
   ../shared/shared.sdd
   ../realizations/realizations.sdd
+  ../no_teach_weeks/no_teach_weeks.sdd
 
 Must:
   A Lesson has a date, a start time and an end time, a topic, free-text notes and a reference to a CourseRealization.
@@ -24,6 +25,8 @@ Must:
   ../realizations/realizations.sdd's ports.py, per ../architecture.sdd), that the topic is non-empty and that the
   end time is later than the start time, rejecting with @UnknownRealizationError or @InvalidLessonError before
   storage.
+  @LessonService.add_lesson also rejects a date inside a NoTeachWeek of the CourseRealization's Semester, read through
+  ../no_teach_weeks/no_teach_weeks.sdd, with @InvalidLessonError, because nothing is taught during such a week.
   @LessonRepository in ./ports.py exposes operations to list lessons for a CourseRealization or a date range and to
   add one.
   Lesson listings are ordered by date and start time, so a day with several Lessons reads chronologically.
@@ -39,3 +42,4 @@ Tasks:
     (./ports.py and ./repository_sqlite.py), per ../architecture.sdd's Example
   [x] Validate the CourseRealization id (via ../realizations/realizations.sdd's ports.py), a non-empty topic and
     start-before-end times in @LessonService.add_lesson with @UnknownRealizationError and @InvalidLessonError
+  [x] Reject a lesson dated inside a NoTeachWeek of the CourseRealization's Semester with @InvalidLessonError

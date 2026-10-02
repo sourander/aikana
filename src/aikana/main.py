@@ -13,6 +13,8 @@ from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.lessons.services import LessonService
+from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
+from aikana.no_teach_weeks.services import NoTeachWeekService
 from aikana.realizations import routes as realizations_routes
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import RealizationService
@@ -32,16 +34,28 @@ def create_app(db: Database) -> FastHTML:
     holiday_service = HolidayService(SqliteHolidayRepository(db))
     auth_service = AuthService(os.environ.get("AIKANA_PASSWD", ""))
 
+    # NoTeachWeekService validates Semester ids through the semesters port and creates a new Semester's default
+    # NoTeachWeeks, so it is constructed before the services that depend on it.
+    semester_repo = SqliteSemesterRepository(db)
+    no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
+
     # LessonService validates realization ids through the realizations port, per ./architecture.sdd, so both
     # services share the one repository instance.
     realization_repo = SqliteCourseRealizationRepository(db)
-    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo)
+    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
 
     # RealizationService and SemesterService are a genuine mutual pair; realization_service is constructed first
     # without a semester_service, then wired onto it once semester_service exists, per ./architecture.sdd.
-    realization_service = RealizationService(realization_repo, course_service, lesson_service, holiday_service)
+    realization_service = RealizationService(
+        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
+    )
     semester_service = SemesterService(
-        SqliteSemesterRepository(db), course_service, holiday_service, lesson_service, realization_service
+        semester_repo,
+        course_service,
+        holiday_service,
+        lesson_service,
+        realization_service,
+        no_teach_week_service,
     )
     realization_service.semester_service = semester_service
 

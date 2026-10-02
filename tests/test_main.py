@@ -1,3 +1,4 @@
+from datetime import date, time
 from types import SimpleNamespace
 
 import pytest
@@ -10,6 +11,8 @@ from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.lessons.services import LessonService
 from aikana.main import create_app
+from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
+from aikana.no_teach_weeks.services import NoTeachWeekService
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import RealizationService
 from aikana.semester.repository_sqlite import SqliteSemesterRepository
@@ -37,17 +40,22 @@ def services(db):
     """Seeds data on the same temporary database the app was built on, wired as main.py's composition root does."""
     course_service = CourseService(SqliteCourseRepository(db))
     holiday_service = HolidayService(SqliteHolidayRepository(db))
+    semester_repo = SqliteSemesterRepository(db)
+    no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
     realization_repo = SqliteCourseRealizationRepository(db)
-    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo)
-    realization_service = RealizationService(realization_repo, course_service, lesson_service, holiday_service)
+    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
+    realization_service = RealizationService(
+        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
+    )
     semester_service = SemesterService(
-        SqliteSemesterRepository(db), course_service, holiday_service, lesson_service, realization_service
+        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
     )
     realization_service.semester_service = semester_service
     return SimpleNamespace(
         courses=course_service,
         holidays=holiday_service,
         lessons=lesson_service,
+        no_teach_weeks=no_teach_week_service,
         realizations=realization_service,
         semesters=semester_service,
     )
@@ -141,3 +149,58 @@ def test_courses_page_ignores_the_selected_semester(client, services):
     assert "Machine Learning" in spring_page.text
     assert f'<option value="{fall.id}" selected>' in fall_page.text
     assert f'<option value="{spring.id}" selected>' in spring_page.text
+
+
+# NoTeachWeeks
+
+
+def test_wall_planner_tints_and_titles_each_weekday_of_a_no_teach_week(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert response.status_code == 200
+    # Week 42 (2026-10-12 to 10-16) and week 51 (2026-12-14 to 12-18) each contribute five titled rows.
+    assert response.text.count("No teaching week") == 10
+
+
+def test_wall_planner_hides_lesson_squares_on_a_no_teach_week(client, db, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    # Inserted straight through the repository: @LessonService.add_lesson rejects a date inside a NoTeachWeek,
+    # but rows already holding a stale Lesson must still render blocked.
+    SqliteLessonRepository(db).add(realization.id, date(2026, 10, 13), time(8, 0), time(10, 0), "Inside", "")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert "Inside" not in response.text
+    assert "No teaching week" in response.text
+
+
+def test_realizations_view_shows_a_no_teach_week_as_a_single_line(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    services.lessons.add_lesson(
+        realization.id, date(2026, 9, 16), time(8, 0), time(10, 0), "Before the week", ""
+    )
+
+    response = client.get(f"/realizations?realization_id={realization.id}")
+
+    assert response.status_code == 200
+    assert "No teaching week" in response.text
+    assert "No teaching week \u2013" not in response.text
+    assert "Before the week" in response.text
+
+
+def test_realizations_view_appends_a_custom_no_teach_week_title(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+    services.no_teach_weeks.update_no_teach_week(week.id, week.week_number, "Staff training")
+
+    response = client.get(f"/realizations?realization_id={realization.id}")
+
+    assert "No teaching week \u2013 Staff training" in response.text

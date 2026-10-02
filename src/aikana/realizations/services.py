@@ -8,6 +8,7 @@ from ..courses.domain import Course
 from ..courses.services import CourseService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
+from ..no_teach_weeks.services import NoTeachWeekService
 from .domain import CourseRealization
 from .ports import CourseRealizationRepository
 
@@ -35,11 +36,13 @@ class RealizationService:
         course_service: CourseService,
         lesson_service: LessonService,
         holiday_service: HolidayService,
+        no_teach_week_service: NoTeachWeekService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
         self.lesson_service = lesson_service
         self.holiday_service = holiday_service
+        self.no_teach_week_service = no_teach_week_service
         # Set by main.py once ../semester/semester.sdd's SemesterService is constructed (mutual pair, wired in
         # two phases per ../architecture.sdd).
         self.semester_service: "SemesterService | None" = None
@@ -97,29 +100,59 @@ class RealizationService:
             holiday.date: holiday.title
             for holiday in self.holiday_service.list_holidays_for_range(start, end)
         }
+        no_teach_titles_by_week = {
+            week.week_number: week.title
+            for week in self.no_teach_week_service.list_no_teach_weeks(realization.semester_id)
+        }
 
         weeks: list[WeekRow] = []
         week_start = start - timedelta(days=start.weekday())
         while week_start <= end:
             week_end = week_start + timedelta(days=6)
             entries: list[WeekEntry] = []
+            week_number = week_start.isocalendar()[1]
+            no_teach_title = no_teach_titles_by_week.get(week_number)
             day = week_start
-            while day <= week_end:
-                for lesson in lessons_by_day.get(day, []):
-                    entries.append(
-                        WeekEntry(
-                            is_holiday=False,
-                            time_range=f"{lesson.start_time.strftime('%H:%M')}\u2013{lesson.end_time.strftime('%H:%M')}",
-                            title=lesson.topic,
-                            notes=lesson.notes,
-                        )
+            if no_teach_title is not None:
+                # A NoTeachWeek consumes its whole week, so no Lesson sub-row is shown for it, per
+                # ../no_teach_weeks/no_teach_weeks.sdd.
+                entries.append(
+                    WeekEntry(
+                        is_holiday=False,
+                        is_no_teach_week=True,
+                        time_range="",
+                        title=no_teach_title,
+                        notes="",
                     )
-                holiday_title = holiday_titles_by_day.get(day)
-                if holiday_title:
-                    entries.append(WeekEntry(is_holiday=True, time_range="", title=holiday_title, notes=""))
-                day += timedelta(days=1)
+                )
+            else:
+                while day <= week_end:
+                    for lesson in lessons_by_day.get(day, []):
+                        entries.append(
+                            WeekEntry(
+                                is_holiday=False,
+                                is_no_teach_week=False,
+                                time_range=f"{lesson.start_time.strftime('%H:%M')}\u2013{lesson.end_time.strftime('%H:%M')}",
+                                title=lesson.topic,
+                                notes=lesson.notes,
+                            )
+                        )
+                    holiday_title = holiday_titles_by_day.get(day)
+                    if holiday_title:
+                        entries.append(
+                            WeekEntry(
+                                is_holiday=True,
+                                is_no_teach_week=False,
+                                time_range="",
+                                title=holiday_title,
+                                notes="",
+                            )
+                        )
+                    day += timedelta(days=1)
             weeks.append(
-                WeekRow(week_number=week_start.isocalendar()[1], start=week_start, end=week_end, entries=entries)
+                WeekRow(
+                    week_number=week_number, start=week_start, end=week_end, entries=entries
+                )
             )
             week_start += timedelta(days=7)
 
@@ -135,6 +168,7 @@ class WeekEntry:
     """One Lesson or Holiday shown in a WeekRow's Lessons/Notes sub-rows."""
 
     is_holiday: bool
+    is_no_teach_week: bool
     time_range: str
     title: str
     notes: str

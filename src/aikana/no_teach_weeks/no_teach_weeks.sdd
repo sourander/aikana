@@ -1,0 +1,55 @@
+Spec: NoTeachWeek entity
+
+Purpose:
+  The NoTeachWeek entity: one calendar week of a Semester in which nothing is taught. It resembles ../holidays/holidays.sdd's
+  Holiday but spans a whole week instead of a single date, so it is stored as one row rather than one row per day. It blocks
+  Monday through Friday only, since Saturday and Sunday already carry no lessons. A view-less, route-less package used by
+  ../semester/semester.sdd, ../realizations/realizations.sdd and ../lessons/lessons.sdd.
+
+Owns:
+  ./__init__.py
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+  ../semester/semester.sdd
+
+Must:
+  A NoTeachWeek has a reference to exactly one Semester stored as a plain id, an ISO week number, the Monday that starts
+  that week and a title. The Monday is resolved once from the Semester's year and the week number when the NoTeachWeek is
+  created, so the blocked weekdays are computed from the NoTeachWeek alone.
+  The blocked weekdays of a NoTeachWeek are that week's Monday through Friday; Saturday and Sunday are never blocked.
+  A `fall` Semester defaults to NoTeachWeeks in weeks `42` and `51`; a `spring` Semester defaults to weeks `1`, `10` and
+  `22`. Every default NoTeachWeek is titled `No teaching week`.
+  @NoTeachWeekService.add_no_teach_week rejects an unknown Semester id with @UnknownSemesterError, a week number that is
+  not a week of the Semester's ISO year or an empty title with @InvalidNoTeachWeekError, and a week already blocked in the
+  same Semester with @DuplicateNoTeachWeekError, all before storage.
+  @NoTeachWeekService.update_no_teach_week re-checks the week number and title for an existing NoTeachWeek, ignoring the
+  NoTeachWeek being edited when looking for a duplicate, and rejects an unknown id with @UnknownNoTeachWeekError.
+  @NoTeachWeekService.create_defaults_for_semester creates the term's default NoTeachWeeks for a Semester and skips a
+  week that is already blocked there, so it is safe to call for a Semester that already has them.
+  @NoTeachWeekService.titles_by_teaching_day maps each blocked Monday-to-Friday date of a Semester to its NoTeachWeek's
+  title, and lists NoTeachWeeks ordered by week number.
+  @NoTeachWeekRepository in ./ports.py exposes list, get, add, update and delete operations backing ./services.py.
+  The table is created automatically on startup when it does not exist.
+
+Must not:
+  A NoTeachWeek must not block Saturday or Sunday, and must not be stored as one row per blocked date, since a single
+  row's blocked weekdays are what keeps the views consistent with each other.
+
+Tasks:
+  [x] Implement @NoTeachWeek in ./domain.py with the Monday-to-Friday rule, the per-term default weeks and the shared
+    default title
+  [x] Implement ./ports.py, ./services.py and ./repository_sqlite.py, with @NoTeachWeekService validating through
+    ../semester/semester.sdd's ports.py, per ../architecture.sdd
+  [x] Add @NoTeachWeekService.create_defaults_for_semester and call it from ../semester/semester.sdd's
+    @SemesterService.create_semester
+  [x] Block the week in ../semester/semester.sdd's wall planner and as a single line in
+    ../realizations/realizations.sdd's weekly view, and reject a Lesson inside one in ../lessons/lessons.sdd
+  [ ] Add the admin UI that edits a Semester's NoTeachWeeks in ../day_dialog/day_dialog.sdd

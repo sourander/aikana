@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from ..courses.services import CourseService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
+from ..no_teach_weeks.services import NoTeachWeekService
 from . import domain
 from .domain import Semester, Term
 from .ports import SemesterRepository
@@ -52,6 +53,7 @@ class DayCell:
     weekday_label: str
     squares: list[LessonSquare]
     holiday_title: str | None
+    no_teach_title: str | None
 
 
 @dataclass(frozen=True)
@@ -74,12 +76,14 @@ class SemesterService:
         holiday_service: HolidayService,
         lesson_service: LessonService,
         realization_service: "RealizationService",
+        no_teach_week_service: NoTeachWeekService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
         self.holiday_service = holiday_service
         self.lesson_service = lesson_service
         self.realization_service = realization_service
+        self.no_teach_week_service = no_teach_week_service
 
     def list_semesters(self) -> list[Semester]:
         return self.repo.list()
@@ -95,7 +99,11 @@ class SemesterService:
             raise InvalidTermError(f"Term must be 'spring' or 'fall', got {term!r}.")
         if any(s.year == year and s.term == term for s in self.repo.list()):
             raise DuplicateSemesterError(f"A {term} {year} Semester already exists.")
-        return self.repo.add(year, term)
+        semester = self.repo.add(year, term)
+        # A new Semester starts with its term's default NoTeachWeeks, per ./semester.sdd and
+        # ../no_teach_weeks/no_teach_weeks.sdd.
+        self.no_teach_week_service.create_defaults_for_semester(semester.id)
+        return semester
 
     def semester_bounds(self, semester: Semester) -> tuple[date, date]:
         return domain.semester_bounds(semester)
@@ -135,6 +143,7 @@ class SemesterService:
             holiday.date: holiday.title
             for holiday in self.holiday_service.list_holidays_for_range(start, end)
         }
+        no_teach_titles_by_day = self.no_teach_week_service.titles_by_teaching_day(semester.id)
 
         months = []
         for year, month in domain.semester_months(semester):
@@ -148,6 +157,7 @@ class SemesterService:
                         weekday_label=day.strftime("%a"),
                         squares=squares_by_day.get(day, []),
                         holiday_title=holiday_titles_by_day.get(day),
+                        no_teach_title=no_teach_titles_by_day.get(day),
                     )
                 )
             months.append(MonthColumn(label=date(year, month, 1).strftime("%B %Y"), days=days))

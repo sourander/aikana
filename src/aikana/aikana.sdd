@@ -17,6 +17,7 @@ Structure:
     per-CourseRealization weekly calendar view
   ./lessons/: the Lesson entity
   ./holidays/: the Holiday entity
+  ./no_teach_weeks/: the NoTeachWeek entity, a Monday-to-Friday week of a Semester in which nothing is taught
   ./day_dialog/: the admin dialog for adding or editing a Lesson or a Holiday on a given day
 
 References:

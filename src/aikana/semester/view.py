@@ -58,12 +58,16 @@ def _month_column(month: MonthColumn):
 
 
 def _day_row(day: DayCell):
-    tint_cls = "bg-red-50" if day.holiday_title or day.day.weekday() >= 5 else ""
+    is_blocked = bool(day.holiday_title or day.no_teach_title)
+    tint_cls = "bg-red-50" if is_blocked or day.day.weekday() >= 5 else ""
+    # Nothing is taught during a NoTeachWeek, so its Monday-to-Friday rows show no lesson squares.
+    squares = [] if day.no_teach_title else day.squares
+    title = day.holiday_title or day.no_teach_title
     return Div(
         Span(day.weekday_label, cls="w-8 text-xs text-gray-500 shrink-0"),
         Span(str(day.day.day), cls="w-5 text-sm shrink-0"),
-        Div(*[_lesson_square(square) for square in day.squares], cls="flex-1 flex items-center gap-1 flex-wrap"),
-        Span(day.holiday_title, cls="text-xs text-red-600 truncate") if day.holiday_title else "",
+        Div(*[_lesson_square(square) for square in squares], cls="flex-1 flex items-center gap-1 flex-wrap"),
+        Span(title, cls="text-xs text-red-600 truncate") if title else "",
         cls=f"flex items-center gap-1 border-b border-gray-100 {tint_cls}",
         style="flex:1;",
     )

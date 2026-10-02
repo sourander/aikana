@@ -17,6 +17,14 @@ from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService, InvalidHolidayError
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.lessons.services import InvalidLessonError, LessonService, UnknownRealizationError
+from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
+from aikana.no_teach_weeks.services import (
+    DuplicateNoTeachWeekError,
+    InvalidNoTeachWeekError,
+    NoTeachWeekService,
+    UnknownNoTeachWeekError,
+)
+from aikana.no_teach_weeks.services import UnknownSemesterError as UnknownNoTeachWeekSemesterIdError
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import (
     InvalidRealizationError,
@@ -35,17 +43,22 @@ def services(tmp_path):
     db = create_database(tmp_path / "app.db")
     course_service = CourseService(SqliteCourseRepository(db))
     holiday_service = HolidayService(SqliteHolidayRepository(db))
+    semester_repo = SqliteSemesterRepository(db)
+    no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
     realization_repo = SqliteCourseRealizationRepository(db)
-    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo)
-    realization_service = RealizationService(realization_repo, course_service, lesson_service, holiday_service)
+    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
+    realization_service = RealizationService(
+        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
+    )
     semester_service = SemesterService(
-        SqliteSemesterRepository(db), course_service, holiday_service, lesson_service, realization_service
+        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
     )
     realization_service.semester_service = semester_service
     return SimpleNamespace(
         courses=course_service,
         holidays=holiday_service,
         lessons=lesson_service,
+        no_teach_weeks=no_teach_week_service,
         realizations=realization_service,
         semesters=semester_service,
     )
@@ -111,6 +124,18 @@ def test_create_semester_rejects_an_invalid_term(services):
         services.semesters.create_semester(2026, "summer")
 
 
+def test_creating_a_fall_semester_creates_its_default_no_teach_weeks(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    weeks = services.no_teach_weeks.list_no_teach_weeks(semester.id)
+    assert [week.week_number for week in weeks] == [42, 51]
+    assert {week.title for week in weeks} == {"No teaching week"}
+
+
+def test_creating_a_spring_semester_creates_its_default_no_teach_weeks(services):
+    semester = services.semesters.create_semester(2026, "spring")
+    assert [week.week_number for week in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [1, 10, 22]
+
+
 # CourseRealizations
 
 
@@ -162,9 +187,110 @@ def test_lessons_for_a_day_are_ordered_by_start_time(services, realization):
     assert services.lessons.list_lessons_for_realization(realization.id) == [early, late]
 
 
+def test_add_lesson_rejects_a_date_inside_a_no_teach_week(services, realization):
+    # The `realization` fixture's fall-2026 Semester blocks weeks 42 and 51, Monday to Friday.
+    with pytest.raises(InvalidLessonError):
+        services.lessons.add_lesson(realization.id, date(2026, 10, 13), time(8, 0), time(10, 0), "Intro", "")
+
+
+def test_add_lesson_accepts_a_saturday_inside_a_no_teach_week(services, realization):
+    lesson = services.lessons.add_lesson(realization.id, date(2026, 10, 17), time(8, 0), time(10, 0), "Extra", "")
+    assert services.lessons.list_lessons_for_realization(realization.id) == [lesson]
+
+
 # Holidays
 
 
 def test_add_holiday_rejects_an_empty_title(services):
     with pytest.raises(InvalidHolidayError):
         services.holidays.add_holiday(date(2026, 12, 6), "  ")
+
+
+# NoTeachWeeks
+
+
+def test_add_no_teach_week_rejects_an_unknown_semester(services):
+    with pytest.raises(UnknownNoTeachWeekSemesterIdError):
+        services.no_teach_weeks.add_no_teach_week("no-such-semester", 5, "Study week")
+
+
+def test_add_no_teach_week_rejects_a_week_the_year_does_not_have(services):
+    semester = services.semesters.create_semester(2027, "spring")  # 2027 is a 52-week ISO year.
+    with pytest.raises(InvalidNoTeachWeekError):
+        services.no_teach_weeks.add_no_teach_week(semester.id, 53, "Study week")
+
+
+def test_add_no_teach_week_rejects_an_empty_title(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    with pytest.raises(InvalidNoTeachWeekError):
+        services.no_teach_weeks.add_no_teach_week(semester.id, 5, "   ")
+
+
+def test_add_no_teach_week_rejects_a_week_already_blocked_in_the_same_semester(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    with pytest.raises(DuplicateNoTeachWeekError):
+        services.no_teach_weeks.add_no_teach_week(semester.id, 42, "Study week")
+
+
+def test_add_no_teach_week_resolves_the_monday_of_the_week(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    week = services.no_teach_weeks.add_no_teach_week(semester.id, 5, "Study week")
+    assert week.week_start == date(2026, 1, 26)
+
+
+def test_create_defaults_adds_nothing_when_the_defaults_already_exist(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    assert services.no_teach_weeks.create_defaults_for_semester(semester.id) == []
+    assert [week.week_number for week in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [42, 51]
+
+
+def test_titles_by_teaching_day_covers_the_weekdays_only(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    for week in services.no_teach_weeks.list_no_teach_weeks(semester.id):
+        services.no_teach_weeks.delete_no_teach_week(week.id)
+    services.no_teach_weeks.add_no_teach_week(semester.id, 42, "Study week")
+
+    titles = services.no_teach_weeks.titles_by_teaching_day(semester.id)
+
+    # Week 42 of 2026 runs Monday 2026-10-12 to Sunday 2026-10-18.
+    assert titles == {date(2026, 10, day): "Study week" for day in range(12, 17)}
+    assert date(2026, 10, 17) not in titles
+    assert date(2026, 10, 18) not in titles
+
+
+def test_update_no_teach_week_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownNoTeachWeekError):
+        services.no_teach_weeks.update_no_teach_week("no-such-week", 5, "Study week")
+
+
+def test_update_no_teach_week_changes_the_stored_values(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    week = services.no_teach_weeks.add_no_teach_week(semester.id, 5, "Study week")
+    updated = services.no_teach_weeks.update_no_teach_week(week.id, 6, "Autumn break")
+    assert (updated.week_number, updated.title, updated.week_start) == (6, "Autumn break", date(2026, 2, 2))
+    assert services.no_teach_weeks.get_no_teach_week(week.id) == updated
+
+
+def test_update_no_teach_week_ignores_itself_when_looking_for_a_duplicate(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    week = services.no_teach_weeks.add_no_teach_week(semester.id, 5, "Study week")
+    assert services.no_teach_weeks.update_no_teach_week(week.id, 5, "Renamed").title == "Renamed"
+
+
+def test_update_no_teach_week_rejects_another_week_number_already_blocked(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    week = services.no_teach_weeks.add_no_teach_week(semester.id, 5, "Study week")
+    with pytest.raises(DuplicateNoTeachWeekError):
+        services.no_teach_weeks.update_no_teach_week(week.id, 42, "Study week")
+
+
+def test_delete_no_teach_week_removes_it_from_the_semester(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+    services.no_teach_weeks.delete_no_teach_week(week.id)
+    assert [w.week_number for w in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [51]
+
+
+def test_delete_no_teach_week_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownNoTeachWeekError):
+        services.no_teach_weeks.delete_no_teach_week("no-such-week")

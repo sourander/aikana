@@ -18,6 +18,7 @@ Depends on:
   ../realizations/realizations.sdd
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
+  ../no_teach_weeks/no_teach_weeks.sdd
 
 Must:
   Clicking a day cell opens a `<dialog>` for the admin and does nothing for unauthenticated visitors.
@@ -43,3 +44,5 @@ Tasks:
   [ ] Implement the dialog and the holiday form with the HTMX cell swap
   [ ] Implement the lesson form
   [ ] Implement editing of existing entries
+  [ ] Let the admin add, edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd, which
+    currently only gets its defaults when the Semester is created

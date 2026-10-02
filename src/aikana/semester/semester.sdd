@@ -23,6 +23,7 @@ Depends on:
   ../realizations/realizations.sdd
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
+  ../no_teach_weeks/no_teach_weeks.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
@@ -33,6 +34,9 @@ Must:
   The admin can create a new Semester by submitting a year and a term through a form; the submission is rejected
   by ../auth/auth.sdd's guard for non-admin sessions, and rejected with a validation message when the year+term
   combination already exists.
+  Creating a Semester also creates that term's default NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd's
+  @NoTeachWeekService, so a new Semester starts with weeks `42` and `51` blocked when its term is `fall`, or weeks
+  `1`, `10` and `22` when its term is `spring`.
   When no Semesters exist, ./routes.py renders the create-Semester form as `/`'s primary content for an admin
   session instead of the wall planner; a visitor instead sees a neutral notice and no form. Once at least one
   Semester exists, a small persistent admin-only "+ New Semester" control sits in the header next to the shared
@@ -52,6 +56,9 @@ Must:
   fixed palette at render time; no color is stored in the database.
   Hovering a square shows lesson details through a pure CSS tooltip that does not change the row height.
   Holidays are visibly distinguished on their day row and show their title.
+  The Monday-to-Friday rows of a NoTeachWeek are distinguished like a Holiday row, with the same tint and the same
+  per-row title, and the row shows no lesson squares, since nothing is taught during the week. A Saturday or Sunday
+  row keeps the plain weekend tint.
   Saturdays and Sundays are visibly distinguished with the same mild tint as a Holiday row, even on a week with no
   Holiday, since no lessons are taught on weekends by default.
   For the admin, clicking a day row opens the dialog specified in ../day_dialog/day_dialog.sdd.
@@ -92,4 +99,7 @@ Tasks:
     `GET /semesters/new` and `POST /semesters`, gated by ../auth/auth.sdd's guard, rendering the form as `/`'s
     primary content whenever no Semesters exist
   [x] Reject terms other than `spring` or `fall` in @SemesterService.create_semester with @InvalidTermError
+  [x] Create the term's default NoTeachWeeks from @SemesterService.create_semester through
+    ../no_teach_weeks/no_teach_weeks.sdd, and render a NoTeachWeek's Monday-to-Friday rows as tinted, titled rows
+    without lesson squares in ./view.py
 

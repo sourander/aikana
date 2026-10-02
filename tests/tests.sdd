@@ -8,6 +8,7 @@ Structure:
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit dialog
+  ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
 
 Owns:
   ./test_*.py
