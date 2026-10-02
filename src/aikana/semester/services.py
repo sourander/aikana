@@ -54,6 +54,7 @@ class DayCell:
     squares: list[LessonSquare]
     holiday_title: str | None
     no_teach_title: str | None
+    is_today: bool = False
 
 
 @dataclass(frozen=True)
@@ -114,7 +115,8 @@ class SemesterService:
     def list_semester_options(self) -> list[tuple[str, str]]:
         return [(semester.id, self.semester_label(semester)) for semester in self.list_semesters()]
 
-    def build_semester_view_model(self, semester: Semester) -> SemesterViewModel:
+    def build_semester_view_model(self, semester: Semester, today: date | None = None) -> SemesterViewModel:
+        today = today or date.today()
         courses_by_id = {course.id: course for course in self.course_service.list_courses()}
         realizations = self.realization_service.list_realizations_for_semester(semester.id)
         colors = {r.id: PALETTE[i % len(PALETTE)] for i, r in enumerate(realizations)}
@@ -158,6 +160,7 @@ class SemesterService:
                         squares=squares_by_day.get(day, []),
                         holiday_title=holiday_titles_by_day.get(day),
                         no_teach_title=no_teach_titles_by_day.get(day),
+                        is_today=day == today,
                     )
                 )
             months.append(MonthColumn(label=date(year, month, 1).strftime("%B %Y"), days=days))

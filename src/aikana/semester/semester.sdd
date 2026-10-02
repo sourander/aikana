@@ -52,6 +52,7 @@ Must:
   Each month is a flex column (`display: flex; flex-direction: column`) with the month name as header at its top.
   Each month contains one row per day of that month, and each row has `flex: 1` so all rows share height equally.
   A day row shows the weekday abbreviation, the date number and a wider space for lesson indicators.
+  The day row for today carries a green bar along its left edge; no other day row does.
   Lessons appear as inline-block squares of `12px` by `12px`. The view assigns each CourseRealization a color from a
   fixed palette at render time; no color is stored in the database.
   Hovering a square shows lesson details through a pure CSS tooltip that does not change the row height.

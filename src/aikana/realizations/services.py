@@ -84,10 +84,13 @@ class RealizationService:
             for r in self.list_realizations_for_semester(semester_id)
         ]
 
-    def build_realization_view_model(self, realization_id: str) -> "RealizationViewModel | None":
+    def build_realization_view_model(
+        self, realization_id: str, today: date | None = None
+    ) -> "RealizationViewModel | None":
         realization = self.get_realization(realization_id)
         if realization is None:
             return None
+        today = today or date.today()
 
         course = self.course_service.get_course(realization.course_id)
         semester = self._semesters().get_semester(realization.semester_id)
@@ -151,7 +154,11 @@ class RealizationService:
                     day += timedelta(days=1)
             weeks.append(
                 WeekRow(
-                    week_number=week_number, start=week_start, end=week_end, entries=entries
+                    week_number=week_number,
+                    start=week_start,
+                    end=week_end,
+                    entries=entries,
+                    is_current_week=week_start <= today <= week_end,
                 )
             )
             week_start += timedelta(days=7)
@@ -180,6 +187,7 @@ class WeekRow:
     start: date
     end: date
     entries: list[WeekEntry]
+    is_current_week: bool = False
 
 
 @dataclass(frozen=True)

@@ -59,6 +59,7 @@ Must:
   (`rowspan`) so it still reads as one row. A Lesson sub-row shows its time range and topic in the `Lessons` column
   and its free-text notes in the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in
   the `Lessons` column with an empty `Notes` cell. A week with neither shows a single empty sub-row.
+  The week row containing today carries a green bar along its left edge; no other week row does.
   A NoTeachWeek of the realization's Semester, read through ../no_teach_weeks/no_teach_weeks.sdd, consumes its whole
   week: that week shows exactly one sub-row whose `Lessons` cell reads `No teaching week`, followed by
   `\u2013` and the NoTeachWeek's title when that title is not already `No teaching week`, and an empty `Notes` cell; no

@@ -21,6 +21,15 @@ from aikana.shared.db import create_database
 
 AIKANA_PASSWD = "test-password"
 
+# A date whose `today()` is fixed, so the time-dependent highlighting is testable.
+FIXED_TODAY = date(2026, 10, 20)
+
+
+class _FrozenDate(date):
+    @classmethod
+    def today(cls):
+        return FIXED_TODAY
+
 
 @pytest.fixture
 def db(tmp_path):
@@ -204,3 +213,38 @@ def test_realizations_view_appends_a_custom_no_teach_week_title(client, services
     response = client.get(f"/realizations?realization_id={realization.id}")
 
     assert "No teaching week \u2013 Staff training" in response.text
+
+
+# Current day and current week highlighting
+
+
+def test_wall_planner_renders_a_green_bar_on_today(client, services, monkeypatch):
+    semester = services.semesters.create_semester(2026, "fall")
+    monkeypatch.setattr("aikana.semester.services.date", _FrozenDate)
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert response.status_code == 200
+    assert response.text.count("border-l-green-500") == 1
+
+
+def test_wall_planner_renders_no_green_bar_when_today_is_outside_the_semester(client, services, monkeypatch):
+    semester = services.semesters.create_semester(2027, "spring")
+    monkeypatch.setattr("aikana.semester.services.date", _FrozenDate)
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert response.status_code == 200
+    assert "border-l-green-500" not in response.text
+
+
+def test_realizations_view_renders_a_green_bar_on_the_current_week(client, services, monkeypatch):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    monkeypatch.setattr("aikana.realizations.services.date", _FrozenDate)
+
+    response = client.get(f"/realizations?realization_id={realization.id}")
+
+    assert response.status_code == 200
+    assert response.text.count("border-l-green-500") == 1

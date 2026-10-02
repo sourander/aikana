@@ -294,3 +294,44 @@ def test_delete_no_teach_week_removes_it_from_the_semester(services):
 def test_delete_no_teach_week_rejects_an_unknown_id(services):
     with pytest.raises(UnknownNoTeachWeekError):
         services.no_teach_weeks.delete_no_teach_week("no-such-week")
+
+
+# Current day and current week
+
+
+def test_semester_view_model_marks_only_today(services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    view_model = services.semesters.build_semester_view_model(semester, today=date(2026, 10, 20))
+
+    marked = [day.day for month in view_model.months for day in month.days if day.is_today]
+    assert marked == [date(2026, 10, 20)]
+
+
+def test_semester_view_model_marks_no_day_when_today_is_outside_the_semester(services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    view_model = services.semesters.build_semester_view_model(semester, today=date(2027, 1, 15))
+
+    assert not any(day.is_today for month in view_model.months for day in month.days)
+
+
+def test_realization_view_model_marks_the_week_containing_today(services):
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    semester = services.semesters.create_semester(2026, "fall")
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    view_model = services.realizations.build_realization_view_model(realization.id, today=date(2026, 10, 20))
+
+    marked = [(week.start, week.end) for week in view_model.weeks if week.is_current_week]
+    assert marked == [(date(2026, 10, 19), date(2026, 10, 25))]
+
+
+def test_realization_view_model_marks_no_week_when_today_is_outside_the_semester(services):
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    semester = services.semesters.create_semester(2026, "fall")
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    view_model = services.realizations.build_realization_view_model(realization.id, today=date(2027, 1, 15))
+
+    assert not any(week.is_current_week for week in view_model.weeks)

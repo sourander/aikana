@@ -50,11 +50,12 @@ def _week_rows(week: WeekRow):
 
 def _week_cell(week: WeekRow, rowspan: int):
     date_range = f"{week.start.isoformat()} \u2013 {week.end.isoformat()}"
+    today_cls = " border-l-4 border-l-green-500" if week.is_current_week else ""
     return Td(
         Div(str(week.week_number), cls="text-2xl font-bold text-gray-900 leading-none"),
         Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap"),
         rowspan=rowspan,
-        cls=f"{_CELL_CLS} border-b-gray-200 pr-4",
+        cls=f"{_CELL_CLS} border-b-gray-200 pr-4{today_cls}",
     )
 
 

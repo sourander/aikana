@@ -72,10 +72,11 @@ def _month_column(month: MonthColumn, semester_id: str, is_admin: bool):
 def _day_row(day: DayCell, semester_id: str, is_admin: bool):
     is_blocked = bool(day.holiday_title or day.no_teach_title)
     tint_cls = "bg-red-50" if is_blocked or day.day.weekday() >= 5 else ""
+    today_cls = "border-l-4 border-l-green-500" if day.is_today else ""
     # Nothing is taught during a NoTeachWeek, so its Monday-to-Friday rows show no lesson squares.
     squares = [] if day.no_teach_title else day.squares
     title = day.holiday_title or day.no_teach_title
-    row_cls = f"flex items-center gap-1 border-b border-gray-100 {tint_cls}"
+    row_cls = f"flex items-center gap-1 border-b border-gray-100 {tint_cls} {today_cls}"
     if is_admin:
         # Clicking the row opens the day dialog for this date, per ../day_dialog/day_dialog.sdd.
         row_attrs = {
