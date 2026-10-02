@@ -27,6 +27,8 @@ Depends on:
 
 Must:
   A Semester has a year and a term of `spring` or `fall`; the year and term combination is unique.
+  @SemesterService.create_semester rejects any term other than `spring` or `fall` with @InvalidTermError before
+  storage, so a crafted request cannot persist a Semester whose period would compute incorrectly.
   @SemesterRepository in ./ports.py exposes list, get and add operations backing ./services.py.
   The admin can create a new Semester by submitting a year and a term through a form; the submission is rejected
   by ../auth/auth.sdd's guard for non-admin sessions, and rejected with a validation message when the year+term
@@ -88,4 +90,5 @@ Tasks:
   [x] Implement ./view.py's create-Semester form and admin-only "+ New Semester" control, and ./routes.py's
     `GET /semesters/new` and `POST /semesters`, gated by ../auth/auth.sdd's guard, rendering the form as `/`'s
     primary content whenever no Semesters exist
+  [x] Reject terms other than `spring` or `fall` in @SemesterService.create_semester with @InvalidTermError
 

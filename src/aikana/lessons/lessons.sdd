@@ -20,8 +20,13 @@ Depends on:
 
 Must:
   A Lesson has a date, a start time and an end time, a topic, free-text notes and a reference to a CourseRealization.
+  @LessonService.add_lesson validates that the CourseRealization id exists (through
+  ../realizations/realizations.sdd's ports.py, per ../architecture.sdd), that the topic is non-empty and that the
+  end time is later than the start time, rejecting with @UnknownRealizationError or @InvalidLessonError before
+  storage.
   @LessonRepository in ./ports.py exposes operations to list lessons for a CourseRealization or a date range and to
   add one.
+  Lesson listings are ordered by date and start time, so a day with several Lessons reads chronologically.
   The table is created automatically on startup when it does not exist.
 
 Tasks:
@@ -32,3 +37,5 @@ Tasks:
     persistence exists
   [x] Replace the hardcoded ./services.py with a class-based @LessonRepository-backed `LessonService`
     (./ports.py and ./repository_sqlite.py), per ../architecture.sdd's Example
+  [x] Validate the CourseRealization id (via ../realizations/realizations.sdd's ports.py), a non-empty topic and
+    start-before-end times in @LessonService.add_lesson with @UnknownRealizationError and @InvalidLessonError

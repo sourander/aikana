@@ -2,18 +2,21 @@
 
 from ..auth import view as auth_view
 from ..auth.services import AuthService
+from ..semester.services import SemesterService
 from ..shared import layout
 from . import view
 from .services import RealizationService
 
 
-def register_routes(app, realization_service: RealizationService, auth_service: AuthService) -> None:
+def register_routes(
+    app, realization_service: RealizationService, semester_service: SemesterService, auth_service: AuthService
+) -> None:
     @app.get("/realizations")
     def index(session, realization_id: str = ""):
         admin_link = auth_view.header_link(auth_service.is_admin(session))
-        active_semester = realization_service.semester_service.get_default_semester()
+        active_semester = semester_service.get_default_semester()
         if active_semester is None:
-            return layout.page(view.empty_state(), active_nav="realizations", admin_link=admin_link)
+            return layout.page(view.no_semester_state(), active_nav="realizations", admin_link=admin_link)
 
         options = realization_service.list_realization_options(active_semester.id)
 

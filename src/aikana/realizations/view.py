@@ -20,6 +20,10 @@ def realization_selector(options: list[tuple[str, str]], selected_id: str):
     )
 
 
+def no_semester_state():
+    return P("No Semester has been created yet.", cls="p-4 text-sm text-gray-500")
+
+
 def empty_state():
     return P("No CourseRealizations in the active Semester yet.", cls="p-4 text-sm text-gray-500")
 

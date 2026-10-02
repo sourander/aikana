@@ -15,8 +15,9 @@ References:
   /Dockerfile
 
 Must:
-  ./db.py opens the `fastlite` `Database` at `/data/app.db`, creating the parent directory when it does not exist,
-  and exposes the single connection that every feature's repository_sqlite.py imports.
+  ./db.py exposes @create_database, which opens a `fastlite` `Database` at `/data/app.db` (or a caller-given
+  path), creating the parent directory when it does not exist. main.py calls it once and passes the single
+  connection into every feature's repository_sqlite.py constructor, per ../architecture.sdd.
   ./layout.py renders the shared page shell: header, a `<link>` to the compiled Tailwind stylesheet and the HTMX
   script tag, used by every feature's view.py.
   ./static/input.css is the Tailwind CLI input (`@import "tailwindcss"` plus an explicit `@source` covering every
@@ -43,6 +44,8 @@ Tasks:
     slot for each view's own selector dropdown
   [x] Implement ./db.py: the shared `fastlite` `Database` connection at `/data/app.db`, now that real persistence
     begins
+  [x] Replace the lazy module-level connection in ./db.py with the @create_database factory so main.py builds the
+    single `Database` and injects it into each repository, per ../architecture.sdd
   [x] Replace the Tailwind Play CDN script (cdn.tailwindcss.com is unsupported for production) with a Tailwind CLI
     build: add ./static/input.css, compile ./static/app.css with the standalone CLI in the `css` stage of
     /Dockerfile, serve it from `main.py` via `app.static_route`, and update ./layout.py to link it instead of

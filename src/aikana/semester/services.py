@@ -31,6 +31,10 @@ class DuplicateSemesterError(Exception):
     pass
 
 
+class InvalidTermError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class LessonSquare:
     color: str
@@ -87,6 +91,8 @@ class SemesterService:
         return domain.default_semester(self.repo.list(), today or date.today())
 
     def create_semester(self, year: int, term: Term) -> Semester:
+        if term not in ("spring", "fall"):
+            raise InvalidTermError(f"Term must be 'spring' or 'fall', got {term!r}.")
         if any(s.year == year and s.term == term for s in self.repo.list()):
             raise DuplicateSemesterError(f"A {term} {year} Semester already exists.")
         return self.repo.add(year, term)

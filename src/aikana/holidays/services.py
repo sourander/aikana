@@ -6,6 +6,10 @@ from .domain import Holiday
 from .ports import HolidayRepository
 
 
+class InvalidHolidayError(Exception):
+    pass
+
+
 class HolidayService:
     def __init__(self, repo: HolidayRepository) -> None:
         self.repo = repo
@@ -14,5 +18,8 @@ class HolidayService:
         return self.repo.list_for_range(start, end)
 
     def add_holiday(self, holiday_date: date, title: str) -> Holiday:
+        title = title.strip()
+        if not title:
+            raise InvalidHolidayError("A Holiday needs a non-empty title.")
         return self.repo.add(holiday_date, title)
 

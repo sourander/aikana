@@ -19,6 +19,8 @@ Depends on:
 
 Must:
   A Course has a unique name, a description and an ECTS credit count.
+  @CourseService.add_course rejects an empty name with @InvalidCourseError and a name matching an existing
+  Course's (ignoring surrounding whitespace and letter case) with @DuplicateCourseError, before storage.
   No color is stored on a Course; ../semester/semester.sdd's view assigns display colors dynamically per
   CourseRealization.
   @CourseRepository in ./ports.py exposes list, get and add operations backing ./services.py.
@@ -28,3 +30,5 @@ Tasks:
     for @CourseRepository until persistence exists
   [x] Replace the hardcoded ./services.py with a class-based @CourseRepository-backed `CourseService` (./ports.py
     and ./repository_sqlite.py), per ../architecture.sdd's Example
+  [x] Enforce unique, non-empty Course names in @CourseService.add_course with @InvalidCourseError and
+    @DuplicateCourseError

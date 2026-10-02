@@ -36,6 +36,8 @@ Must:
   to add one.
   A CourseRealization's display label is composed from its Course name, group and Semester at render time; it is not
   stored as its own field.
+  @RealizationService.add_realization validates that the Course and Semester ids exist and that the group label is
+  non-empty, rejecting with @UnknownCourseError, @UnknownSemesterError or @InvalidRealizationError before storage.
   Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
   ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
   The table is created automatically on startup when it does not exist.
@@ -60,7 +62,8 @@ Must:
   the boundary.
   For the admin, clicking a day cell opens the dialog specified in ../day_dialog/day_dialog.sdd.
   ./routes.py must not crash when ../semester/semester.sdd has no active Semester at all (none created yet); it
-  renders ./view.py's `empty_state()` immediately in that case instead of dereferencing a Semester.
+  renders ./view.py's `no_semester_state()` immediately in that case instead of dereferencing a Semester, while an
+  active Semester without CourseRealizations renders `empty_state()`.
 
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
@@ -72,6 +75,9 @@ Tasks:
     sets as a plain attribute once ../semester/semester.sdd's `SemesterService` exists
   [x] Implement the weekly grid in ./view.py, the realization dropdown scoped to the active Semester, and
     ./routes.py registering `/realizations` with the shareable `realization_id` query parameter
+  [x] Validate the Course and Semester ids and a non-empty group label in @RealizationService.add_realization, and
+    pass ../semester/semester.sdd's `SemesterService` to ./routes.py's register_routes instead of reaching through
+    the two-phase-wired attribute
   [?] Decide the admin UI for creating a Course and a CourseRealization once ../semester/semester.sdd's Semester
     creation exists (Semester creation UI is resolved in ../semester/semester.sdd)
 

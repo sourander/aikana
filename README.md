@@ -9,9 +9,10 @@ Views:
 
 - **Semester view**: one column per month of the semester on a single screen, one row per day, lessons as small
   colored squares.
-- **Course view**: a classic calendar, one row per week.
+- **Realization view**: the weekly table of one CourseRealization, one row per week with Lessons and Notes columns.
 
-> **Status:** early development. The Docker setup works; the calendar views are not implemented yet. Progress is
+> **Status:** early development. Both calendar views render persisted data and the admin can create Semesters;
+> admin editing of Courses, CourseRealizations, Lessons and Holidays is being added incrementally. Progress is
 > tracked in the `Tasks` sections of the `.sdd` specs.
 
 ## Configuration

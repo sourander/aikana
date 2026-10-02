@@ -1,4 +1,4 @@
-"""The single `fastlite` Database connection every repository_sqlite.py imports, per ../architecture.sdd."""
+"""@create_database opens the `fastlite` Database main.py injects into repositories, per ../architecture.sdd."""
 
 from pathlib import Path
 
@@ -6,11 +6,8 @@ from fastlite import Database, database
 
 DB_PATH = Path("/data/app.db")
 
-_db: Database | None = None
 
-
-def get_db() -> Database:
-    global _db
-    if _db is None:
-        _db = database(DB_PATH)
-    return _db
+def create_database(path: Path = DB_PATH) -> Database:
+    """Open the `fastlite` Database at `path`, creating the parent directory when it does not exist."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return database(path)

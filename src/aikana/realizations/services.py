@@ -16,6 +16,18 @@ if TYPE_CHECKING:
     from ..semester.services import SemesterService
 
 
+class UnknownCourseError(Exception):
+    pass
+
+
+class UnknownSemesterError(Exception):
+    pass
+
+
+class InvalidRealizationError(Exception):
+    pass
+
+
 class RealizationService:
     def __init__(
         self,
@@ -32,6 +44,12 @@ class RealizationService:
         # two phases per ../architecture.sdd).
         self.semester_service: "SemesterService | None" = None
 
+    def _semesters(self) -> "SemesterService":
+        """The wired SemesterService; fails fast when main.py's two-phase wiring has not run."""
+        if self.semester_service is None:
+            raise RuntimeError("RealizationService.semester_service was not wired by the composition root.")
+        return self.semester_service
+
     def list_realizations_for_semester(self, semester_id: str) -> list[CourseRealization]:
         return self.repo.list_for_semester(semester_id)
 
@@ -39,6 +57,13 @@ class RealizationService:
         return self.repo.get(realization_id) if realization_id else None
 
     def add_realization(self, course_id: str, semester_id: str, group: str) -> CourseRealization:
+        if self.course_service.get_course(course_id) is None:
+            raise UnknownCourseError(f"No Course with id {course_id!r}.")
+        if self._semesters().get_semester(semester_id) is None:
+            raise UnknownSemesterError(f"No Semester with id {semester_id!r}.")
+        group = group.strip()
+        if not group:
+            raise InvalidRealizationError("A CourseRealization needs a non-empty group label.")
         return self.repo.add(course_id, semester_id, group)
 
     def realization_label(self, realization: CourseRealization, course: Course, semester: "Semester") -> str:
@@ -47,7 +72,7 @@ class RealizationService:
 
     def list_realization_options(self, semester_id: str) -> list[tuple[str, str]]:
         """(id, label) pairs for the realizations of one Semester, for the weekly view's dropdown."""
-        semester = self.semester_service.get_semester(semester_id)
+        semester = self._semesters().get_semester(semester_id)
         if semester is None:
             return []
         courses_by_id = {course.id: course for course in self.course_service.list_courses()}
@@ -62,8 +87,8 @@ class RealizationService:
             return None
 
         course = self.course_service.get_course(realization.course_id)
-        semester = self.semester_service.get_semester(realization.semester_id)
-        start, end = self.semester_service.semester_bounds(semester)
+        semester = self._semesters().get_semester(realization.semester_id)
+        start, end = self._semesters().semester_bounds(semester)
 
         lessons_by_day: dict[date, list] = {}
         for lesson in self.lesson_service.list_lessons_for_realization(realization.id):

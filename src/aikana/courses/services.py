@@ -4,6 +4,14 @@ from .domain import Course
 from .ports import CourseRepository
 
 
+class InvalidCourseError(Exception):
+    pass
+
+
+class DuplicateCourseError(Exception):
+    pass
+
+
 class CourseService:
     def __init__(self, repo: CourseRepository) -> None:
         self.repo = repo
@@ -15,5 +23,10 @@ class CourseService:
         return self.repo.get(course_id)
 
     def add_course(self, name: str, description: str, ects_credits: int) -> Course:
+        name = name.strip()
+        if not name:
+            raise InvalidCourseError("A Course needs a non-empty name.")
+        if any(course.name.lower() == name.lower() for course in self.repo.list()):
+            raise DuplicateCourseError(f"A Course named {name!r} already exists.")
         return self.repo.add(name, description, ects_credits)
 

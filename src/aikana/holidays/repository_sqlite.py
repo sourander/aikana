@@ -3,7 +3,8 @@
 from datetime import date
 from uuid import uuid4
 
-from ..shared.db import get_db
+from fastlite import Database
+
 from .domain import Holiday
 
 
@@ -12,8 +13,8 @@ def _to_domain(row: dict) -> Holiday:
 
 
 class SqliteHolidayRepository:
-    def __init__(self) -> None:
-        self._table = get_db().t.holidays
+    def __init__(self, db: Database) -> None:
+        self._table = db.t.holidays
         self._table.create(columns={"id": str, "date": str, "title": str}, pk="id", if_not_exists=True)
 
     def list_for_range(self, start: date, end: date) -> list[Holiday]:

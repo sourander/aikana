@@ -4,13 +4,17 @@ Purpose:
   Automated `pytest` tests for the `aikana` package, run without a network or a running server.
 
 Structure:
-  ./test_main.py: smoke test of the app entry point
+  ./test_main.py: smoke tests of the app entry point through an in-process client
+  ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
+  ./test_services.py: service-layer validation tests against temporary databases
 
 Owns:
-  ./test_main.py
+  ./test_*.py
 
 Depends on:
   /src/aikana/aikana.sdd
 
 Must:
   Tests exercise the app through an in-process client and leave no files behind in the repository.
+  Tests never touch `/data`: they build each app or service on a temporary database through @create_app and
+  @create_database, which is possible because importing `aikana.main` has no side effects.

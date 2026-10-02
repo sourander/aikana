@@ -2,7 +2,8 @@
 
 from uuid import uuid4
 
-from ..shared.db import get_db
+from fastlite import Database
+
 from .domain import Course
 
 
@@ -16,8 +17,8 @@ def _to_domain(row: dict) -> Course:
 
 
 class SqliteCourseRepository:
-    def __init__(self) -> None:
-        self._table = get_db().t.courses
+    def __init__(self, db: Database) -> None:
+        self._table = db.t.courses
         self._table.create(
             columns={"id": str, "name": str, "description": str, "ects_credits": int},
             pk="id",

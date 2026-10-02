@@ -3,7 +3,8 @@
 from datetime import date, time
 from uuid import uuid4
 
-from ..shared.db import get_db
+from fastlite import Database
+
 from .domain import Lesson
 
 
@@ -20,8 +21,8 @@ def _to_domain(row: dict) -> Lesson:
 
 
 class SqliteLessonRepository:
-    def __init__(self) -> None:
-        self._table = get_db().t.lessons
+    def __init__(self, db: Database) -> None:
+        self._table = db.t.lessons
         self._table.create(
             columns={
                 "id": str,
@@ -37,14 +38,16 @@ class SqliteLessonRepository:
         )
 
     def list_for_realization(self, course_realization_id: str) -> list[Lesson]:
-        rows = self._table(where="course_realization_id = ?", where_args=[course_realization_id], order_by="date")
+        rows = self._table(
+            where="course_realization_id = ?", where_args=[course_realization_id], order_by="date, start_time"
+        )
         return [_to_domain(row) for row in rows]
 
     def list_for_range(self, start: date, end: date) -> list[Lesson]:
         rows = self._table(
             where="date >= ? and date <= ?",
             where_args=[start.isoformat(), end.isoformat()],
-            order_by="date",
+            order_by="date, start_time",
         )
         return [_to_domain(row) for row in rows]
 
