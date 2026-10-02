@@ -49,7 +49,7 @@ def register_routes(app, semester_service: SemesterService, auth_service: AuthSe
             return RedirectResponse("/login", status_code=303)
         try:
             semester = semester_service.create_semester(year, term)
-        except services.DuplicateSemesterError as exc:
+        except (services.DuplicateSemesterError, services.InvalidTermError) as exc:
             return RedirectResponse(f"/semesters/new?error={quote(str(exc))}", status_code=303)
         return RedirectResponse(f"/?semester_id={semester.id}", status_code=303)
 

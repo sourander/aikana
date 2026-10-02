@@ -9,10 +9,6 @@ def test_format_date_uses_the_european_form():
     assert dates.format_date(date(2026, 10, 2)) == "2.10.2026"
 
 
-def test_time_zone_is_helsinki():
-    assert dates.TIME_ZONE.key == "Europe/Helsinki"
-
-
 def test_today_uses_the_helsinki_calendar_date(monkeypatch):
     class _FrozenDateTime(datetime):
         @classmethod

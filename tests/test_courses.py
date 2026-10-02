@@ -1,40 +1,5 @@
 """In-process client tests of the courses page, its create form and its edit dialog, per ./tests.sdd."""
 
-import pytest
-from starlette.testclient import TestClient
-
-from aikana.courses.repository_sqlite import SqliteCourseRepository
-from aikana.courses.services import CourseService
-from aikana.main import create_app
-from aikana.shared.db import create_database
-
-AIKANA_PASSWD = "test-password"
-
-
-@pytest.fixture
-def db(tmp_path):
-    return create_database(tmp_path / "app.db")
-
-
-@pytest.fixture
-def client(db, tmp_path, monkeypatch):
-    # FastHTML writes a session key file into the working directory on app construction.
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
-    return TestClient(create_app(db))
-
-
-@pytest.fixture
-def course_service(db):
-    """Reads the same temporary database the app was built on, to look up Course ids."""
-    return CourseService(SqliteCourseRepository(db))
-
-
-@pytest.fixture
-def admin_client(client):
-    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
-    return client
-
 
 def _create_course(client, name="Machine Learning", description="An introduction.", ects_credits=5):
     return client.post(
@@ -58,6 +23,21 @@ def test_empty_courses_page_shows_a_notice_to_a_visitor(client):
     assert response.status_code == 200
     assert "No Course has been created yet." in response.text
     assert "Create Course" not in response.text
+
+
+def test_courses_new_renders_the_create_form_to_the_admin(admin_client):
+    response = admin_client.get("/courses/new")
+
+    assert response.status_code == 200
+    assert 'action="/courses"' in response.text
+    assert "Create Course" in response.text
+
+
+def test_visitor_cannot_open_the_create_course_form(client):
+    response = client.get("/courses/new", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
 
 
 def test_admin_creates_a_course(admin_client):
@@ -121,6 +101,22 @@ def test_admin_updates_a_course(admin_client, course_service):
     assert "Advanced." in response.text
     assert "8 ECTS" in response.text
     assert "Machine Learning" not in response.text
+
+
+def test_admin_can_rename_a_course_to_its_own_name(admin_client, course_service):
+    # The Course being edited is ignored when looking for a duplicate, per courses.sdd.
+    _create_course(admin_client)
+    course = course_service.list_courses()[0]
+
+    response = admin_client.post(
+        f"/courses/{course.id}",
+        data={"name": "  machine LEARNING ", "description": "An introduction.", "ects_credits": "5"},
+        follow_redirects=True,
+    )
+
+    assert "already exists" not in response.text
+    assert "machine LEARNING" in response.text
+    assert len(course_service.list_courses()) == 1
 
 
 def test_update_course_rejects_a_duplicate_name(admin_client, course_service):

@@ -4,19 +4,25 @@ Purpose:
   Automated `pytest` tests for the `aikana` package, run without a network or a running server.
 
 Structure:
-  ./test_main.py: smoke tests of the app entry point through an in-process client
-  ./test_dates.py: unit tests for the shared Europe/Helsinki date policy
-  ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
-  ./test_services.py: service-layer validation tests against temporary databases
+  ./conftest.py: shared fixtures wiring an in-process client and every feature's services on a temporary database
+  ./test_auth.py: in-process client tests of the admin login and logout, the shell's login/logout link and the
+    password's secrecy
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit dialog
-  ./test_realizations.py: in-process client tests of the add-realization dialog on the courses page, of the
-    realization it creates and of the weekly view's Share button
-  ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
+  ./test_dates.py: unit tests for the shared Europe/Helsinki date policy
   ./test_day_dialog.py: in-process client tests of the admin day dialog's forms, its guard and its grid and
     weekly-table swaps
+  ./test_main.py: in-process client tests of the app entry point, the semester routes and the wall planner's
+    rendering
+  ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
+  ./test_realizations.py: in-process client tests of the courses page's add-realization dialog and of the weekly
+    view's states, fallbacks, week sub-rows and Share button
+  ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
+  ./test_services.py: service-layer validation tests against temporary databases
+  ./test_shared.py: tests of the shared kernel's database factory and page shell
 
 Owns:
   ./test_*.py
+  ./conftest.py
 
 Depends on:
   /src/aikana/aikana.sdd

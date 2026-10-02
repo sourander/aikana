@@ -1,35 +1,13 @@
-"""In-process client tests of the courses page's Realizations and their add-realization dialog, per ./tests.sdd."""
+"""In-process client tests of the courses page's add-realization dialog and of the weekly view, per ./tests.sdd."""
+
+from datetime import date, time
 
 import pytest
-from starlette.testclient import TestClient
 
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
-from aikana.main import create_app
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import RealizationService
-from aikana.shared.db import create_database
-
-AIKANA_PASSWD = "test-password"
-
-
-@pytest.fixture
-def db(tmp_path):
-    return create_database(tmp_path / "app.db")
-
-
-@pytest.fixture
-def client(db, tmp_path, monkeypatch):
-    # FastHTML writes a session key file into the working directory on app construction.
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
-    return TestClient(create_app(db))
-
-
-@pytest.fixture
-def course_service(db):
-    """Reads the same temporary database the app was built on, to look up Course ids."""
-    return CourseService(SqliteCourseRepository(db))
 
 
 @pytest.fixture
@@ -40,12 +18,6 @@ def realization_service(db):
     """
     course_service = CourseService(SqliteCourseRepository(db))
     return RealizationService(SqliteCourseRealizationRepository(db), course_service, None, None, None)
-
-
-@pytest.fixture
-def admin_client(client):
-    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
-    return client
 
 
 def _create_semester(admin_client, year, term):
@@ -103,7 +75,7 @@ def test_a_listed_realization_links_to_its_weekly_view(admin_client, course_id, 
 
     response = admin_client.get("/courses")
 
-    assert f"/realizations?" in response.text
+    assert "/realizations?" in response.text
     assert f"realization_id={realization.id}" in response.text
 
 
@@ -124,6 +96,63 @@ def test_a_new_realization_shows_up_in_the_weekly_view(admin_client, course_id, 
     assert "Machine Learning (TTV24SP)" in response.text
 
 
+def test_weekly_view_renders_the_empty_state_when_the_semester_has_no_realizations(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/realizations?semester_id={semester.id}")
+
+    assert response.status_code == 200
+    assert "No CourseRealizations in the active Semester yet." in response.text
+
+
+def test_weekly_view_falls_back_to_the_first_realization_for_an_unknown_id(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    response = client.get(f"/realizations?semester_id={semester.id}&realization_id=no-such-realization")
+
+    assert response.status_code == 200
+    assert f'<option value="{realization.id}" selected>' in response.text
+    assert "Machine Learning (TTV24SP)" in response.text
+
+
+def test_weekly_view_falls_back_when_the_realization_belongs_to_another_semester(client, services):
+    fall = services.semesters.create_semester(2026, "fall")
+    spring = services.semesters.create_semester(2027, "spring")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    services.realizations.add_realization(course.id, fall.id, "TTV24SP")
+    spring_realization = services.realizations.add_realization(course.id, spring.id, "TTV27SP")
+    fall_realization = next(
+        r for r in services.realizations.list_realizations_for_course(course.id) if r.semester_id == fall.id
+    )
+
+    response = client.get(f"/realizations?semester_id={spring.id}&realization_id={fall_realization.id}")
+
+    assert response.status_code == 200
+    assert f'<option value="{spring_realization.id}" selected>' in response.text
+    assert "TTV27SP" in response.text
+    assert "TTV24SP" not in response.text
+
+
+def test_a_week_with_a_lesson_and_a_holiday_spans_two_sub_rows(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    # Week 43 (2026-10-19 to 10-25) is outside the Semester's default NoTeachWeeks.
+    services.lessons.add_lesson(realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B")
+    services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
+
+    response = client.get(f"/realizations?realization_id={realization.id}")
+
+    assert response.status_code == 200
+    # One sub-row per entry under the single Week cell, per realizations.sdd.
+    assert 'rowspan="2"' in response.text
+    assert "Holiday \u2013 Autumn break" in response.text
+    assert "Intro" in response.text
+    assert "Room B" in response.text
+
+
 def test_share_button_copies_the_url_with_both_ids(admin_client, course_id, semester_id, realization_service):
     _add_realization(admin_client, course_id, semester_id)
     realization = realization_service.list_realizations_for_course(course_id)[0]
@@ -135,9 +164,7 @@ def test_share_button_copies_the_url_with_both_ids(admin_client, course_id, seme
     assert "navigator.clipboard.writeText" in response.text
 
 
-def test_share_button_completes_a_url_missing_the_semester(
-    admin_client, client, course_id, semester_id, realization_service
-):
+def test_share_button_completes_a_url_missing_the_semester(admin_client, course_id, semester_id, realization_service):
     _add_realization(admin_client, course_id, semester_id)
     realization = realization_service.list_realizations_for_course(course_id)[0]
 

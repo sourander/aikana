@@ -1,68 +1,13 @@
-from datetime import date, time
-from types import SimpleNamespace
+"""In-process client tests of the app entry point, the semester routes and the wall planner, per ./tests.sdd."""
 
-import pytest
-from starlette.testclient import TestClient
+from datetime import date, time, timedelta
 
-from aikana.courses.repository_sqlite import SqliteCourseRepository
-from aikana.courses.services import CourseService
-from aikana.holidays.repository_sqlite import SqliteHolidayRepository
-from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
-from aikana.lessons.services import LessonService
-from aikana.main import create_app
-from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
-from aikana.no_teach_weeks.services import NoTeachWeekService
-from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
-from aikana.realizations.services import RealizationService
-from aikana.semester.repository_sqlite import SqliteSemesterRepository
-from aikana.semester.services import SemesterService
 from aikana.shared import dates
-from aikana.shared.db import create_database
-
-AIKANA_PASSWD = "test-password"
+from conftest import AIKANA_PASSWD
 
 # A date whose `today()` is fixed, so the time-dependent highlighting is testable.
 FIXED_TODAY = date(2026, 10, 20)
-
-
-@pytest.fixture
-def db(tmp_path):
-    return create_database(tmp_path / "app.db")
-
-
-@pytest.fixture
-def client(db, tmp_path, monkeypatch):
-    # FastHTML writes a session key file into the working directory on app construction.
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
-    return TestClient(create_app(db))
-
-
-@pytest.fixture
-def services(db):
-    """Seeds data on the same temporary database the app was built on, wired as main.py's composition root does."""
-    course_service = CourseService(SqliteCourseRepository(db))
-    holiday_service = HolidayService(SqliteHolidayRepository(db))
-    semester_repo = SqliteSemesterRepository(db)
-    no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
-    realization_repo = SqliteCourseRealizationRepository(db)
-    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
-    realization_service = RealizationService(
-        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
-    )
-    semester_service = SemesterService(
-        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
-    )
-    realization_service.semester_service = semester_service
-    return SimpleNamespace(
-        courses=course_service,
-        holidays=holiday_service,
-        lessons=lesson_service,
-        no_teach_weeks=no_teach_week_service,
-        realizations=realization_service,
-        semesters=semester_service,
-    )
 
 
 def test_index_shows_no_semester_notice_to_a_visitor(client):
@@ -74,13 +19,78 @@ def test_index_shows_no_semester_notice_to_a_visitor(client):
     assert "Create Semester" not in response.text
 
 
-def test_index_shows_the_create_semester_form_to_the_admin(client):
-    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
-
-    response = client.get("/")
+def test_index_shows_the_create_semester_form_to_the_admin(admin_client):
+    response = admin_client.get("/")
 
     assert response.status_code == 200
     assert "Create a Semester to get started." in response.text
+
+
+def test_admin_creates_a_semester_through_the_form(admin_client, services):
+    response = admin_client.post("/semesters", data={"year": "2026", "term": "fall"}, follow_redirects=False)
+
+    assert response.status_code == 303
+    semester_id = response.headers["location"].removeprefix("/?semester_id=")
+
+    page = admin_client.get(f"/?semester_id={semester_id}")
+    assert "Fall 2026" in page.text
+    # A new Semester starts with its term's default NoTeachWeeks, per semester.sdd.
+    assert [week.week_number for week in services.no_teach_weeks.list_no_teach_weeks(semester_id)] == [42, 51]
+
+
+def test_create_semester_rejects_a_duplicate_with_a_validation_message(admin_client):
+    admin_client.post("/semesters", data={"year": "2026", "term": "fall"}, follow_redirects=True)
+
+    response = admin_client.post("/semesters", data={"year": "2026", "term": "fall"}, follow_redirects=True)
+
+    assert "already exists" in response.text
+
+
+def test_create_semester_rejects_a_crafted_term_with_a_validation_message(admin_client, services):
+    # The form only offers spring/fall, so an invalid term arrives only through a crafted request.
+    response = admin_client.post("/semesters", data={"year": "2026", "term": "summer"}, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert "Term must be" in response.text
+    assert services.semesters.list_semesters() == []
+
+
+def test_visitor_cannot_create_a_semester(client, services):
+    response = client.post("/semesters", data={"year": "2026", "term": "fall"}, follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+    assert services.semesters.list_semesters() == []
+
+
+def test_visitor_cannot_open_the_semester_form(client):
+    response = client.get("/semesters/new", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
+def test_new_semester_control_is_admin_only(client, services):
+    services.semesters.create_semester(2026, "fall")
+
+    visitor_page = client.get("/")
+    assert "+ New Semester" not in visitor_page.text
+
+    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
+    admin_page = client.get("/")
+    assert "+ New Semester" in admin_page.text
+    assert 'href="/semesters/new"' in admin_page.text
+
+
+def test_index_falls_back_to_the_default_semester_for_an_unknown_id(client, services, monkeypatch):
+    fall = services.semesters.create_semester(2026, "fall")
+    services.semesters.create_semester(2027, "spring")
+    monkeypatch.setattr(dates, "today", lambda: FIXED_TODAY)
+
+    response = client.get("/?semester_id=no-such-semester")
+
+    assert response.status_code == 200
+    assert f'<option value="{fall.id}" selected>' in response.text
 
 
 def test_realizations_view_renders_without_semesters(client):
@@ -153,6 +163,67 @@ def test_courses_page_ignores_the_selected_semester(client, services):
     assert "Machine Learning" in spring_page.text
     assert f'<option value="{fall.id}" selected>' in fall_page.text
     assert f'<option value="{spring.id}" selected>' in spring_page.text
+
+
+# Wall planner rendering
+
+
+def test_wall_planner_renders_one_column_per_month(client, services):
+    fall = services.semesters.create_semester(2026, "fall")
+    spring = services.semesters.create_semester(2027, "spring")
+
+    assert "repeat(5, 1fr)" in client.get(f"/?semester_id={fall.id}").text
+    assert "repeat(6, 1fr)" in client.get(f"/?semester_id={spring.id}").text
+
+
+def test_wall_planner_shows_each_spanned_month_as_a_column(client, services):
+    fall = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={fall.id}")
+
+    for label in ("August 2026", "September 2026", "October 2026", "November 2026", "December 2026"):
+        assert label in response.text
+
+
+def _weekend_days(start: date, end: date) -> int:
+    return sum(
+        1 for offset in range((end - start).days + 1) if (start + timedelta(days=offset)).weekday() >= 5
+    )
+
+
+def test_weekend_rows_are_tinted_even_without_holidays(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    for week in services.no_teach_weeks.list_no_teach_weeks(semester.id):
+        services.no_teach_weeks.delete_no_teach_week(week.id)
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert response.text.count("bg-red-50") == _weekend_days(date(2026, 8, 1), date(2026, 12, 31))
+
+
+def test_a_holiday_row_is_tinted_and_titled(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    for week in services.no_teach_weeks.list_no_teach_weeks(semester.id):
+        services.no_teach_weeks.delete_no_teach_week(week.id)
+    # 2026-09-07 is a Monday, so the row's tint cannot come from the weekend rule.
+    services.holidays.add_holiday(date(2026, 9, 7), "Autumn break")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert response.text.count("bg-red-50") == _weekend_days(date(2026, 8, 1), date(2026, 12, 31)) + 1
+    assert "Autumn break" in response.text
+
+
+def test_a_lesson_square_is_a_tooltip_anchor_and_the_grid_its_area(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    services.lessons.add_lesson(realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert 'data-tip-area=""' in response.text
+    assert 'data-tip=""' in response.text
 
 
 # NoTeachWeeks

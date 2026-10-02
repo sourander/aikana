@@ -2,6 +2,8 @@
 
 from datetime import date
 
+import pytest
+
 from aikana.no_teach_weeks.domain import (
     DEFAULT_TITLE,
     default_week_numbers,
@@ -32,12 +34,8 @@ def test_week_monday_returns_the_monday_of_that_iso_week():
 
 def test_week_monday_rejects_a_week_the_year_does_not_have():
     # 2027 is a 52-week ISO year.
-    try:
+    with pytest.raises(ValueError, match="53"):
         week_monday(2027, 53)
-    except ValueError as exc:
-        assert "53" in str(exc)
-    else:
-        raise AssertionError("2027 has no ISO week 53.")
 
 
 def test_week_sunday_is_six_days_after_the_monday():

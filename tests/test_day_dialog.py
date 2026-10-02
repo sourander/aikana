@@ -1,27 +1,10 @@
 """In-process client tests of the admin day dialog, per ./tests.sdd."""
 
 from datetime import date, time
-from types import SimpleNamespace
 
 import pytest
-from starlette.testclient import TestClient
 
-from aikana.courses.repository_sqlite import SqliteCourseRepository
-from aikana.courses.services import CourseService
-from aikana.holidays.repository_sqlite import SqliteHolidayRepository
-from aikana.holidays.services import HolidayService
-from aikana.lessons.repository_sqlite import SqliteLessonRepository
-from aikana.lessons.services import LessonService
-from aikana.main import create_app
-from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
-from aikana.no_teach_weeks.services import NoTeachWeekService
-from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
-from aikana.realizations.services import RealizationService
-from aikana.semester.repository_sqlite import SqliteSemesterRepository
-from aikana.semester.services import SemesterService
-from aikana.shared.db import create_database
-
-AIKANA_PASSWD = "test-password"
+from conftest import AIKANA_PASSWD
 
 # The dialog is only reachable through an HTMX request, per ./src/aikana/day_dialog/day_dialog.sdd.
 HTMX = {"HX-Request": "true"}
@@ -29,51 +12,6 @@ HTMX = {"HX-Request": "true"}
 # A free week of the fall 2026 Semester, outside its default NoTeachWeeks in weeks 42 and 51.
 FREE_DAY = "2026-10-20"
 FREE_WEEK = "43"
-
-
-@pytest.fixture
-def db(tmp_path):
-    return create_database(tmp_path / "app.db")
-
-
-@pytest.fixture
-def client(db, tmp_path, monkeypatch):
-    # FastHTML writes a session key file into the working directory on app construction.
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
-    return TestClient(create_app(db))
-
-
-@pytest.fixture
-def admin_client(client):
-    client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
-    return client
-
-
-@pytest.fixture
-def services(db):
-    """Every feature's service, wired on a temporary database the way main.py's composition root does it."""
-    course_service = CourseService(SqliteCourseRepository(db))
-    semester_repo = SqliteSemesterRepository(db)
-    no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
-    realization_repo = SqliteCourseRealizationRepository(db)
-    lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
-    holiday_service = HolidayService(SqliteHolidayRepository(db))
-    realization_service = RealizationService(
-        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
-    )
-    semester_service = SemesterService(
-        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
-    )
-    realization_service.semester_service = semester_service
-    return SimpleNamespace(
-        courses=course_service,
-        holidays=holiday_service,
-        lessons=lesson_service,
-        no_teach_weeks=no_teach_week_service,
-        realizations=realization_service,
-        semesters=semester_service,
-    )
 
 
 @pytest.fixture
@@ -327,6 +265,30 @@ def test_a_malformed_form_field_is_reported_instead_of_reaching_the_services(adm
     assert response.status_code == 422
     assert "Enter a valid start time as HH:MM." in response.text
     assert services.lessons.list_lessons_for_realization(realization.id) == []
+
+
+def test_a_malformed_week_number_is_reported(admin_client, semester, services):
+    response = admin_client.post(
+        "/day/dialog/no-teach-week",
+        data={"semester_id": semester.id, "day": FREE_DAY, "week_number": "not-a-week", "title": "Staff training"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "A NoTeachWeek needs a whole-numbered week." in response.text
+    assert [w.week_number for w in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [42, 51]
+
+
+def test_a_malformed_day_is_reported(admin_client, semester, services):
+    response = admin_client.post(
+        "/day/dialog/holiday",
+        data={"semester_id": semester.id, "day": "not-a-day", "title": "Autumn break"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "not a valid date" in response.text
+    assert services.holidays.list_holidays_for_range(date(2025, 1, 1), date(2027, 12, 31)) == []
 
 
 def test_a_rejected_form_keeps_what_the_admin_typed(admin_client, semester):
