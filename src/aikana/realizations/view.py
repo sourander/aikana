@@ -1,6 +1,6 @@
 """Pure rendering of the per-CourseRealization weekly table and its realization selector."""
 
-from fasthtml.common import Div, P, Table, Tbody, Td, Th, Thead, Tr
+from fasthtml.common import Button, Div, P, Table, Tbody, Td, Th, Thead, Tr
 
 from ..day_dialog import view as day_dialog_view
 from ..no_teach_weeks.domain import DEFAULT_TITLE
@@ -9,6 +9,13 @@ from .services import RealizationViewModel, WeekEntry, WeekRow
 
 _HEADER_CLS = "text-left text-xs font-semibold text-gray-500 px-2 py-1 border-b border-gray-200"
 _CELL_CLS = "px-2 py-2 border-b border-gray-100 align-top"
+_SHARE_CLS = "border border-gray-300 rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-50"
+
+# The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
+_SHARE_JS = (
+    "navigator.clipboard.writeText(this.dataset.shareUrl); this.textContent = 'Copied';"
+    " setTimeout(() => { this.textContent = 'Share' }, 1500)"
+)
 
 
 def realization_selector(options: list[tuple[str, str]], selected_id: str):
@@ -29,18 +36,37 @@ def empty_state():
     return P("No CourseRealizations in the active Semester yet.", cls="p-4 text-sm text-gray-500")
 
 
-def realization_view(vm: RealizationViewModel, is_admin: bool = False):
-    """The weekly table and, for the admin, the dialog container every dialog response swaps into."""
+def share_button(share_url: str):
+    """A button copying the canonical shareable URL of the shown realization, per ./realizations.sdd."""
+    return Button(
+        "Share",
+        type="button",
+        onclick=_SHARE_JS,
+        **{"data-share-url": share_url},
+        cls=_SHARE_CLS,
+    )
+
+
+def realization_view(vm: RealizationViewModel, is_admin: bool = False, share_url: str = ""):
+    """The realization's label, its Share button and the weekly table.
+
+    The label and the Share button sit outside the weekly table so a dialog write, which swaps only
+    #realization-week-table, leaves them in place.
+    """
+    header = Div(
+        Div(vm.label, cls="font-semibold text-lg"),
+        share_button(share_url) if share_url else "",
+        cls="flex items-center justify-between gap-4 px-4 pt-3 pb-2",
+    )
     table = week_table(vm, is_admin)
     if not is_admin:
-        return table
-    return Div(table, day_dialog_view.dialog_container(), cls="h-full min-h-0 flex flex-col")
+        return Div(header, table, cls="flex flex-col h-full min-h-0")
+    return Div(header, table, day_dialog_view.dialog_container(), cls="flex flex-col h-full min-h-0")
 
 
 def week_table(vm: RealizationViewModel, is_admin: bool = False):
     """The bare weekly table, the swap target of the dialog's write responses, per ./realizations.sdd."""
     return Div(
-        Div(vm.label, cls="font-semibold text-lg px-4 pt-3 pb-2"),
         Table(
             Thead(Tr(Th("Week", cls=_HEADER_CLS), Th("Lessons", cls=_HEADER_CLS), Th("Notes", cls=_HEADER_CLS))),
             Tbody(*[row for week in vm.weeks for row in _week_rows(week, vm.realization, is_admin)]),

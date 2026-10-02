@@ -80,8 +80,14 @@ Must:
   A successful write re-renders the weekly table in place: the table carries the id
   ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
   ./routes.py must not crash when ../semester/semester.sdd has no active Semester at all (none created yet); it
-  renders ./view.py's `no_semester_state()` immediately in that case instead of dereferencing a Semester, while an
-  active Semester without CourseRealizations renders `empty_state()`.
+    renders ./view.py's `no_semester_state()` immediately in that case instead of dereferencing a Semester, while an
+    active Semester without CourseRealizations renders `empty_state()`.
+  The weekly view shows one Share button for every visitor and for the admin, above the weekly table; clicking it
+    copies the canonical absolute URL of the shown realization, built by ./routes.py from the request's base URL and
+    the resolved selection, so the copied link always carries both `realization_id` and `semester_id` even when the
+    current address bar carries only one of them.
+  The Share button's URL and label sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
+    which swaps only the weekly table, leaves the button in place.
 
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
@@ -106,4 +112,6 @@ Tasks:
     it in place
   [x] Add @CourseRealizationRepository.list_for_course and @RealizationService.list_realizations_for_course, so
     ../courses/courses.sdd's page can list a Course's realizations across every Semester
+  [x] Add the Share button to ./view.py's weekly view and the canonical `realization_id` + `semester_id` URL it copies
+    in ./routes.py
 

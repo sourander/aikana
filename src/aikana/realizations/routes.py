@@ -1,5 +1,7 @@
 """Registers the per-CourseRealization weekly view at `/realizations`, the package's only inbound adapter."""
 
+from urllib.parse import urlencode
+
 from ..auth import view as auth_view
 from ..auth.services import AuthService
 from ..semester.services import SemesterService
@@ -7,12 +9,20 @@ from ..shared import layout
 from . import view
 from .services import RealizationService
 
+_PATH = "/realizations"
+
+
+def share_url(request, realization_id: str, semester_id: str) -> str:
+    """The canonical absolute URL of one realization's weekly view, carrying both ids, per ./realizations.sdd."""
+    query = urlencode({"realization_id": realization_id, "semester_id": semester_id})
+    return f"{str(request.base_url).rstrip('/')}{_PATH}?{query}"
+
 
 def register_routes(
     app, realization_service: RealizationService, semester_service: SemesterService, auth_service: AuthService
 ) -> None:
-    @app.get("/realizations")
-    def index(session, realization_id: str = "", semester_id: str = ""):
+    @app.get(_PATH)
+    def index(session, request, realization_id: str = "", semester_id: str = ""):
         is_admin = auth_service.is_admin(session)
         admin_link = auth_view.header_link(is_admin)
         if not semester_id and realization_id:
@@ -47,7 +57,9 @@ def register_routes(
         view_model = realization_service.build_realization_view_model(selected_id)
         selector = view.realization_selector(options, selected_id)
         return layout.page(
-            view.realization_view(view_model, is_admin=is_admin),
+            view.realization_view(
+                view_model, is_admin=is_admin, share_url=share_url(request, selected_id, active_semester.id)
+            ),
             active_nav="realizations",
             semester_options=semester_options,
             selected_semester_id=active_semester.id,

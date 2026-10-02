@@ -124,6 +124,33 @@ def test_a_new_realization_shows_up_in_the_weekly_view(admin_client, course_id, 
     assert "Machine Learning (TTV24SP)" in response.text
 
 
+def test_share_button_copies_the_url_with_both_ids(admin_client, course_id, semester_id, realization_service):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    response = admin_client.get("/realizations")
+    query = f"realization_id={realization.id}&amp;semester_id={semester_id}"
+
+    assert f'data-share-url="http://testserver/realizations?{query}"' in response.text
+    assert "navigator.clipboard.writeText" in response.text
+
+
+def test_share_button_completes_a_url_missing_the_semester(
+    admin_client, client, course_id, semester_id, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    admin_response = admin_client.get(f"/realizations?realization_id={realization.id}")
+    admin_client.post("/logout", follow_redirects=True)
+    visitor_response = admin_client.get(f"/realizations?realization_id={realization.id}")
+
+    assert admin_response.status_code == 200
+    assert visitor_response.status_code == 200
+    for response in (admin_response, visitor_response):
+        assert f"realization_id={realization.id}&amp;semester_id={semester_id}" in response.text
+
+
 def test_realizations_of_every_semester_are_listed(admin_client, course_id, semester_id, realization_service):
     spring_id = _create_semester(admin_client, 2027, "spring")
     _add_realization(admin_client, course_id, semester_id, group="TTV24SP")
