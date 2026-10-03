@@ -26,6 +26,10 @@ class UnknownSemesterError(Exception):
     pass
 
 
+class UnknownRealizationError(Exception):
+    pass
+
+
 class InvalidRealizationError(Exception):
     pass
 
@@ -72,6 +76,30 @@ class RealizationService:
         if not group:
             raise InvalidRealizationError("A CourseRealization needs a non-empty group label.")
         return self.repo.add(course_id, semester_id, group)
+
+    def update_realization(self, realization_id: str, semester_id: str, group: str) -> CourseRealization:
+        """Re-labels a realization; its Course stays the one it was created under, per ../courses/courses.sdd."""
+        existing = self.get_realization(realization_id)
+        if existing is None:
+            raise UnknownRealizationError(f"No CourseRealization with id {realization_id!r}.")
+        if self._semesters().get_semester(semester_id) is None:
+            raise UnknownSemesterError(f"No Semester with id {semester_id!r}.")
+        group = group.strip()
+        if not group:
+            raise InvalidRealizationError("A CourseRealization needs a non-empty group label.")
+        return self.repo.update(existing.id, existing.course_id, semester_id, group)
+
+    def delete_realization(self, realization_id: str) -> None:
+        """Removes a realization together with its Lessons, which would otherwise be orphaned."""
+        if self.get_realization(realization_id) is None:
+            raise UnknownRealizationError(f"No CourseRealization with id {realization_id!r}.")
+        self.lesson_service.delete_lessons_for_realization(realization_id)
+        self.repo.delete(realization_id)
+
+    def delete_realizations_for_course(self, course_id: str) -> None:
+        """Removes every realization of a Course with its Lessons, for removing the Course itself."""
+        for realization in self.repo.list_for_course(course_id):
+            self.delete_realization(realization.id)
 
     def realization_label(self, realization: CourseRealization, course: Course, semester: "Semester") -> str:
         """Composed at render time, never stored, per ./realizations.sdd Must."""

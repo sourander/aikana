@@ -8,6 +8,7 @@ from fasthtml.common import RedirectResponse
 
 from ..auth import view as auth_view
 from ..auth.services import AuthService
+from ..lessons.services import LessonService
 from ..realizations import services as realization_services
 from ..realizations.services import RealizationService
 from ..semester.services import SemesterService
@@ -22,6 +23,7 @@ def register_routes(
     realization_service: RealizationService,
     semester_service: SemesterService,
     auth_service: AuthService,
+    lesson_service: LessonService,
 ) -> None:
     def _realization_label(realization, semesters_by_id) -> str:
         semester = semesters_by_id.get(realization.semester_id)
@@ -29,12 +31,30 @@ def register_routes(
             return realization.group
         return f"{realization.group} \u2013 {semester_service.semester_label(semester)}"
 
-    def _realization_rows(course_id: str, semesters_by_id) -> list[tuple[str, str]]:
-        """A Course's realizations labeled from their group and Semester, plain data for ./view.py."""
+    def _realization_rows(course_id: str, semesters_by_id) -> list[tuple[str, str, str, str]]:
+        """A Course's realizations as `(id, label, group, semester_id)` rows, plain data for ./view.py."""
         return [
-            (realization.id, _realization_label(realization, semesters_by_id))
+            (
+                realization.id,
+                _realization_label(realization, semesters_by_id),
+                realization.group,
+                realization.semester_id,
+            )
             for realization in realization_service.list_realizations_for_course(course_id)
         ]
+
+    def _lesson_count(realization_id: str) -> int:
+        return len(lesson_service.list_lessons_for_realization(realization_id))
+
+    def _course_delete_counts(rows_by_course: dict[str, list[tuple[str, str, str, str]]]) -> dict[str, tuple[int, int]]:
+        """How many realizations and Lessons each Course's delete removes with it, for the confirmation dialog."""
+        return {
+            course_id: (
+                len(rows),
+                sum(_lesson_count(row[0]) for row in rows),
+            )
+            for course_id, rows in rows_by_course.items()
+        }
 
     @app.get("/courses")
     def index(session, error: str = "", semester_id: str = ""):
@@ -55,16 +75,21 @@ def register_routes(
                 admin_link=admin_link,
             )
         semesters_by_id = {semester.id: semester for semester in semester_service.list_semesters()}
+        rows_by_course = {course.id: _realization_rows(course.id, semesters_by_id) for course in courses}
         return layout.page(
             view.courses_page(
                 courses,
                 is_admin=is_admin,
                 error=error,
-                realizations_by_course={
-                    course.id: _realization_rows(course.id, semesters_by_id) for course in courses
-                },
+                realizations_by_course=rows_by_course,
                 semester_options=semester_options,
                 selected_semester_id=selected_semester_id,
+                course_delete_counts=_course_delete_counts(rows_by_course) if is_admin else {},
+                realization_lesson_counts=(
+                    {row[0]: _lesson_count(row[0]) for rows in rows_by_course.values() for row in rows}
+                    if is_admin
+                    else {}
+                ),
             ),
             active_nav="courses",
             semester_options=semester_options,
@@ -100,6 +125,18 @@ def register_routes(
             return RedirectResponse(f"/courses?error={quote(str(exc))}", status_code=303)
         return RedirectResponse("/courses", status_code=303)
 
+    @app.post("/courses/{course_id}/delete")
+    def delete_course(session, course_id: str):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        try:
+            # The Course's realizations go first, each with its Lessons, so no row is left pointing at it.
+            realization_service.delete_realizations_for_course(course_id)
+            course_service.delete_course(course_id)
+        except (services.UnknownCourseError, realization_services.UnknownRealizationError) as exc:
+            return RedirectResponse(f"/courses?error={quote(str(exc))}", status_code=303)
+        return RedirectResponse("/courses", status_code=303)
+
     @app.post("/courses/{course_id}/realizations")
     def create_realization(session, course_id: str, group: str = "", semester_id: str = ""):
         if not auth_service.is_admin(session):
@@ -114,3 +151,28 @@ def register_routes(
         ) as exc:
             return RedirectResponse(f"{back}&error={quote(str(exc))}", status_code=303)
         return RedirectResponse(back, status_code=303)
+
+    @app.post("/courses/{course_id}/realizations/{realization_id}")
+    def update_realization(session, course_id: str, realization_id: str, group: str = "", semester_id: str = ""):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        back = f"/courses?semester_id={semester_id}" if semester_id else "/courses"
+        try:
+            realization_service.update_realization(realization_id, semester_id, group)
+        except (
+            realization_services.UnknownRealizationError,
+            realization_services.UnknownSemesterError,
+            realization_services.InvalidRealizationError,
+        ) as exc:
+            return RedirectResponse(f"{back}&error={quote(str(exc))}", status_code=303)
+        return RedirectResponse(back, status_code=303)
+
+    @app.post("/courses/{course_id}/realizations/{realization_id}/delete")
+    def delete_realization(session, course_id: str, realization_id: str):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        try:
+            realization_service.delete_realization(realization_id)
+        except realization_services.UnknownRealizationError as exc:
+            return RedirectResponse(f"/courses?error={quote(str(exc))}", status_code=303)
+        return RedirectResponse("/courses", status_code=303)

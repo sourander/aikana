@@ -72,3 +72,9 @@ class SqliteLessonRepository:
             }
         )
         return _to_domain(row)
+
+    def delete_for_realization(self, course_realization_id: str) -> None:
+        # `fastlite`'s delete addresses one primary key at a time, so the realization's Lessons are read and
+        # removed by id.
+        for lesson in self.list_for_realization(course_realization_id):
+            self._table.delete(lesson.id)

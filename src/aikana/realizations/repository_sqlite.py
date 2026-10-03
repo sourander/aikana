@@ -42,3 +42,19 @@ class SqliteCourseRealizationRepository:
             {"id": uuid4().hex, "course_id": course_id, "semester_id": semester_id, "group": group}
         )
         return _to_domain(row)
+
+    def update(
+        self, realization_id: str, course_id: str, semester_id: str, group: str
+    ) -> CourseRealization:
+        row = self._table.update(
+            {
+                "id": realization_id,
+                "course_id": course_id,
+                "semester_id": semester_id,
+                "group": group,
+            }
+        )
+        return _to_domain(row)
+
+    def delete(self, realization_id: str) -> None:
+        self._table.delete(realization_id)

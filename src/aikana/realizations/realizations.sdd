@@ -7,7 +7,7 @@ Purpose:
   in that offering reference. The package also owns the per-CourseRealization weekly table (one row per calendar
   week, with `Week`, `Lessons` and `Notes` columns), the single view a visitor or the admin lands on to see one
   realization's Lessons, resolving ../courses/courses.sdd's former open decision in favor of "one selected
-  realization" over an aggregated per-Course or date-range view. Creating one is driven from
+  realization" over an aggregated per-Course or date-range view. Creating, editing and removing one is driven from
   ../courses/courses.sdd's page, which lists a Course's realizations.
 
 Owns:
@@ -35,15 +35,23 @@ Must:
   A CourseRealization has a reference to exactly one Course, a reference to exactly one Semester and a free-text
   group label such as `TTV24SP`. Both references are stored as plain ids in ./domain.py, per ../architecture.sdd;
   only ./services.py imports ../courses/courses.sdd's and ../semester/semester.sdd's ports.py to validate them.
-  @CourseRealizationRepository in ./ports.py exposes operations to list realizations for a Course or a Semester and
-  to add one.
+  @CourseRealizationRepository in ./ports.py exposes operations to list realizations for a Course or a Semester and to
+    add, update and remove one.
   A Course's realizations are listed across every Semester through @RealizationService, which labels each one from
   its group and its Semester, so ../courses/courses.sdd's page never reads this package's repository or domain
   directly.
   A CourseRealization's display label is composed from its Course name, group and Semester at render time; it is not
   stored as its own field.
   @RealizationService.add_realization validates that the Course and Semester ids exist and that the group label is
-  non-empty, rejecting with @UnknownCourseError, @UnknownSemesterError or @InvalidRealizationError before storage.
+    non-empty, rejecting with @UnknownCourseError, @UnknownSemesterError or @InvalidRealizationError before storage.
+  @RealizationService.update_realization re-labels an existing realization from a new group and Semester, validates
+    them the same way and keeps the realization's Course, because ../courses/courses.sdd's edit dialog edits a
+    realization from inside its own Course.
+  @RealizationService.delete_realization removes a realization's ../lessons/lessons.sdd Lessons before the
+    realization itself, so no Lesson is left pointing at it, and rejects an unknown id with
+    @UnknownRealizationError.
+  @RealizationService.delete_realizations_for_course removes every realization of a Course with its Lessons, for
+    removing that Course itself from ../courses/courses.sdd's page.
   Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
   ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
   The table is created automatically on startup when it does not exist.
@@ -89,6 +97,11 @@ Must:
   The Share button's URL and label sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
     which swaps only the weekly table, leaves the button in place.
 
+Scenario: Deleting a realization takes its Lessons with it
+  Given a CourseRealization has two Lessons
+  When @RealizationService.delete_realization removes it
+  Then neither Lesson remains for that CourseRealization
+
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
     CourseRealizations (one per placeholder Course) for the single hardcoded Semester, including the display-label
@@ -114,4 +127,6 @@ Tasks:
     ../courses/courses.sdd's page can list a Course's realizations across every Semester
   [x] Add the Share button to ./view.py's weekly view and the canonical `realization_id` + `semester_id` URL it copies
     in ./routes.py
-
+  [x] Add @RealizationService.update_realization, @RealizationService.delete_realization and
+    @RealizationService.delete_realizations_for_course, with the matching @CourseRealizationRepository operations, so
+    ../courses/courses.sdd's page can edit and remove a realization and a Course with its Lessons

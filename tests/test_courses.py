@@ -1,4 +1,7 @@
-"""In-process client tests of the courses page, its create form and its edit dialog, per ./tests.sdd."""
+"""In-process client tests of the courses page, its create form and its edit and delete dialogs, per ./tests.sdd.
+"""
+
+from datetime import date, time
 
 
 def _create_course(client, name="Machine Learning", description="An introduction.", ects_credits=5):
@@ -171,3 +174,95 @@ def test_courses_tab_sits_between_semester_and_realizations(client):
     courses = response.text.index(">Courses<")
     realizations = response.text.index(">Realizations<")
     assert semester < courses < realizations
+
+
+def test_admin_courses_page_has_a_course_delete_dialog(admin_client, course_service):
+    _create_course(admin_client)
+    course = course_service.list_courses()[0]
+
+    response = admin_client.get("/courses")
+
+    assert f'id="course-delete-dialog-{course.id}"' in response.text
+    assert f'action="/courses/{course.id}/delete"' in response.text
+    assert "Delete Course" in response.text
+
+
+def test_the_course_delete_dialog_names_what_it_removes(admin_client, course_service, services):
+    _create_course(admin_client)
+    course = course_service.list_courses()[0]
+    semester = services.semesters.create_semester(2026, "fall")
+    services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    services.realizations.add_realization(course.id, semester.id, "TTV24SP-B")
+
+    response = admin_client.get("/courses")
+
+    assert "This also deletes its 2 realizations and 0 lessons." in response.text
+
+
+def test_the_course_delete_dialog_warns_about_nothing_when_there_are_no_realizations(
+    admin_client, course_service
+):
+    _create_course(admin_client)
+
+    response = admin_client.get("/courses")
+
+    assert "Delete the Course Machine Learning?" in response.text
+    assert "also deletes" not in response.text
+
+
+def test_admin_deletes_a_course_with_its_realizations_and_lessons(
+    admin_client, course_service, services
+):
+    _create_course(admin_client)
+    course = course_service.list_courses()[0]
+    semester = services.semesters.create_semester(2026, "fall")
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    services.lessons.add_lesson(
+        realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B"
+    )
+
+    response = admin_client.post(f"/courses/{course.id}/delete", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert "Machine Learning" not in response.text
+    assert "Create a Course to get started." in response.text
+    assert course_service.list_courses() == []
+    assert services.realizations.list_realizations_for_course(course.id) == []
+    assert services.lessons.list_lessons_for_realization(realization.id) == []
+
+
+def test_deleting_a_course_leaves_other_courses_and_realizations_alone(
+    admin_client, course_service, services
+):
+    _create_course(admin_client, name="Machine Learning")
+    machine_learning = course_service.list_courses()[0]
+    _create_course(admin_client, name="Databases")
+    databases = next(course for course in course_service.list_courses() if course.name == "Databases")
+    semester = services.semesters.create_semester(2026, "fall")
+    kept = services.realizations.add_realization(databases.id, semester.id, "TTV24SP")
+
+    admin_client.post(f"/courses/{machine_learning.id}/delete", follow_redirects=True)
+
+    assert [course.name for course in course_service.list_courses()] == ["Databases"]
+    assert [r.id for r in services.realizations.list_realizations_for_course(kept.course_id)] == [kept.id]
+
+
+def test_deleting_an_unknown_course_is_rejected(admin_client, course_service):
+    _create_course(admin_client)
+
+    response = admin_client.post("/courses/no-such-course/delete", follow_redirects=True)
+
+    assert "No Course with id" in response.text
+    assert len(course_service.list_courses()) == 1
+
+
+def test_visitor_cannot_delete_a_course(admin_client, course_service):
+    _create_course(admin_client)
+    course = course_service.list_courses()[0]
+    admin_client.post("/logout", follow_redirects=True)
+
+    response = admin_client.post(f"/courses/{course.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+    assert [c.name for c in course_service.list_courses()] == ["Machine Learning"]

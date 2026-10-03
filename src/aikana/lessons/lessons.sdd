@@ -26,15 +26,18 @@ Must:
   end time is later than the start time, rejecting with @UnknownRealizationError or @InvalidLessonError before
   storage.
   @LessonService.add_lesson also rejects a date inside a NoTeachWeek of the CourseRealization's Semester, read through
-  ../no_teach_weeks/no_teach_weeks.sdd, with @InvalidLessonError, because nothing is taught during such a week.
-  @LessonRepository in ./ports.py exposes operations to list lessons for a CourseRealization or a date range and to
-  add one.
+    ../no_teach_weeks/no_teach_weeks.sdd, with @InvalidLessonError, because nothing is taught during such a week.
+  @LessonRepository in ./ports.py exposes operations to list lessons for a CourseRealization or a date range, to add
+    one and to delete every lesson of a CourseRealization.
+  @LessonService.delete_lessons_for_realization removes all of a CourseRealization's Lessons, which
+    ../realizations/realizations.sdd's @RealizationService calls before removing that realization so no Lesson is
+    left pointing at it.
   Lesson listings are ordered by date and start time, so a day with several Lessons reads chronologically.
   The table is created automatically on startup when it does not exist.
 
 Tasks:
-  [?] Decide whether a Lesson can be deleted or edited after creation, and whether more than one Lesson may exist
-    for the same day and CourseRealization
+  [?] Decide whether an individual Lesson can be edited or deleted from the UI after creation, and whether more than
+    one Lesson may exist for the same day and CourseRealization
   [x] Implement @Lesson in ./domain.py and a hardcoded ./services.py returning placeholder Lessons for each
     placeholder CourseRealization across the hardcoded Semester, standing in for @LessonRepository until
     persistence exists
@@ -43,3 +46,5 @@ Tasks:
   [x] Validate the CourseRealization id (via ../realizations/realizations.sdd's ports.py), a non-empty topic and
     start-before-end times in @LessonService.add_lesson with @UnknownRealizationError and @InvalidLessonError
   [x] Reject a lesson dated inside a NoTeachWeek of the CourseRealization's Semester with @InvalidLessonError
+  [x] Add @LessonService.delete_lessons_for_realization, which ../realizations/realizations.sdd's
+    @RealizationService.delete_realization calls when it removes a realization

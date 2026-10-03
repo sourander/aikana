@@ -2,10 +2,11 @@ Spec: Course entity and courses page
 
 Purpose:
   The Course entity: a unique name, a description and an ECTS credit count, and the admin page that lists Courses
-  and creates or edits them. Because a Course is taught through ../realizations/realizations.sdd's
-  CourseRealizations, this page also lists each Course's realizations and is where the admin adds one. The weekly
-  calendar is per-CourseRealization and lives in ../realizations/realizations.sdd, which reads Courses through
-  ./services.py to compose its display label.
+  and creates, edits or removes them. Because a Course is taught through ../realizations/realizations.sdd's
+  CourseRealizations, this page also lists each Course's realizations, is where the admin adds, edits or removes one,
+  and where a Course's removal cascades to its realizations and their Lessons. The weekly calendar is
+  per-CourseRealization and lives in ../realizations/realizations.sdd, which reads Courses through ./services.py to
+  compose its display label.
 
 Owns:
   ./domain.py
@@ -23,6 +24,7 @@ Depends on:
   ../auth/auth.sdd
   ../semester/semester.sdd
   ../realizations/realizations.sdd
+  ../lessons/lessons.sdd
 
 Must:
   A Course has a unique name, a description and an ECTS credit count.
@@ -30,9 +32,10 @@ Must:
     Course's (ignoring surrounding whitespace and letter case) with @DuplicateCourseError, before storage.
   @CourseService.update_course applies the same name checks, ignores the Course being edited when looking for a
     duplicate, and rejects an unknown id with @UnknownCourseError before storage.
+  @CourseService.delete_course rejects an unknown id with @UnknownCourseError before storage.
   No color is stored on a Course; ../semester/semester.sdd's view assigns display colors dynamically per
     CourseRealization.
-  @CourseRepository in ./ports.py exposes list, get, add and update operations backing ./services.py.
+  @CourseRepository in ./ports.py exposes list, get, add, update and delete operations backing ./services.py.
   ./routes.py registers the courses page at `/courses`, shown as the Courses tab between Semester and Realizations
     in ../shared/shared.sdd's nav.
   The courses page shows ../shared/shared.sdd's persistent Semester selector with every Semester from
@@ -45,16 +48,26 @@ Must:
     its group and Semester label and a link to that realization's weekly view.
   For the admin, clicking a listed Course opens a `<dialog>` modal whose form is prefilled with that Course's
     values and submitting it updates the Course; the admin-only `+ New Course` control links to `GET /courses/new`,
-    which renders the same create form.
+    which renders the same create form. That dialog also carries a `Delete Course` control opening a
+    confirmation `<dialog>` that names the Course and, when it has any, how many of its realizations and Lessons the
+    removal takes with it; submitting it posts to `/courses/{course_id}/delete`, which removes the Course's
+    realizations with their Lessons before the Course itself, and re-renders a validation message when the Course is
+    unknown.
   For the admin, a `+ Add Realization` control on each listed Course opens a `<dialog>` modal whose form takes a
     group label and a Semester, posts to `/courses/{course_id}/realizations` and creates the realization through
     ../realizations/realizations.sdd's @RealizationService; that route is rejected by ../auth/auth.sdd's guard for
     non-admin sessions, and its validation errors are re-rendered as a validation message on this page.
-  When no Semester exists, the add-realization `<dialog>` reports that instead of offering a Semester select that
-    cannot be filled.
-  Course write routes are rejected by ../auth/auth.sdd's guard for non-admin sessions and re-render a validation
-    message when the name is empty or already used.
-  Visitors see the Course list and each Course's realizations without editing affordances.
+  For the admin, each listed realization carries an `Edit` control opening a `<dialog>` prefilled with that
+    realization's group and Semester, posting to `/courses/{course_id}/realizations/{realization_id}` and updating it
+    through ../realizations/realizations.sdd's @RealizationService, which keeps the realization's Course, and a
+    `Delete` control opening a confirmation `<dialog>` that names how many Lessons go with it before posting to
+    `/courses/{course_id}/realizations/{realization_id}/delete`; deleting one leaves the Course itself untouched.
+  When no Semester exists, the add-realization and edit-realization `<dialog>`s report that instead of offering a
+    Semester select that cannot be filled.
+  Course and realization write routes, including the deletions, are rejected by ../auth/auth.sdd's guard for
+    non-admin sessions and re-render a validation message when the name is empty or already used, when the Semester
+    or the entry is unknown.
+  Visitors see the Course list and each Course's realizations without editing or deleting affordances.
   ./view.py and ./routes.py read ../realizations/realizations.sdd only through its services.py, never its domain.py
     or repository_sqlite.py, so this pair is the mutual dependency ../architecture.sdd permits.
 
@@ -101,6 +114,30 @@ Scenario: Adding a realization without a Semester is refused
   When the admin opens a Course's add-realization dialog
   Then the dialog reports that no Semester exists instead of offering a Semester select
 
+Scenario: Admin deletes a Course
+  Given a Course with two realizations exists, one of them with Lessons
+  And the admin is logged in
+  When the admin confirms the Course's delete dialog, which names the realizations and Lessons it removes
+  Then the courses page no longer lists the Course, its realizations or their Lessons
+
+Scenario: Admin deletes a realization
+  Given a Course has a realization with Lessons
+  And the admin is logged in
+  When the admin confirms that realization's delete dialog, which names its Lessons
+  Then the Course no longer lists the realization and the realization has no Lessons
+
+Scenario: Admin edits a realization
+  Given a Course has a realization
+  And the admin is logged in
+  When the admin changes the realization's group and Semester in its edit dialog and submits
+  Then the Course lists the realization with the new group and Semester label
+
+Scenario: Visitor sees no editing or deleting affordances
+  Given a Course with a realization exists
+  And the visitor is not logged in
+  When the visitor opens the courses page
+  Then no dialog or edit or delete control is shown for the Course or its realization
+
 Tasks:
   [x] Implement @Course in ./domain.py and a hardcoded ./services.py returning two placeholder Courses, standing in
     for @CourseRepository until persistence exists
@@ -115,3 +152,8 @@ Tasks:
   [x] Add the admin-only `+ Add Realization` control and its `<dialog>` to ./view.py, and the guarded
     `POST /courses/{course_id}/realizations` route in ./routes.py that creates one through
     ../realizations/realizations.sdd's @RealizationService
+  [x] Add a per-Course delete `<dialog>` naming the realizations and Lessons the cascade removes, @CourseService.delete_course
+    and the guarded `POST /courses/{course_id}/delete` route that removes the realizations with their Lessons first
+  [x] Add a per-realization edit `<dialog>` and a delete `<dialog>` naming the Lessons it removes to ./view.py, and
+    the guarded update and delete routes in ./routes.py that write through ../realizations/realizations.sdd's
+    @RealizationService

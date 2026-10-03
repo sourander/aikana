@@ -34,6 +34,11 @@ class CourseService:
             raise UnknownCourseError(f"No Course with id {course_id!r}.")
         return self.repo.update(course_id, self._validated_name(name, exclude_id=course_id), description, ects_credits)
 
+    def delete_course(self, course_id: str) -> None:
+        if self.repo.get(course_id) is None:
+            raise UnknownCourseError(f"No Course with id {course_id!r}.")
+        self.repo.delete(course_id)
+
     def _validated_name(self, name: str, exclude_id: str | None = None) -> str:
         name = name.strip()
         if not name:

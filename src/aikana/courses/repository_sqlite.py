@@ -41,3 +41,6 @@ class SqliteCourseRepository:
             {"id": course_id, "name": name, "description": description, "ects_credits": ects_credits}
         )
         return _to_domain(row)
+
+    def delete(self, course_id: str) -> None:
+        self._table.delete(course_id)

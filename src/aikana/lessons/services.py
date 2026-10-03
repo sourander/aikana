@@ -57,3 +57,7 @@ class LessonService:
         if end_time <= start_time:
             raise InvalidLessonError("A Lesson's end time must be later than its start time.")
         return self.repo.add(course_realization_id, lesson_date, start_time, end_time, topic, notes)
+
+    def delete_lessons_for_realization(self, course_realization_id: str) -> None:
+        """Removes every Lesson of a CourseRealization, used when that realization is removed."""
+        self.repo.delete_for_realization(course_realization_id)

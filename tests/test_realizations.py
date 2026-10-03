@@ -1,4 +1,6 @@
-"""In-process client tests of the courses page's add-realization dialog and of the weekly view, per ./tests.sdd."""
+"""In-process client tests of the courses page's realization dialogs, of their edits and deletions, and of the weekly
+view, per ./tests.sdd.
+"""
 
 from datetime import date, time
 
@@ -242,3 +244,174 @@ def test_visitor_cannot_create_a_realization(admin_client, course_id, semester_i
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
     assert realization_service.list_realizations_for_course(course_id) == []
+
+
+def test_admin_courses_page_has_a_prefilled_realization_edit_dialog(admin_client, course_id, semester_id, realization_service):
+    _add_realization(admin_client, course_id, semester_id, group="TTV24SP")
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    response = admin_client.get("/courses")
+
+    assert f'id="realization-edit-dialog-{realization.id}"' in response.text
+    assert f'action="/courses/{course_id}/realizations/{realization.id}"' in response.text
+    assert 'value="TTV24SP"' in response.text
+    assert f'<option value="{semester_id}" selected>' in response.text
+
+
+def test_admin_edits_a_realization_group_and_semester(
+    admin_client, course_id, semester_id, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id, group="TTV24SP")
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+    spring_id = _create_semester(admin_client, 2027, "spring")
+
+    response = admin_client.post(
+        f"/courses/{course_id}/realizations/{realization.id}",
+        data={"group": "TTV24SP-B", "semester_id": spring_id},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "TTV24SP-B" in response.text
+    assert "Spring 2027" in response.text
+    edited = realization_service.list_realizations_for_course(course_id)[0]
+    assert edited.group == "TTV24SP-B"
+    assert edited.semester_id == spring_id
+    # The Course the edit dialog belongs to is not changed by editing a realization.
+    assert edited.course_id == course_id
+
+
+def test_edit_realization_rejects_an_empty_group(admin_client, course_id, semester_id, realization_service):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    response = admin_client.post(
+        f"/courses/{course_id}/realizations/{realization.id}",
+        data={"group": "   ", "semester_id": semester_id},
+        follow_redirects=True,
+    )
+
+    assert "A CourseRealization needs a non-empty group label." in response.text
+    assert realization_service.list_realizations_for_course(course_id)[0].group == "TTV24SP"
+
+
+def test_edit_realization_rejects_an_unknown_semester(admin_client, course_id, semester_id, realization_service):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    response = admin_client.post(
+        f"/courses/{course_id}/realizations/{realization.id}",
+        data={"group": "TTV24SP-B", "semester_id": "no-such-semester"},
+        follow_redirects=True,
+    )
+
+    assert "No Semester with id" in response.text
+    assert realization_service.list_realizations_for_course(course_id)[0].semester_id == semester_id
+
+
+def test_edit_an_unknown_realization_is_rejected(admin_client, course_id, semester_id):
+    response = admin_client.post(
+        f"/courses/{course_id}/realizations/no-such-realization",
+        data={"group": "TTV24SP-B", "semester_id": semester_id},
+        follow_redirects=True,
+    )
+
+    assert "No CourseRealization with id" in response.text
+
+
+def _delete_dialog_text(client, dialog_id: str) -> str:
+    """Just the one confirmation dialog's markup, so another dialog's cascade warning cannot leak into the check."""
+    page = client.get("/courses").text
+    return page[page.index(f'id="{dialog_id}"') : page.index("</dialog>", page.index(f'id="{dialog_id}"'))]
+
+
+def test_admin_courses_page_has_a_realization_delete_dialog(admin_client, course_id, semester_id, realization_service):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    response = admin_client.get("/courses")
+
+    assert f'id="realization-delete-dialog-{realization.id}"' in response.text
+    assert f'action="/courses/{course_id}/realizations/{realization.id}/delete"' in response.text
+
+
+def test_the_realization_delete_dialog_names_the_lessons_it_removes(
+    admin_client, course_id, semester_id, services, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+    services.lessons.add_lesson(
+        realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B"
+    )
+
+    response = admin_client.get("/courses")
+
+    assert "This also deletes its 1 lesson." in response.text
+
+
+def test_a_realization_without_lessons_warns_about_nothing(
+    admin_client, course_id, semester_id, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    dialog = _delete_dialog_text(admin_client, f"realization-delete-dialog-{realization.id}")
+
+    assert "Delete the realization TTV24SP" in dialog
+    assert "also deletes" not in dialog
+
+
+def test_admin_deletes_a_realization_with_its_lessons(
+    admin_client, course_id, semester_id, services, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+    services.lessons.add_lesson(
+        realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B"
+    )
+
+    response = admin_client.post(
+        f"/courses/{course_id}/realizations/{realization.id}/delete", follow_redirects=True
+    )
+
+    assert response.status_code == 200
+    assert "TTV24SP" not in response.text
+    assert "No realization yet." in response.text
+    assert realization_service.list_realizations_for_course(course_id) == []
+    assert services.lessons.list_lessons_for_realization(realization.id) == []
+    # The Course itself is untouched by deleting one of its realizations.
+    assert [course.name for course in services.courses.list_courses()] == ["Machine Learning"]
+
+
+def test_deleting_an_unknown_realization_is_rejected(admin_client, course_id, semester_id, realization_service):
+    _add_realization(admin_client, course_id, semester_id)
+
+    response = admin_client.post(
+        f"/courses/{course_id}/realizations/no-such-realization/delete", follow_redirects=True
+    )
+
+    assert "No CourseRealization with id" in response.text
+    assert len(realization_service.list_realizations_for_course(course_id)) == 1
+
+
+def test_visitor_cannot_edit_or_delete_a_realization(
+    admin_client, course_id, semester_id, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+    admin_client.post("/logout", follow_redirects=True)
+
+    update = admin_client.post(
+        f"/courses/{course_id}/realizations/{realization.id}",
+        data={"group": "TTV24SP-B", "semester_id": semester_id},
+        follow_redirects=False,
+    )
+    delete = admin_client.post(
+        f"/courses/{course_id}/realizations/{realization.id}/delete", follow_redirects=False
+    )
+
+    assert update.status_code == 303
+    assert update.headers["location"] == "/login"
+    assert delete.status_code == 303
+    assert delete.headers["location"] == "/login"
+    assert realization_service.list_realizations_for_course(course_id)[0].group == "TTV24SP"
