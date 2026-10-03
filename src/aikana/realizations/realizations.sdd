@@ -69,9 +69,11 @@ Must:
   Each week is one table row: a `Week` column with the ISO week number (in a larger, dominant font) and the week's
   date range underneath, a `Lessons` column and a `Notes` column. A week with more than one Lesson (or a Lesson and a
   Holiday) shows one sub-row per entry under that single week; the `Week` cell spans all of that week's sub-rows
-  (`rowspan`) so it still reads as one row. A Lesson sub-row shows its time range and topic in the `Lessons` column
-  and its free-text notes in the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in
-  the `Lessons` column with an empty `Notes` cell. A week with neither shows a single empty sub-row.
+  (`rowspan`) so it still reads as one row. A Lesson sub-row shows its topic and, under it, one line reading the
+  Lesson's abbreviated weekday, its `d.m.` day and its time range, such as `Mon 21.9. 08:00\u201310:00`; the day
+  omits the year because the row's `Week` cell already carries the week's full date range. Its free-text notes go in
+  the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in the `Lessons` column with an
+  empty `Notes` cell. A week with neither shows a single empty sub-row.
   The week row containing today carries a green bar along its left edge; no other week row does.
   A NoTeachWeek of the realization's Semester, read through ../no_teach_weeks/no_teach_weeks.sdd, consumes its whole
   week: that week shows exactly one sub-row whose `Lessons` cell reads `No teaching week`, followed by
@@ -89,7 +91,8 @@ Must:
     ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
   Each Lesson sub-row carries an `Edit` and a `Delete` control for the admin, and no Holiday or NoTeachWeek
     sub-row carries either, since ../lessons/lessons.sdd owns only Lesson writes.
-  `Edit` opens a `<dialog>` prefilled with that Lesson's date, start time, end time, topic and notes, posting to
+  `Edit` opens a `<dialog>` whose date field is ../shared/shared.sdd's @day_calendar, a Monday-first month grid with
+    that Lesson's date checked, and whose start time, end time, topic and notes fields are prefilled, posting to
     `/realizations/lessons/{lesson_id}`, which writes through ../lessons/lessons.sdd's @LessonService.update_lesson
     and keeps the Lesson in the CourseRealization it already belongs to. `Delete` opens a confirmation `<dialog>`
     naming the Lesson's topic and date, posting to `/realizations/lessons/{lesson_id}/delete`, which writes through
@@ -152,3 +155,6 @@ Tasks:
     ../courses/courses.sdd's page can edit and remove a realization and a Course with its Lessons
   [x] Add the admin `Edit` and `Delete` controls and their `<dialog>`s for each Lesson sub-row in ./view.py, and the
     guarded update and delete routes in ./routes.py writing through ../lessons/lessons.sdd's @LessonService
+  [x] Show each Lesson sub-row's weekday, `d.m.` day and time range under its topic, instead of a time range alone
+  [x] Render the per-Lesson `Edit` dialog's date through ../shared/shared.sdd's @day_calendar, a Monday-first month
+    grid, instead of a browser date picker

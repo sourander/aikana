@@ -10,6 +10,7 @@ from fasthtml.common import (
     Form,
     Input,
     P,
+    Span,
     Table,
     Tbody,
     Td,
@@ -172,10 +173,20 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
         return Td(f"Holiday \u2013 {entry.title}", cls=f"{_CELL_CLS} text-red-600 italic")
     return Td(
         Div(entry.title, cls="text-gray-900"),
-        Div(f"{entry.start_time}\u2013{entry.end_time}", cls="text-xs text-gray-500"),
+        Div(_lesson_when(entry), cls="text-xs text-gray-500"),
         _lesson_controls(entry) if is_admin else "",
         cls=_CELL_CLS,
     )
+
+
+def _lesson_when(entry: WeekEntry) -> str:
+    """One Lesson's weekday, day and time range, per ./realizations.sdd.
+
+    The week row's `Week` cell already carries the week's full date range, so the sub-row repeats only the
+    weekday and the `d.m.` day.
+    """
+    day = entry.lesson_date
+    return f"{day.strftime('%a')} {day.day}.{day.month}. {entry.start_time}\u2013{entry.end_time}"
 
 
 def _notes_cell(entry: WeekEntry | None):
@@ -216,7 +227,8 @@ def _lesson_edit_dialog(entry: WeekEntry):
     """One Lesson's edit form, prefilled with its date, times, topic and notes."""
     return Dialog(
         Form(
-            Input(name="day", type="date", value=entry.lesson_date.isoformat(), required=True, cls=_INPUT_CLS),
+            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            layout.day_calendar(entry.lesson_date),
             Input(
                 name="start_time",
                 value=entry.start_time,

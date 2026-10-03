@@ -1,11 +1,11 @@
 """Pure rendering of the admin day dialog and its Holiday, NoTeachWeek and Lesson forms, per ./day_dialog.sdd."""
 
-from datetime import date, timedelta
+from datetime import date
 from urllib.parse import urlencode
 
 from fasthtml.common import Button, Dialog, Div, Form, Input, Option, P, Select, Span
 
-from ..shared import dates
+from ..shared import dates, layout
 
 # The containing view renders dialog_container() once and never replaces it, so its hx-on::after-swap handler stays
 # attached and re-opens the <dialog> that every dialog response swaps into it. The response must therefore be the
@@ -164,18 +164,9 @@ def lesson_form(day: date, semester_id: str, realization_options, values: dict, 
 def _form(action: str, day: date, semester_id: str, *fields, realization_id: str = "", editable_day: bool = False):
     """A form that posts the write and lets the response re-render the whole containing view."""
     if editable_day:
-        week_start = day - timedelta(days=day.weekday())
         day_fields = (
             Span("Date", cls="text-xs font-semibold text-gray-500"),
-            Input(
-                name="day",
-                type="date",
-                value=day.isoformat(),
-                min=week_start.isoformat(),
-                max=(week_start + timedelta(days=6)).isoformat(),
-                required=True,
-                cls=_INPUT_CLS,
-            ),
+            layout.day_calendar(day),
         )
     else:
         day_fields = (Input(name="day", type="hidden", value=day.isoformat()),)

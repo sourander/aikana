@@ -1,8 +1,11 @@
 """The shared page shell: header plus the compiled Tailwind stylesheet and HTMX headers."""
 
+from datetime import date
 from pathlib import Path
 
-from fasthtml.common import A, Div, H1, Header, Link, Option, Script, Select
+from fasthtml.common import A, Div, H1, Header, Input, Label, Link, Option, Script, Select, Span
+
+from . import dates
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -98,6 +101,51 @@ def dropdown(
         hx_push_url="true",
         hx_include=hx_include or None,
         cls=_SELECT_CLS,
+    )
+
+
+def day_calendar(selected: date, name: str = "day"):
+    """A Monday-first month grid of `selected`'s month whose day cells are the form's own radio buttons.
+
+    The browser's native date picker starts its week on Sunday in many locales and cannot be re-ordered, so the app
+    renders the grid itself; the selection needs no script because each cell is a `name` radio input.
+    """
+    return Div(
+        Div(
+            *[
+                Span(weekday, cls="flex h-7 w-8 items-center justify-center text-xs text-gray-500")
+                for weekday in dates.MONDAY_FIRST_WEEKDAYS
+            ],
+            cls="grid grid-cols-7 gap-1",
+        ),
+        *[
+            Div(
+                *[_calendar_day(day, selected, name) for day in week],
+                cls="grid grid-cols-7 gap-1",
+            )
+            for week in dates.month_grid(selected)
+        ],
+        cls="w-max",
+    )
+
+
+def _calendar_day(day: date | None, selected: date, name: str):
+    if day is None:
+        return Span("", cls="h-8 w-8")
+    return Label(
+        Input(
+            type="radio",
+            name=name,
+            value=day.isoformat(),
+            checked=(day == selected),
+            cls="peer sr-only",
+        ),
+        Span(
+            str(day.day),
+            cls="flex h-8 w-8 items-center justify-center rounded text-sm hover:bg-gray-100"
+            " peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:ring-2",
+        ),
+        cls="contents",
     )
 
 

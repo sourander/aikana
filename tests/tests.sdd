@@ -4,7 +4,8 @@ Purpose:
   Automated `pytest` tests for the `aikana` package, run without a network or a running server.
 
 Structure:
-  ./conftest.py: shared fixtures wiring an in-process client and every feature's services on a temporary database
+  ./conftest.py: shared fixtures wiring an in-process client and every feature's services on a temporary database,
+    plus the shared assertion that a page's day calendar has a given day checked
   ./test_auth.py: in-process client tests of the admin login and logout, the shell's login/logout link and the
     password's secrecy
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit and delete dialogs
@@ -19,7 +20,7 @@ Structure:
     dialogs
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases
-  ./test_shared.py: tests of the shared kernel's database factory and page shell
+  ./test_shared.py: tests of the shared kernel's database factory, page shell and its Monday-first day calendar
 
 Owns:
   ./test_*.py

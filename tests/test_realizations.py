@@ -10,6 +10,7 @@ from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import RealizationService
+from conftest import has_checked_calendar_day
 
 
 @pytest.fixture
@@ -152,6 +153,8 @@ def test_a_week_with_a_lesson_and_a_holiday_spans_two_sub_rows(client, services)
     assert 'rowspan="2"' in response.text
     assert "Holiday \u2013 Autumn break" in response.text
     assert "Intro" in response.text
+    # The sub-row states the weekday, day and time range; the year stays in the Week cell.
+    assert "Tue 20.10. 08:00\u201310:00" in response.text
     assert "Room B" in response.text
 
 
@@ -452,7 +455,7 @@ def test_admin_weekly_view_has_a_prefilled_lesson_edit_dialog(admin_client, less
     assert response.status_code == 200
     assert f'id="lesson-edit-dialog-{lesson}"' in response.text
     assert f'action="/realizations/lessons/{lesson}"' in response.text
-    assert 'value="2026-10-20"' in response.text
+    assert has_checked_calendar_day(response.text, "2026-10-20")
     assert 'value="08:00"' in response.text
     assert 'value="10:00"' in response.text
     assert 'value="Intro"' in response.text

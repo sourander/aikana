@@ -37,8 +37,10 @@ Must:
   NoTeachWeek, and opens on the Lesson tab because a Lesson is the most commonly added entry. Switching tabs
   re-renders the dialog in place through HTMX.
   The dialog can also be opened from ../realizations/realizations.sdd's weekly table through a `realization_id`
-  query parameter; then the Holiday and Lesson forms show an editable date field prefilled with the clicked week's
-  Monday and limited to that week, and the Lesson form defaults to that realization.
+    query parameter; then the Holiday and Lesson forms replace the date field with ../shared/shared.sdd's
+    @day_calendar, a Monday-first month grid of the clicked day's month with that day's week Monday checked, so the
+    admin picks the date on a Finnish week instead of a browser date picker that may start its week on Sunday, and the
+    Lesson form defaults to that realization.
   The Holiday form takes a title. The NoTeachWeek form takes a week number, prefilled with the clicked date's ISO week
   and editable, and a title, prefilled with ../no_teach_weeks/no_teach_weeks.sdd's shared default title and editable.
   The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a start time and
@@ -84,8 +86,8 @@ Scenario: Rejected entry is not stored
 
 Scenario: Admin adds a lesson from the weekly view
   Given the admin is logged in and views a realization's weekly table
-  When the admin clicks a week row, chooses a course realization, enters a date within that week, a start time, an
-  end time and a topic and submits
+  When the admin clicks a week row, chooses a course realization, picks the date on the Monday-first calendar, enters
+    a start time, an end time and a topic and submits
   Then the weekly table re-renders in place with the new lesson
 
 Tasks:
@@ -94,5 +96,7 @@ Tasks:
   [x] Implement the NoTeachWeek form, prefilled with the clicked day's ISO week
   [ ] Implement editing of existing entries
   [ ] Let the admin edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd
-  [x] Open the dialog from ../realizations/realizations.sdd's week rows, with the editable date field for the
+  [x] Open the dialog from ../realizations/realizations.sdd's week rows, with the Monday-first month calendar for the
     Holiday and Lesson forms and the weekly-table swap
+  [x] Render the date through ../shared/shared.sdd's @day_calendar instead of a browser date picker, so the dialog's
+    week starts on Monday in every locale

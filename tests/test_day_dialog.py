@@ -4,7 +4,7 @@ from datetime import date, time
 
 import pytest
 
-from conftest import AIKANA_PASSWD
+from conftest import AIKANA_PASSWD, has_checked_calendar_day
 
 # The dialog is only reachable through an HTMX request, per ./src/aikana/day_dialog/day_dialog.sdd.
 HTMX = {"HX-Request": "true"}
@@ -359,7 +359,7 @@ def test_visitor_sees_no_week_row_dialog_trigger(client, semester, services):
     assert 'id="day-dialog"' not in response.text
 
 
-def test_admin_opens_the_weekly_dialog_with_an_editable_date_field(admin_client, semester, services):
+def test_admin_opens_the_weekly_dialog_with_the_week_s_monday_checked(admin_client, semester, services):
     realization = _add_realization(services, semester)
 
     response = admin_client.get(
@@ -374,7 +374,7 @@ def test_admin_opens_the_weekly_dialog_with_an_editable_date_field(admin_client,
     )
 
     assert response.status_code == 200
-    assert 'name="day" type="date" value="2026-10-19" min="2026-10-19" max="2026-10-25"' in response.text
+    assert has_checked_calendar_day(response.text, FREE_WEEK_MONDAY)
     assert f'name="realization_id" type="hidden" value="{realization.id}"' in response.text
     assert 'hx-target="#realization-week-table"' in response.text
     assert 'hx-target="#semester-grid"' not in response.text
@@ -482,7 +482,7 @@ def test_a_rejected_weekly_form_keeps_the_date_and_the_realization(admin_client,
 
     assert response.status_code == 422
     assert response.headers["HX-Retarget"] == "#day-dialog"
-    assert 'name="day" type="date" value="2026-10-21"' in response.text
+    assert has_checked_calendar_day(response.text, "2026-10-21")
     assert f'name="realization_id" type="hidden" value="{realization.id}"' in response.text
     assert services.holidays.list_holidays_for_range(*_range("2026-10-21")) == []
 

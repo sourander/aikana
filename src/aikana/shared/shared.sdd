@@ -43,13 +43,19 @@ Must:
   every tab. Changing it re-renders the current tab through the `semester_id` query parameter without a full page
   reload, and the nav links carry the selected `semester_id`, so the selection persists across tabs.
   ./layout.py exposes @dropdown as the shared header select renderer: name, `(id, label)` options, selected id, the
-  `hx_get` path to re-render, and an optional `hx_include`; the shell's Semester selector and each feature view.py's
-  own selector use it, so all header selects behave consistently.
+    `hx_get` path to re-render, and an optional `hx_include`; the shell's Semester selector and each feature view.py's
+    own selector use it, so all header selects behave consistently.
+  ./layout.py exposes @day_calendar as the shared Monday-first month calendar: a weekday header running `Mon` to
+    `Sun`, the selected date's month as whole Monday-to-Sunday weeks, and one `day` radio input per day cell with
+    `selected` checked, so the grid is the form's own field and picking a day needs no script. The browser's own date
+    picker orders its weeks by the browser's locale, which starts on Sunday in many of them and cannot be re-ordered
+    from the page, so a feature that must show a Finnish week renders this grid instead of an `<input type="date">`.
   ./layout.py's header also takes an already-rendered login/logout link as a plain argument, per
   ../auth/auth.sdd, so it still needs no import of ../auth/auth.sdd's services.py or routes.py.
   ./dates.py is the single source of the date policy in ../aikana.sdd: @today returns the current date in
-  `Europe/Helsinki` regardless of the host's time zone, and @format_date renders a calendar date in the European
-  `d.m.yyyy` form.
+    `Europe/Helsinki` regardless of the host's time zone, @format_date renders a calendar date in the European
+    `d.m.yyyy` form, and @month_grid returns the month containing a date as Monday-first weeks of seven days padded
+    with `None` before its first and after its last day, so a rendered week or month always starts on its Monday.
 
 Must not:
   ./db.py and ./layout.py must not import any feature package's domain.py, ports.py, services.py,
@@ -70,3 +76,5 @@ Tasks:
     injecting the CDN `<script>`
   [x] Emit the page-wide tooltip positioning script from ./layout.py's `extra_headers`, so any view.py's hover
     tooltip can be marked as an anchor and kept inside its area
+  [x] Add @month_grid to ./dates.py and @day_calendar to ./layout.py, so every rendered week and month starts on its
+    Monday and a form can pick a day without a browser date picker

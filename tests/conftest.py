@@ -23,6 +23,11 @@ from aikana.shared.db import create_database
 AIKANA_PASSWD = "test-password"
 
 
+def has_checked_calendar_day(html: str, selected_day: str) -> bool:
+    """Whether `html`'s app-rendered month calendar has the `day` radio for `selected_day` checked."""
+    return f'type="radio" name="day" value="{selected_day}" checked' in html
+
+
 @pytest.fixture
 def db(tmp_path):
     return create_database(tmp_path / "app.db")
