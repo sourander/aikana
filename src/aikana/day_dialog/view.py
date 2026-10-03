@@ -27,9 +27,9 @@ _TIME_PATTERN = r"([01][0-9]|2[0-3]):[0-5][0-9]"
 _TAB_CLS = "rounded px-2 py-1 text-sm"
 _ACTIVE_TAB_CLS = "bg-blue-600 text-white"
 _TABS = (
+    ("lesson", "Lesson"),
     ("holiday", "Holiday"),
     ("no_teach_week", "NoTeachWeek"),
-    ("lesson", "Lesson"),
 )
 
 

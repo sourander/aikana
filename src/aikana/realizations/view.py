@@ -142,7 +142,7 @@ def _week_row_attrs(week: WeekRow, realization, is_admin: bool):
     return {
         "hx_get": (
             f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
-            f"&day={week.start.isoformat()}&kind=holiday&realization_id={realization.id}"
+            f"&day={week.start.isoformat()}&kind=lesson&realization_id={realization.id}"
         ),
         "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
         "hx_swap": "innerHTML",

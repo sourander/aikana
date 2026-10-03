@@ -45,7 +45,7 @@ def test_admin_sees_a_day_dialog_trigger_on_every_day_row(admin_client, semester
     assert response.status_code == 200
     assert 'id="semester-grid"' in response.text
     assert 'id="day-dialog"' in response.text
-    assert f'hx-get="/day/dialog?semester_id={semester.id}&amp;day={FREE_DAY}&amp;kind=holiday"' in response.text
+    assert f'hx-get="/day/dialog?semester_id={semester.id}&amp;day={FREE_DAY}&amp;kind=lesson"' in response.text
 
 
 def test_visitor_sees_no_day_dialog_trigger(client, semester):
@@ -344,7 +344,7 @@ def test_admin_sees_a_week_row_dialog_trigger_in_the_realizations_view(admin_cli
     assert 'id="realization-week-table"' in response.text
     assert 'id="day-dialog"' in response.text
     assert (
-        f'hx-get="/day/dialog?semester_id={semester.id}&amp;day={FREE_WEEK_MONDAY}&amp;kind=holiday'
+        f'hx-get="/day/dialog?semester_id={semester.id}&amp;day={FREE_WEEK_MONDAY}&amp;kind=lesson'
         f'&amp;realization_id={realization.id}"' in response.text
     )
 

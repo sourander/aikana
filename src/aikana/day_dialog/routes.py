@@ -81,7 +81,7 @@ def register_routes(
         )
 
     @app.get(view.DIALOG_PATH)
-    def open_dialog(session, semester_id: str = "", day: str = "", kind: str = "holiday", realization_id: str = ""):
+    def open_dialog(session, semester_id: str = "", day: str = "", kind: str = "lesson", realization_id: str = ""):
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         try:

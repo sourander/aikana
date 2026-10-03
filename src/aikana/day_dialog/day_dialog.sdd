@@ -33,8 +33,9 @@ Must:
   unauthenticated visitors, who are shown no day-row trigger at all.
   ./view.py exposes @dialog_container, the empty element the containing view renders once; every dialog response is
   the bare `<dialog>` that is swapped into it, never the container itself, so a swap cannot nest a duplicate id.
-  The dialog offers one tab per kind of entry the admin can add on the clicked date: a Holiday, a NoTeachWeek or a
-  Lesson. Switching tabs re-renders the dialog in place through HTMX.
+  The dialog offers one tab per kind of entry the admin can add on the clicked date, in the order Lesson, Holiday,
+  NoTeachWeek, and opens on the Lesson tab because a Lesson is the most commonly added entry. Switching tabs
+  re-renders the dialog in place through HTMX.
   The dialog can also be opened from ../realizations/realizations.sdd's weekly table through a `realization_id`
   query parameter; then the Holiday and Lesson forms show an editable date field prefilled with the clicked week's
   Monday and limited to that week, and the Lesson form defaults to that realization.

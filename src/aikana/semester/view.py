@@ -85,7 +85,7 @@ def _day_row(day: DayCell, semester_id: str, is_admin: bool):
         row_attrs = {
             "hx_get": (
                 f"{day_dialog_view.DIALOG_PATH}"
-                f"?semester_id={semester_id}&day={day.day.isoformat()}&kind=holiday"
+                f"?semester_id={semester_id}&day={day.day.isoformat()}&kind=lesson"
             ),
             "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
             "hx_swap": "innerHTML",
