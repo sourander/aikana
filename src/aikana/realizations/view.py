@@ -30,7 +30,6 @@ _SHARE_CLS = "border border-gray-300 rounded px-2 py-1 text-sm text-gray-700 hov
 _INPUT_CLS = "border border-gray-300 rounded px-2 py-1"
 _DELETE_BTN_CLS = "bg-red-600 text-white rounded px-3 py-1"
 _CANCEL_BTN_CLS = "border border-gray-300 rounded px-3 py-1"
-_TIME_PATTERN = r"([01][0-9]|2[0-3]):[0-5][0-9]"
 
 _LESSON_PATH = "/realizations/lessons"
 
@@ -229,23 +228,22 @@ def _lesson_edit_dialog(entry: WeekEntry):
         Form(
             Span("Date", cls="text-xs font-semibold text-gray-500"),
             layout.day_calendar(entry.lesson_date),
-            Input(
-                name="start_time",
-                value=entry.start_time,
-                required=True,
-                pattern=_TIME_PATTERN,
-                placeholder="HH:MM",
-                maxlength="5",
-                cls=_INPUT_CLS,
-            ),
-            Input(
-                name="end_time",
-                value=entry.end_time,
-                required=True,
-                pattern=_TIME_PATTERN,
-                placeholder="HH:MM",
-                maxlength="5",
-                cls=_INPUT_CLS,
+            Div(
+                Div(
+                    Span("Start time", cls="text-xs font-semibold text-gray-500"),
+                    day_dialog_view.time_select(
+                        "start_time", entry.start_time, day_dialog_view.START_TIME_LATEST
+                    ),
+                    cls="flex flex-col gap-1 flex-1",
+                ),
+                Div(
+                    Span("End time", cls="text-xs font-semibold text-gray-500"),
+                    day_dialog_view.time_select(
+                        "end_time", entry.end_time, day_dialog_view.END_TIME_LATEST
+                    ),
+                    cls="flex flex-col gap-1 flex-1",
+                ),
+                cls="flex gap-2",
             ),
             Input(name="topic", value=entry.title, required=True, cls=_INPUT_CLS),
             Input(name="notes", value=entry.notes, cls=_INPUT_CLS),

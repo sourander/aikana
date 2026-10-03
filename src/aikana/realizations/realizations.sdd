@@ -92,7 +92,8 @@ Must:
   Each Lesson sub-row carries an `Edit` and a `Delete` control for the admin, and no Holiday or NoTeachWeek
     sub-row carries either, since ../lessons/lessons.sdd owns only Lesson writes.
   `Edit` opens a `<dialog>` whose date field is ../shared/shared.sdd's @day_calendar, a Monday-first month grid with
-    that Lesson's date checked, and whose start time, end time, topic and notes fields are prefilled, posting to
+    that Lesson's date checked, whose start time and end time are prefilled ../day_dialog/day_dialog.sdd's
+    @time_select dropdowns side by side on one row, and whose topic and notes fields are prefilled, posting to
     `/realizations/lessons/{lesson_id}`, which writes through ../lessons/lessons.sdd's @LessonService.update_lesson
     and keeps the Lesson in the CourseRealization it already belongs to. `Delete` opens a confirmation `<dialog>`
     naming the Lesson's topic and date, posting to `/realizations/lessons/{lesson_id}/delete`, which writes through
@@ -158,3 +159,5 @@ Tasks:
   [x] Show each Lesson sub-row's weekday, `d.m.` day and time range under its topic, instead of a time range alone
   [x] Render the per-Lesson `Edit` dialog's date through ../shared/shared.sdd's @day_calendar, a Monday-first month
     grid, instead of a browser date picker
+  [x] Offer the per-Lesson `Edit` dialog's start and end times as prefilled ../day_dialog/day_dialog.sdd's
+    @time_select dropdowns side by side on one row

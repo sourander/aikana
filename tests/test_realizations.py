@@ -456,8 +456,9 @@ def test_admin_weekly_view_has_a_prefilled_lesson_edit_dialog(admin_client, less
     assert f'id="lesson-edit-dialog-{lesson}"' in response.text
     assert f'action="/realizations/lessons/{lesson}"' in response.text
     assert has_checked_calendar_day(response.text, "2026-10-20")
-    assert 'value="08:00"' in response.text
-    assert 'value="10:00"' in response.text
+    assert '<option value="08:00" selected>08:00</option>' in response.text
+    assert '<option value="10:00" selected>10:00</option>' in response.text
+    assert "pattern=" not in response.text
     assert 'value="Intro"' in response.text
     assert 'value="Room B"' in response.text
 

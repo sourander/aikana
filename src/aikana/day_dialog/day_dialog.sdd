@@ -27,6 +27,8 @@ Exposes:
   ./view.py's @dialog_container, @GRID_ID, @WEEK_TABLE_ID, @CONTAINER_ID and @DIALOG_PATH: the container, the wall
   planner grid id, the weekly table id, the swap targets and the dialog path that ../semester/semester.sdd's and
   ../realizations/realizations.sdd's view.py need to render their admin affordances.
+  ./view.py's @time_select with @START_TIME_LATEST and @END_TIME_LATEST: the `HH:MM` dropdown builder and its
+  start-time and end-time bounds, which ../realizations/realizations.sdd's Lesson edit dialog uses too.
 
 Must:
   Clicking a day row in ../semester/semester.sdd's wall planner opens a `<dialog>` for the admin and does nothing for
@@ -43,9 +45,10 @@ Must:
     Lesson form defaults to that realization.
   The Holiday form takes a title. The NoTeachWeek form takes a week number, prefilled with the clicked date's ISO week
   and editable, and a title, prefilled with ../no_teach_weeks/no_teach_weeks.sdd's shared default title and editable.
-  The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a start time and
-  an end time as 24-hour `HH:MM` values, a topic and notes. It reports that the Semester has no realization instead of
-  offering an unusable form.
+  The Lesson form takes a CourseRealization from a dropdown listing only that Semester's realizations, a topic and
+  notes, and, side by side on one row, a start time and an end time, each chosen from a dropdown of 24-hour `HH:MM`
+  values on a 15-minute grid: the start time runs from `08:00` to `20:45` and the end time from `08:00` to `21:00`.
+  It reports that the Semester has no realization instead of offering an unusable form.
   Each form is an HTMX request whose response is the whole re-rendered wall planner, or the whole re-rendered
   weekly table when a `realization_id` was given, since one entry can change more than the clicked row: a
   NoTeachWeek tints all five of its Monday-to-Friday rows.
@@ -100,3 +103,5 @@ Tasks:
     Holiday and Lesson forms and the weekly-table swap
   [x] Render the date through ../shared/shared.sdd's @day_calendar instead of a browser date picker, so the dialog's
     week starts on Monday in every locale
+  [x] Offer the Lesson form's start and end times side by side as @time_select dropdowns of 15-minute values from
+    `08:00` to `20:45` and `21:00` instead of free-text inputs

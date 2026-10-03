@@ -1,6 +1,6 @@
 """Pure rendering of the admin day dialog and its Holiday, NoTeachWeek and Lesson forms, per ./day_dialog.sdd."""
 
-from datetime import date
+from datetime import date, time
 from urllib.parse import urlencode
 
 from fasthtml.common import Button, Dialog, Div, Form, Input, Option, P, Select, Span
@@ -23,7 +23,11 @@ _ALLOW_ERROR_SWAP_JS = "if (event.detail.xhr.status === 422) event.detail.should
 _CLOSE_ON_SUCCESS_JS = "if (event.detail.successful) this.closest('dialog').close()"
 
 _INPUT_CLS = "border border-gray-300 rounded px-2 py-1"
-_TIME_PATTERN = r"([01][0-9]|2[0-3]):[0-5][0-9]"
+# Lessons are always taught between 08:00 and 21:00 and start on a quarter hour, so the Lesson forms offer
+# only those times instead of free text.
+START_TIME_LATEST = "20:45"
+END_TIME_LATEST = "21:00"
+_TIME_VALUES = tuple(f"{hour:02d}:{minute:02d}" for hour in range(8, 22) for minute in (0, 15, 30, 45))
 _TAB_CLS = "rounded px-2 py-1 text-sm"
 _ACTIVE_TAB_CLS = "bg-blue-600 text-white"
 _TABS = (
@@ -111,6 +115,29 @@ def no_teach_week_form(day: date, semester_id: str, default_no_teach_title: str,
     )
 
 
+def time_select(name: str, selected: str, latest: str):
+    """A dropdown of 24-hour `HH:MM` values on a 15-minute grid from `08:00` to `latest`.
+
+    A valid time outside the grid is kept as an option when it is already the selected value, so editing a stored
+    Lesson never silently moves its time onto the grid.
+    """
+    values = [value for value in _TIME_VALUES if value <= latest]
+    if selected and selected not in values and selected <= latest:
+        try:
+            time.fromisoformat(selected)
+        except ValueError:
+            pass
+        else:
+            values.append(selected)
+            values.sort()
+    return Select(
+        *[Option(value, value=value, selected=(value == selected)) for value in values],
+        name=name,
+        required=True,
+        cls=f"{_INPUT_CLS} w-full",
+    )
+
+
 def lesson_form(day: date, semester_id: str, realization_options, values: dict, realization_id: str = ""):
     options = list(realization_options)
     if not options:
@@ -132,25 +159,18 @@ def lesson_form(day: date, semester_id: str, realization_options, values: dict, 
             name="course_realization_id",
             cls=_INPUT_CLS,
         ),
-        Span("Start time", cls="text-xs font-semibold text-gray-500"),
-        Input(
-            name="start_time",
-            value=values.get("start_time", "08:00"),
-            required=True,
-            pattern=_TIME_PATTERN,
-            placeholder="HH:MM",
-            maxlength="5",
-            cls=_INPUT_CLS,
-        ),
-        Span("End time", cls="text-xs font-semibold text-gray-500"),
-        Input(
-            name="end_time",
-            value=values.get("end_time", "10:00"),
-            required=True,
-            pattern=_TIME_PATTERN,
-            placeholder="HH:MM",
-            maxlength="5",
-            cls=_INPUT_CLS,
+        Div(
+            Div(
+                Span("Start time", cls="text-xs font-semibold text-gray-500"),
+                time_select("start_time", values.get("start_time", "08:00"), START_TIME_LATEST),
+                cls="flex flex-col gap-1 flex-1",
+            ),
+            Div(
+                Span("End time", cls="text-xs font-semibold text-gray-500"),
+                time_select("end_time", values.get("end_time", "10:00"), END_TIME_LATEST),
+                cls="flex flex-col gap-1 flex-1",
+            ),
+            cls="flex gap-2",
         ),
         Span("Topic", cls="text-xs font-semibold text-gray-500"),
         Input(name="topic", value=values.get("topic", ""), required=True, cls=_INPUT_CLS),

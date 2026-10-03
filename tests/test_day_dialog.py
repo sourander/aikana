@@ -122,14 +122,31 @@ def test_lesson_form_says_so_when_the_semester_has_no_realization(admin_client, 
     assert 'hx-post="/day/dialog/lesson"' not in response.text
 
 
-def test_lesson_form_uses_a_24_hour_clock(admin_client, semester, services):
+def test_lesson_form_selects_times_from_15_minute_dropdowns(admin_client, semester, services):
     _add_realization(services, semester)
 
     response = _open_dialog(admin_client, semester, kind="lesson")
 
-    assert 'pattern="([01][0-9]|2[0-3]):[0-5][0-9]"' in response.text
-    assert response.text.count('placeholder="HH:MM"') == 2
     assert 'type="time"' not in response.text
+    assert "pattern=" not in response.text
+    assert 'name="start_time"' in response.text
+    assert 'name="end_time"' in response.text
+    assert '<option value="08:00" selected>08:00</option>' in response.text
+    assert '<option value="10:00" selected>10:00</option>' in response.text
+    assert '<option value="08:15">08:15</option>' in response.text
+    assert '<option value="14:30">14:30</option>' in response.text
+    # Both times run on the 15-minute grid up to 20:45; only the end time reaches 21:00.
+    assert response.text.count('<option value="20:45">20:45</option>') == 2
+    assert response.text.count('<option value="21:00">21:00</option>') == 1
+
+
+def test_lesson_form_places_the_two_time_dropdowns_on_one_row(admin_client, semester, services):
+    _add_realization(services, semester)
+
+    response = _open_dialog(admin_client, semester, kind="lesson")
+
+    row = response.text.split('<div class="flex gap-2">', 1)[1]
+    assert row.index('name="start_time"') < row.index('name="end_time"')
 
 
 def test_admin_adds_a_holiday(admin_client, semester, services):
