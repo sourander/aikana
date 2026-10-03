@@ -99,7 +99,9 @@ def create_app(db: Database) -> FastHTML:
         app, course_service, realization_service, semester_service, auth_service, lesson_service
     )
     semester_routes.register_routes(app, semester_service, auth_service)
-    realizations_routes.register_routes(app, realization_service, semester_service, auth_service)
+    realizations_routes.register_routes(
+        app, realization_service, semester_service, auth_service, lesson_service
+    )
     day_dialog_routes.register_routes(
         app,
         semester_service,

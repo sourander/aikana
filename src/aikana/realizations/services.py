@@ -155,7 +155,6 @@ class RealizationService:
                     WeekEntry(
                         is_holiday=False,
                         is_no_teach_week=True,
-                        time_range="",
                         title=no_teach_title,
                         notes="",
                     )
@@ -167,9 +166,12 @@ class RealizationService:
                             WeekEntry(
                                 is_holiday=False,
                                 is_no_teach_week=False,
-                                time_range=f"{lesson.start_time.strftime('%H:%M')}\u2013{lesson.end_time.strftime('%H:%M')}",
                                 title=lesson.topic,
                                 notes=lesson.notes,
+                                start_time=lesson.start_time.strftime("%H:%M"),
+                                end_time=lesson.end_time.strftime("%H:%M"),
+                                lesson_id=lesson.id,
+                                lesson_date=lesson.date,
                             )
                         )
                     holiday_title = holiday_titles_by_day.get(day)
@@ -178,7 +180,6 @@ class RealizationService:
                             WeekEntry(
                                 is_holiday=True,
                                 is_no_teach_week=False,
-                                time_range="",
                                 title=holiday_title,
                                 notes="",
                             )
@@ -204,13 +205,21 @@ class RealizationService:
 
 @dataclass(frozen=True)
 class WeekEntry:
-    """One Lesson or Holiday shown in a WeekRow's Lessons/Notes sub-rows."""
+    """One Lesson or Holiday shown in a WeekRow's Lessons/Notes sub-rows.
+
+    `lesson_id` and `lesson_date` are set only for a Lesson, and they are what ../realizations.sdd's admin
+    controls address it by; `start_time` and `end_time` are the formatted `HH:MM` values of a Lesson and are
+    empty for a Holiday or NoTeachWeek, whose cell shows no time.
+    """
 
     is_holiday: bool
     is_no_teach_week: bool
-    time_range: str
     title: str
     notes: str
+    start_time: str = ""
+    end_time: str = ""
+    lesson_id: str = ""
+    lesson_date: date | None = None
 
 
 @dataclass(frozen=True)

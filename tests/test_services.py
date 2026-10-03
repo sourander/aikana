@@ -11,7 +11,8 @@ from aikana.courses.services import (
     UnknownCourseError as UnknownCourseIdError,
 )
 from aikana.holidays.services import InvalidHolidayError
-from aikana.lessons.services import InvalidLessonError, UnknownRealizationError
+from aikana.lessons.repository_sqlite import SqliteLessonRepository
+from aikana.lessons.services import InvalidLessonError, UnknownLessonError, UnknownRealizationError
 from aikana.no_teach_weeks.services import (
     DuplicateNoTeachWeekError,
     InvalidNoTeachWeekError,
@@ -150,11 +151,106 @@ def test_add_lesson_stores_a_valid_lesson(services, realization):
     assert services.lessons.list_lessons_for_realization(realization.id) == [lesson]
 
 
-def test_lessons_are_ordered_by_date_then_start_time(services, realization):
+def test_lessons_are_ordered_by_date_then_start_time(services, realization, db):
     second_day = services.lessons.add_lesson(realization.id, date(2026, 9, 2), time(8, 0), time(10, 0), "Later day", "")
-    late = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(13, 0), time(15, 0), "Late", "")
-    early = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Early", "")
+    # Two Lessons on one day are inserted straight through the repository: @LessonService.add_lesson allows only
+    # one Lesson per day, but the listing still has to read a stale same-day pair in chronological order.
+    repo = SqliteLessonRepository(db)
+    late = repo.add(realization.id, date(2026, 9, 1), time(13, 0), time(15, 0), "Late", "")
+    early = repo.add(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Early", "")
     assert services.lessons.list_lessons_for_realization(realization.id) == [early, late, second_day]
+
+
+def test_add_lesson_rejects_a_second_lesson_on_the_same_day(services, realization):
+    services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    with pytest.raises(InvalidLessonError):
+        services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(13, 0), time(15, 0), "Second", "")
+
+
+def test_a_second_lesson_on_another_day_of_the_same_realization_is_accepted(services, realization):
+    first = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    second = services.lessons.add_lesson(realization.id, date(2026, 9, 2), time(8, 0), time(10, 0), "Later day", "")
+    assert services.lessons.list_lessons_for_realization(realization.id) == [first, second]
+
+
+def test_the_same_day_of_another_realization_is_free(services, realization):
+    services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    other_course = services.courses.add_course("Databases", "Storage and queries.", 5)
+    other = services.realizations.add_realization(
+        other_course.id, services.semesters.get_default_semester().id, "TTV24SP"
+    )
+    lesson = services.lessons.add_lesson(other.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    assert services.lessons.list_lessons_for_realization(other.id) == [lesson]
+
+
+def test_update_lesson_changes_the_stored_values(services, realization):
+    lesson = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "Room B")
+
+    updated = services.lessons.update_lesson(
+        lesson.id, date(2026, 9, 3), time(12, 0), time(14, 0), "Regression", "Room A"
+    )
+
+    assert updated.date == date(2026, 9, 3)
+    assert updated.start_time == time(12, 0)
+    assert updated.end_time == time(14, 0)
+    assert updated.topic == "Regression"
+    assert updated.notes == "Room A"
+    # The CourseRealization is never changed by an edit, per ./lessons.sdd.
+    assert updated.course_realization_id == realization.id
+
+
+def test_update_lesson_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownLessonError):
+        services.lessons.update_lesson(
+            "no-such-lesson", date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", ""
+        )
+
+
+def test_update_lesson_rejects_an_empty_topic(services, realization):
+    lesson = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    with pytest.raises(InvalidLessonError):
+        services.lessons.update_lesson(lesson.id, date(2026, 9, 1), time(8, 0), time(10, 0), " ", "")
+    assert services.lessons.get_lesson(lesson.id).topic == "Intro"
+
+
+def test_update_lesson_rejects_an_end_time_not_after_the_start_time(services, realization):
+    lesson = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    with pytest.raises(InvalidLessonError):
+        services.lessons.update_lesson(lesson.id, date(2026, 9, 1), time(10, 0), time(10, 0), "Intro", "")
+
+
+def test_update_lesson_rejects_a_date_inside_a_no_teach_week(services, realization):
+    lesson = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    with pytest.raises(InvalidLessonError):
+        services.lessons.update_lesson(lesson.id, date(2026, 10, 13), time(8, 0), time(10, 0), "Intro", "")
+
+
+def test_update_lesson_rejects_a_day_another_lesson_already_has(services, realization):
+    kept = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Kept", "")
+    moved = services.lessons.add_lesson(realization.id, date(2026, 9, 2), time(8, 0), time(10, 0), "Moved", "")
+    with pytest.raises(InvalidLessonError):
+        services.lessons.update_lesson(moved.id, date(2026, 9, 1), time(12, 0), time(14, 0), "Moved", "")
+    assert [lesson.id for lesson in services.lessons.list_lessons_for_realization(realization.id)] == [kept.id, moved.id]
+
+
+def test_update_lesson_ignores_its_own_day(services, realization):
+    lesson = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Intro", "")
+    updated = services.lessons.update_lesson(lesson.id, date(2026, 9, 1), time(9, 0), time(11, 0), "Intro", "")
+    assert updated.start_time == time(9, 0)
+
+
+def test_delete_lesson_removes_only_that_lesson(services, realization):
+    removed = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Gone", "")
+    kept = services.lessons.add_lesson(realization.id, date(2026, 9, 2), time(8, 0), time(10, 0), "Kept", "")
+
+    services.lessons.delete_lesson(removed.id)
+
+    assert services.lessons.list_lessons_for_realization(realization.id) == [kept]
+
+
+def test_delete_lesson_rejects_an_unknown_id(services, realization):
+    with pytest.raises(UnknownLessonError):
+        services.lessons.delete_lesson("no-such-lesson")
 
 
 def test_add_lesson_rejects_a_date_inside_a_no_teach_week(services, realization):

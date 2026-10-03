@@ -1,15 +1,22 @@
-"""Registers the per-CourseRealization weekly view at `/realizations`, the package's only inbound adapter."""
+"""Registers the per-CourseRealization weekly view at `/realizations`, its per-Lesson edit and delete routes, the
+package's only inbound adapter.
+"""
 
-from urllib.parse import urlencode
+from datetime import date, time
+from urllib.parse import quote, urlencode
+
+from fasthtml.common import RedirectResponse
 
 from ..auth import view as auth_view
 from ..auth.services import AuthService
+from ..lessons.services import InvalidLessonError, LessonService, UnknownLessonError
 from ..semester.services import SemesterService
 from ..shared import layout
 from . import view
 from .services import RealizationService
 
 _PATH = "/realizations"
+_LESSON_PATH = f"{_PATH}/lessons"
 
 
 def share_url(request, realization_id: str, semester_id: str) -> str:
@@ -19,10 +26,23 @@ def share_url(request, realization_id: str, semester_id: str) -> str:
 
 
 def register_routes(
-    app, realization_service: RealizationService, semester_service: SemesterService, auth_service: AuthService
+    app,
+    realization_service: RealizationService,
+    semester_service: SemesterService,
+    auth_service: AuthService,
+    lesson_service: LessonService,
 ) -> None:
+    def lesson_back_url(lesson_id: str, error: str = "") -> str:
+        """The weekly view of the CourseRealization the Lesson belongs to, so a write returns to it."""
+        lesson = lesson_service.get_lesson(lesson_id)
+        realization = realization_service.get_realization(lesson.course_realization_id) if lesson else None
+        if realization is None:
+            return f"{_PATH}?error={quote(error)}" if error else _PATH
+        query = urlencode({"realization_id": realization.id, "semester_id": realization.semester_id})
+        return f"{_PATH}?{query}" + (f"&error={quote(error)}" if error else "")
+
     @app.get(_PATH)
-    def index(session, request, realization_id: str = "", semester_id: str = ""):
+    def index(session, request, realization_id: str = "", semester_id: str = "", error: str = ""):
         is_admin = auth_service.is_admin(session)
         admin_link = auth_view.header_link(is_admin)
         if not semester_id and realization_id:
@@ -58,7 +78,10 @@ def register_routes(
         selector = view.realization_selector(options, selected_id)
         return layout.page(
             view.realization_view(
-                view_model, is_admin=is_admin, share_url=share_url(request, selected_id, active_semester.id)
+                view_model,
+                is_admin=is_admin,
+                share_url=share_url(request, selected_id, active_semester.id),
+                error=error,
             ),
             active_nav="realizations",
             semester_options=semester_options,
@@ -66,4 +89,58 @@ def register_routes(
             selector=selector,
             admin_link=admin_link,
         )
+
+    @app.post(f"{_LESSON_PATH}/{{lesson_id}}")
+    def update_lesson(
+        session,
+        lesson_id: str,
+        day: str = "",
+        start_time: str = "",
+        end_time: str = "",
+        topic: str = "",
+        notes: str = "",
+    ):
+        """Edits one Lesson in place, per ../lessons/lessons.sdd; a rejected write returns to the same week table."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        try:
+            lesson_service.update_lesson(
+                lesson_id,
+                parsed_day(day),
+                parsed_time(start_time, "start"),
+                parsed_time(end_time, "end"),
+                topic,
+                notes,
+            )
+        except (_Rejected, UnknownLessonError, InvalidLessonError) as exc:
+            return RedirectResponse(lesson_back_url(lesson_id, str(exc)), status_code=303)
+        return RedirectResponse(lesson_back_url(lesson_id), status_code=303)
+
+    @app.post(f"{_LESSON_PATH}/{{lesson_id}}/delete")
+    def delete_lesson(session, lesson_id: str):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        try:
+            lesson_service.delete_lesson(lesson_id)
+        except UnknownLessonError as exc:
+            return RedirectResponse(lesson_back_url(lesson_id, str(exc)), status_code=303)
+        return RedirectResponse(lesson_back_url(lesson_id), status_code=303)
+
+
+class _Rejected(Exception):
+    """A malformed form field, reported back on the weekly view instead of reaching the services."""
+
+
+def parsed_day(day: str) -> date:
+    try:
+        return date.fromisoformat(day)
+    except ValueError:
+        raise _Rejected("Enter a valid date.") from None
+
+
+def parsed_time(raw: str, which: str) -> time:
+    try:
+        return time.fromisoformat(raw)
+    except ValueError:
+        raise _Rejected(f"Enter a valid {which} time as HH:MM.") from None
 

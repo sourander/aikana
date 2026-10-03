@@ -14,8 +14,9 @@ Structure:
   ./test_main.py: in-process client tests of the app entry point, the semester routes and the wall planner's
     rendering
   ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
-  ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs and
-    of the weekly view's states, fallbacks, week sub-rows and Share button
+  ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs, of
+    the weekly view's states, fallbacks, week sub-rows and Share button, and of its per-Lesson edit and delete
+    dialogs
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases
   ./test_shared.py: tests of the shared kernel's database factory and page shell

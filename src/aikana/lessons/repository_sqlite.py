@@ -37,6 +37,10 @@ class SqliteLessonRepository:
             if_not_exists=True,
         )
 
+    def get(self, lesson_id: str) -> Lesson | None:
+        row = self._table.get(lesson_id, default=None)
+        return _to_domain(row) if row else None
+
     def list_for_realization(self, course_realization_id: str) -> list[Lesson]:
         rows = self._table(
             where="course_realization_id = ?", where_args=[course_realization_id], order_by="date, start_time"
@@ -72,6 +76,30 @@ class SqliteLessonRepository:
             }
         )
         return _to_domain(row)
+
+    def update(
+        self,
+        lesson_id: str,
+        lesson_date: date,
+        start_time: time,
+        end_time: time,
+        topic: str,
+        notes: str,
+    ) -> Lesson:
+        row = self._table.update(
+            {
+                "id": lesson_id,
+                "date": lesson_date.isoformat(),
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "topic": topic,
+                "notes": notes,
+            }
+        )
+        return _to_domain(row)
+
+    def delete(self, lesson_id: str) -> None:
+        self._table.delete(lesson_id)
 
     def delete_for_realization(self, course_realization_id: str) -> None:
         # `fastlite`'s delete addresses one primary key at a time, so the realization's Lessons are read and

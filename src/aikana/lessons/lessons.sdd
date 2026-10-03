@@ -21,14 +21,23 @@ Depends on:
 
 Must:
   A Lesson has a date, a start time and an end time, a topic, free-text notes and a reference to a CourseRealization.
+  At most one Lesson exists for a date and CourseRealization; a second Lesson on that date is rejected with
+    @InvalidLessonError.
+  A single Lesson is edited and removed from ../realizations/realizations.sdd's weekly table, which owns those
+    affordances and their routes; this package stays view-less and route-less.
   @LessonService.add_lesson validates that the CourseRealization id exists (through
-  ../realizations/realizations.sdd's ports.py, per ../architecture.sdd), that the topic is non-empty and that the
-  end time is later than the start time, rejecting with @UnknownRealizationError or @InvalidLessonError before
-  storage.
+    ../realizations/realizations.sdd's ports.py, per ../architecture.sdd), that the topic is non-empty and that the
+    end time is later than the start time, rejecting with @UnknownRealizationError or @InvalidLessonError before
+    storage.
   @LessonService.add_lesson also rejects a date inside a NoTeachWeek of the CourseRealization's Semester, read through
     ../no_teach_weeks/no_teach_weeks.sdd, with @InvalidLessonError, because nothing is taught during such a week.
-  @LessonRepository in ./ports.py exposes operations to list lessons for a CourseRealization or a date range, to add
-    one and to delete every lesson of a CourseRealization.
+  @LessonService.update_lesson applies the same checks as @LessonService.add_lesson, ignoring the Lesson being
+    edited when looking for the date it already occupies, and keeps the CourseRealization the Lesson already
+    belongs to; it rejects an unknown id with @UnknownLessonError.
+  @LessonService.delete_lesson removes one Lesson and leaves its CourseRealization and the realization's other
+    Lessons untouched, rejecting an unknown id with @UnknownLessonError.
+  @LessonRepository in ./ports.py exposes operations to get, list lessons for a CourseRealization or a date range,
+    to add, update and delete one Lesson and to delete every lesson of a CourseRealization.
   @LessonService.delete_lessons_for_realization removes all of a CourseRealization's Lessons, which
     ../realizations/realizations.sdd's @RealizationService calls before removing that realization so no Lesson is
     left pointing at it.
@@ -36,8 +45,6 @@ Must:
   The table is created automatically on startup when it does not exist.
 
 Tasks:
-  [?] Decide whether an individual Lesson can be edited or deleted from the UI after creation, and whether more than
-    one Lesson may exist for the same day and CourseRealization
   [x] Implement @Lesson in ./domain.py and a hardcoded ./services.py returning placeholder Lessons for each
     placeholder CourseRealization across the hardcoded Semester, standing in for @LessonRepository until
     persistence exists
@@ -48,3 +55,7 @@ Tasks:
   [x] Reject a lesson dated inside a NoTeachWeek of the CourseRealization's Semester with @InvalidLessonError
   [x] Add @LessonService.delete_lessons_for_realization, which ../realizations/realizations.sdd's
     @RealizationService.delete_realization calls when it removes a realization
+  [x] Decide that a single Lesson may be edited and deleted from the UI, and that at most one Lesson exists per
+    date and CourseRealization
+  [x] Add @LessonService.get_lesson, @LessonService.update_lesson and @LessonService.delete_lesson with the
+    matching @LessonRepository operations, and reject a date already holding a Lesson with @InvalidLessonError

@@ -84,9 +84,23 @@ Must:
   mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
   the boundary.
   For the admin, clicking a week row opens the dialog specified in ../day_dialog/day_dialog.sdd to add a Holiday,
-  a NoTeachWeek or a Lesson for that week; a visitor is shown no week-row trigger.
+    a NoTeachWeek or a Lesson for that week; a visitor is shown no week-row trigger.
   A successful write re-renders the weekly table in place: the table carries the id
-  ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
+    ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
+  Each Lesson sub-row carries an `Edit` and a `Delete` control for the admin, and no Holiday or NoTeachWeek
+    sub-row carries either, since ../lessons/lessons.sdd owns only Lesson writes.
+  `Edit` opens a `<dialog>` prefilled with that Lesson's date, start time, end time, topic and notes, posting to
+    `/realizations/lessons/{lesson_id}`, which writes through ../lessons/lessons.sdd's @LessonService.update_lesson
+    and keeps the Lesson in the CourseRealization it already belongs to. `Delete` opens a confirmation `<dialog>`
+    naming the Lesson's topic and date, posting to `/realizations/lessons/{lesson_id}/delete`, which writes through
+    @LessonService.delete_lesson and leaves the realization and its other Lessons in place.
+  Both controls stop the click's propagation before opening their dialog, so the same click does not also open
+    ../day_dialog/day_dialog.sdd's dialog from the surrounding week row.
+  Both per-Lesson dialogs sit inside the weekly table's swap target, so a dialog write, which swaps only the bare
+    table, leaves every control and its dialog in place.
+  Both routes redirect back to the shown realization's weekly view, carrying the validation message from
+    ../lessons/lessons.sdd as an `error` query parameter that this view renders above the table; a write is rejected
+    by ../auth/auth.sdd's guard for a non-admin session and leaves the Lesson unstored.
   ./routes.py must not crash when ../semester/semester.sdd has no active Semester at all (none created yet); it
     renders ./view.py's `no_semester_state()` immediately in that case instead of dereferencing a Semester, while an
     active Semester without CourseRealizations renders `empty_state()`.
@@ -101,6 +115,12 @@ Scenario: Deleting a realization takes its Lessons with it
   Given a CourseRealization has two Lessons
   When @RealizationService.delete_realization removes it
   Then neither Lesson remains for that CourseRealization
+
+Scenario: Admin deletes one Lesson from the weekly view
+  Given a CourseRealization's weekly table shows two Lessons
+  And the admin is logged in
+  When the admin confirms the first Lesson's delete dialog, which names the Lesson and its date
+  Then the weekly table shows the other Lesson and the realization keeps both its Course and its other entries
 
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
@@ -130,3 +150,5 @@ Tasks:
   [x] Add @RealizationService.update_realization, @RealizationService.delete_realization and
     @RealizationService.delete_realizations_for_course, with the matching @CourseRealizationRepository operations, so
     ../courses/courses.sdd's page can edit and remove a realization and a Course with its Lessons
+  [x] Add the admin `Edit` and `Delete` controls and their `<dialog>`s for each Lesson sub-row in ./view.py, and the
+    guarded update and delete routes in ./routes.py writing through ../lessons/lessons.sdd's @LessonService

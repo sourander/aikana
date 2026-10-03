@@ -1,5 +1,5 @@
-"""In-process client tests of the courses page's realization dialogs, of their edits and deletions, and of the weekly
-view, per ./tests.sdd.
+"""In-process client tests of the courses page's realization dialogs, of their edits and deletions, of the weekly
+view and of its per-Lesson edit and delete dialogs, per ./tests.sdd.
 """
 
 from datetime import date, time
@@ -415,3 +415,206 @@ def test_visitor_cannot_edit_or_delete_a_realization(
     assert delete.status_code == 303
     assert delete.headers["location"] == "/login"
     assert realization_service.list_realizations_for_course(course_id)[0].group == "TTV24SP"
+
+
+@pytest.fixture
+def lesson_id(services):
+    """A realization with one Lesson in week 43 (2026-10-19 to 10-25), outside the Semester's NoTeachWeeks."""
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    semester = services.semesters.create_semester(2026, "fall")
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    return (
+        services.lessons.add_lesson(
+            realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B"
+        ).id,
+        realization.id,
+        semester.id,
+    )
+
+
+def _update_lesson(client, lesson, day="2026-10-21", start_time="12:00", end_time="14:00", topic="Regression", notes="Room A"):
+    return client.post(
+        f"/realizations/lessons/{lesson}",
+        data={"day": day, "start_time": start_time, "end_time": end_time, "topic": topic, "notes": notes},
+        follow_redirects=True,
+    )
+
+
+def _delete_lesson(client, lesson):
+    return client.post(f"/realizations/lessons/{lesson}/delete", follow_redirects=True)
+
+
+def test_admin_weekly_view_has_a_prefilled_lesson_edit_dialog(admin_client, lesson_id):
+    lesson, _, semester = lesson_id
+
+    response = admin_client.get(f"/realizations?semester_id={semester}")
+
+    assert response.status_code == 200
+    assert f'id="lesson-edit-dialog-{lesson}"' in response.text
+    assert f'action="/realizations/lessons/{lesson}"' in response.text
+    assert 'value="2026-10-20"' in response.text
+    assert 'value="08:00"' in response.text
+    assert 'value="10:00"' in response.text
+    assert 'value="Intro"' in response.text
+    assert 'value="Room B"' in response.text
+
+
+def test_admin_weekly_view_has_a_lesson_delete_dialog(admin_client, lesson_id):
+    lesson, _, semester = lesson_id
+
+    response = admin_client.get(f"/realizations?semester_id={semester}")
+
+    assert f'id="lesson-delete-dialog-{lesson}"' in response.text
+    assert f'action="/realizations/lessons/{lesson}/delete"' in response.text
+
+
+def test_the_lesson_delete_dialog_names_the_lesson_and_its_date(admin_client, lesson_id):
+    _, _, semester = lesson_id
+
+    response = admin_client.get(f"/realizations?semester_id={semester}")
+
+    assert "Delete the Lesson Intro on 20.10.2026?" in response.text
+
+
+def test_the_lesson_controls_stop_the_click_that_opens_the_day_dialog(admin_client, lesson_id):
+    lesson, _, semester = lesson_id
+
+    response = admin_client.get(f"/realizations?semester_id={semester}")
+
+    assert f"event.stopPropagation(); var d = document.getElementById('lesson-edit-dialog-{lesson}')" in response.text
+
+
+def test_only_a_lesson_sub_row_carries_the_lesson_controls(admin_client, lesson_id, services):
+    lesson, realization, semester = lesson_id
+    # A Holiday shares the week with the Lesson, so a second pair of dialogs would mean both kinds were addressed.
+    services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
+
+    response = admin_client.get(f"/realizations?semester_id={semester}")
+
+    assert response.text.count("lesson-edit-dialog") == 2
+    assert response.text.count(f'id="lesson-edit-dialog-{lesson}"') == 1
+    assert "Holiday \u2013 Autumn break" in response.text
+
+
+def test_admin_edits_a_lesson_from_the_weekly_view(admin_client, lesson_id, services):
+    lesson, realization, semester = lesson_id
+
+    response = _update_lesson(admin_client, lesson)
+
+    assert response.status_code == 200
+    assert "Regression" in response.text
+    assert "Room A" in response.text
+    assert "12:00\u201314:00" in response.text
+    assert "Intro" not in response.text
+    edited = services.lessons.get_lesson(lesson)
+    assert edited.topic == "Regression"
+    assert edited.notes == "Room A"
+    assert edited.start_time == time(12, 0)
+    assert edited.date == date(2026, 10, 21)
+    # The edit never moves the Lesson to another CourseRealization.
+    assert edited.course_realization_id == realization
+
+
+def test_a_rejected_lesson_edit_returns_a_validation_message(admin_client, lesson_id, services):
+    lesson, _, semester = lesson_id
+
+    response = _update_lesson(admin_client, lesson, topic="   ")
+
+    assert "A Lesson needs a non-empty topic." in response.text
+    assert f"realization_id={services.lessons.get_lesson(lesson).course_realization_id}" in response.text
+    assert services.lessons.get_lesson(lesson).topic == "Intro"
+
+
+def test_a_lesson_edit_moving_onto_a_taken_day_is_rejected(admin_client, lesson_id, services):
+    lesson, _, _ = lesson_id
+    services.lessons.add_lesson(
+        services.lessons.get_lesson(lesson).course_realization_id,
+        date(2026, 10, 21),
+        time(8, 0),
+        time(10, 0),
+        "Taken",
+        "",
+    )
+
+    response = _update_lesson(admin_client, lesson, day="2026-10-21")
+
+    assert "21.10.2026 already has a Lesson for this CourseRealization." in response.text
+    assert {lesson_.topic for lesson_ in services.lessons.list_lessons_for_range(date(2026, 10, 20), date(2026, 10, 21))} == {"Intro", "Taken"}
+
+
+def test_a_malformed_lesson_edit_field_is_reported(admin_client, lesson_id, services):
+    lesson, _, _ = lesson_id
+
+    response = _update_lesson(admin_client, lesson, start_time="half past eight")
+
+    assert "Enter a valid start time as HH:MM." in response.text
+    assert services.lessons.get_lesson(lesson).start_time == time(8, 0)
+
+
+def test_admin_deletes_a_lesson_from_the_weekly_view(admin_client, lesson_id, services):
+    lesson, realization, semester = lesson_id
+
+    response = _delete_lesson(admin_client, lesson)
+
+    assert response.status_code == 200
+    assert "Intro" not in response.text
+    assert services.lessons.list_lessons_for_realization(realization) == []
+    # Only the Lesson goes; its CourseRealization and its Course stay.
+    assert services.realizations.get_realization(realization).group == "TTV24SP"
+    assert [course.name for course in services.courses.list_courses()] == ["Machine Learning"]
+
+
+def test_deleting_one_lesson_leaves_the_realization_others_alone(admin_client, lesson_id, services):
+    lesson, realization, _ = lesson_id
+    kept = services.lessons.add_lesson(realization, date(2026, 10, 22), time(8, 0), time(10, 0), "Kept", "")
+
+    _delete_lesson(admin_client, lesson)
+
+    assert [lesson_.id for lesson_ in services.lessons.list_lessons_for_realization(realization)] == [kept.id]
+
+
+def test_deleting_an_unknown_lesson_is_rejected(admin_client, lesson_id, services):
+    lesson, realization, _ = lesson_id
+
+    response = _delete_lesson(admin_client, "no-such-lesson")
+
+    assert "No Lesson with id" in response.text
+    assert [lesson_.id for lesson_ in services.lessons.list_lessons_for_realization(realization)] == [lesson]
+
+
+def test_updating_an_unknown_lesson_is_rejected(admin_client, lesson_id, services):
+    _, realization, _ = lesson_id
+
+    response = _update_lesson(admin_client, "no-such-lesson")
+
+    assert "No Lesson with id" in response.text
+    assert len(services.lessons.list_lessons_for_realization(realization)) == 1
+
+
+def test_visitor_sees_no_lesson_controls(admin_client, client, lesson_id):
+    lesson, _, semester = lesson_id
+    admin_client.post("/logout", follow_redirects=True)
+
+    response = client.get(f"/realizations?semester_id={semester}")
+
+    assert "Intro" in response.text
+    assert "<dialog" not in response.text
+    assert f"/realizations/lessons/{lesson}" not in response.text
+
+
+def test_visitor_cannot_edit_or_delete_a_lesson(admin_client, lesson_id, services):
+    lesson, realization, _ = lesson_id
+    admin_client.post("/logout", follow_redirects=True)
+
+    update = admin_client.post(
+        f"/realizations/lessons/{lesson}",
+        data={"day": "2026-10-21", "start_time": "12:00", "end_time": "14:00", "topic": "Regression", "notes": ""},
+        follow_redirects=False,
+    )
+    delete = admin_client.post(f"/realizations/lessons/{lesson}/delete", follow_redirects=False)
+
+    assert update.status_code == 303
+    assert update.headers["location"] == "/login"
+    assert delete.status_code == 303
+    assert delete.headers["location"] == "/login"
+    assert services.lessons.get_lesson(lesson).topic == "Intro"
