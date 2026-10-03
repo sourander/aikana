@@ -35,6 +35,10 @@ Must:
   A CourseRealization has a reference to exactly one Course, a reference to exactly one Semester and a free-text
   group label such as `TTV24SP`. Both references are stored as plain ids in ./domain.py, per ../architecture.sdd;
   only ./services.py imports ../courses/courses.sdd's and ../semester/semester.sdd's ports.py to validate them.
+  Both references are declared as foreign keys on the table, so the database enforces them and cascades a deleted
+  Course or Semester to its realizations. The group label lives in the `group_label` column because `group` is a
+  reserved SQL keyword; ./domain.py's @CourseRealization keeps the `group` attribute and ./repository_sqlite.py
+  maps between the two.
   @CourseRealizationRepository in ./ports.py exposes operations to list realizations for a Course or a Semester and to
     add, update and remove one.
   A Course's realizations are listed across every Semester through @RealizationService, which labels each one from
@@ -47,13 +51,11 @@ Must:
   @RealizationService.update_realization re-labels an existing realization from a new group and Semester, validates
     them the same way and keeps the realization's Course, because ../courses/courses.sdd's edit dialog edits a
     realization from inside its own Course.
-  @RealizationService.delete_realization removes a realization's ../lessons/lessons.sdd Lessons before the
-    realization itself, so no Lesson is left pointing at it, and rejects an unknown id with
-    @UnknownRealizationError.
-  @RealizationService.delete_realizations_for_course removes every realization of a Course with its Lessons, for
-    removing that Course itself from ../courses/courses.sdd's page.
+  @RealizationService.delete_realization removes a realization, rejecting an unknown id with
+    @UnknownRealizationError; the database's `course_realization_id` foreign key takes its
+    ../lessons/lessons.sdd Lessons with it, so no Lesson is left pointing at it.
   Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
-  ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
+    ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
   The table is created automatically on startup when it does not exist.
   ./routes.py registers the weekly view at `/realizations`, reading the Semester to filter by from the
   `semester_id` query parameter and the realization to show from the `realization_id` query parameter, so a link to
@@ -151,9 +153,8 @@ Tasks:
     ../courses/courses.sdd's page can list a Course's realizations across every Semester
   [x] Add the Share button to ./view.py's weekly view and the canonical `realization_id` + `semester_id` URL it copies
     in ./routes.py
-  [x] Add @RealizationService.update_realization, @RealizationService.delete_realization and
-    @RealizationService.delete_realizations_for_course, with the matching @CourseRealizationRepository operations, so
-    ../courses/courses.sdd's page can edit and remove a realization and a Course with its Lessons
+  [x] Add @RealizationService.update_realization and @RealizationService.delete_realization, with the matching
+    @CourseRealizationRepository operations, so ../courses/courses.sdd's page can edit and remove a realization
   [x] Add the admin `Edit` and `Delete` controls and their `<dialog>`s for each Lesson sub-row in ./view.py, and the
     guarded update and delete routes in ./routes.py writing through ../lessons/lessons.sdd's @LessonService
   [x] Show each Lesson sub-row's weekday, `d.m.` day and time range under its topic, instead of a time range alone

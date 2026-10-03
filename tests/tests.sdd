@@ -18,6 +18,8 @@ Structure:
   ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs, of
     the weekly view's states, fallbacks, week sub-rows and Share button, and of its per-Lesson edit and delete
     dialogs
+  ./test_schema.py: data-integrity tests of the SQLite schema's foreign keys with cascade, unique constraints,
+    NOT NULL columns, STRICT types and integer primary keys
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases
   ./test_shared.py: tests of the shared kernel's database factory, page shell and its Monday-first day calendar
@@ -33,3 +35,5 @@ Must:
   Tests exercise the app through an in-process client and leave no files behind in the repository.
   Tests never touch `/data`: they build each app or service on a temporary database through @create_app and
   @create_database, which is possible because importing `aikana.main` has no side effects.
+  ./test_schema.py asserts the schema's foreign keys, unique indexes, NOT NULL columns and STRICT types directly,
+  so dropping one of those constraints fails the suite even when the services still check it in Python.

@@ -1,4 +1,8 @@
-"""@create_database opens the `fastlite` Database main.py injects into repositories, per ../architecture.sdd."""
+"""@create_database opens the `fastlite` Database main.py injects into repositories, per ../architecture.sdd.
+
+`fastlite`'s apsw engine enables `PRAGMA foreign_keys` on every connection it opens, so the foreign keys each
+repository_sqlite.py declares are enforced without per-connection setup.
+"""
 
 from pathlib import Path
 

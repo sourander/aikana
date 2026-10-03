@@ -84,8 +84,8 @@ def extra_headers() -> tuple:
 
 def dropdown(
     name: str,
-    options: list[tuple[str, str]],
-    selected_id: str,
+    options: list[tuple[int, str]],
+    selected_id: int | None,
     hx_get: str,
     hx_include: str = "",
     select_id: str = "",
@@ -149,10 +149,10 @@ def _calendar_day(day: date | None, selected: date, name: str):
     )
 
 
-def _nav(active: str, selected_semester_id: str):
+def _nav(active: str, selected_semester_id: int | None):
     def link(key: str, label: str, href: str):
         cls = "font-semibold text-blue-700" if key == active else "text-gray-600 hover:text-gray-900"
-        if selected_semester_id:
+        if selected_semester_id is not None:
             href = f"{href}?semester_id={selected_semester_id}"
         return A(label, href=href, cls=f"text-sm {cls}")
 
@@ -162,8 +162,8 @@ def _nav(active: str, selected_semester_id: str):
 def page(
     *content,
     active_nav: str,
-    semester_options: list[tuple[str, str]] = (),
-    selected_semester_id: str = "",
+    semester_options: list[tuple[int, str]] = (),
+    selected_semester_id: int | None = None,
     selector=None,
     admin_link=None,
 ):

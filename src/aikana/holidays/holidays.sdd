@@ -17,7 +17,8 @@ Depends on:
   ../shared/shared.sdd
 
 Must:
-  A Holiday has a date and a title.
+  A Holiday has a date and a title. Its date is indexed for range listings.
+  A Holiday has no foreign key: holidays are global to the calendar, not owned by a Semester or a Course.
   @HolidayService.add_holiday rejects an empty title with @InvalidHolidayError before storage.
   @HolidayRepository in ./ports.py exposes operations to list holidays for a date range and to add one.
   The table is created automatically on startup when it does not exist.

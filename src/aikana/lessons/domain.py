@@ -4,8 +4,8 @@ from datetime import date, time
 
 @dataclass(frozen=True)
 class Lesson:
-    id: str
-    course_realization_id: str
+    id: int
+    course_realization_id: int
     date: date
     start_time: time
     end_time: time

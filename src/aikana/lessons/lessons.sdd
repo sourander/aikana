@@ -22,7 +22,9 @@ Depends on:
 Must:
   A Lesson has a date, a start time and an end time, a topic, free-text notes and a reference to a CourseRealization.
   At most one Lesson exists for a date and CourseRealization; a second Lesson on that date is rejected with
-    @InvalidLessonError.
+    @InvalidLessonError, and the same pair carries a unique index on the table as the database-level backstop.
+  A Lesson's CourseRealization reference is declared as a foreign key on the table, so the database enforces it
+    and cascades a removed CourseRealization to its Lessons; no service hand-deletes Lessons.
   A single Lesson is edited and removed from ../realizations/realizations.sdd's weekly table, which owns those
     affordances and their routes; this package stays view-less and route-less.
   @LessonService.add_lesson validates that the CourseRealization id exists (through
@@ -37,11 +39,9 @@ Must:
   @LessonService.delete_lesson removes one Lesson and leaves its CourseRealization and the realization's other
     Lessons untouched, rejecting an unknown id with @UnknownLessonError.
   @LessonRepository in ./ports.py exposes operations to get, list lessons for a CourseRealization or a date range,
-    to add, update and delete one Lesson and to delete every lesson of a CourseRealization.
-  @LessonService.delete_lessons_for_realization removes all of a CourseRealization's Lessons, which
-    ../realizations/realizations.sdd's @RealizationService calls before removing that realization so no Lesson is
-    left pointing at it.
-  Lesson listings are ordered by date and start time, so a day with several Lessons reads chronologically.
+    and to add, update and delete one Lesson.
+  Lesson listings are ordered by date and start time, so a range covering several CourseRealizations reads
+    chronologically.
   The table is created automatically on startup when it does not exist.
 
 Tasks:
@@ -53,8 +53,8 @@ Tasks:
   [x] Validate the CourseRealization id (via ../realizations/realizations.sdd's ports.py), a non-empty topic and
     start-before-end times in @LessonService.add_lesson with @UnknownRealizationError and @InvalidLessonError
   [x] Reject a lesson dated inside a NoTeachWeek of the CourseRealization's Semester with @InvalidLessonError
-  [x] Add @LessonService.delete_lessons_for_realization, which ../realizations/realizations.sdd's
-    @RealizationService.delete_realization calls when it removes a realization
+  [x] Replace the manual @LessonService.delete_lessons_for_realization cascade with the `lessons` table's
+    foreign key, so the database removes a realization's Lessons
   [x] Decide that a single Lesson may be edited and deleted from the UI, and that at most one Lesson exists per
     date and CourseRealization
   [x] Add @LessonService.get_lesson, @LessonService.update_lesson and @LessonService.delete_lesson with the

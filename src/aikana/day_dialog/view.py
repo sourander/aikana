@@ -40,12 +40,12 @@ _TABS = (
 def day_dialog(
     kind: str,
     day: date,
-    semester_id: str,
+    semester_id: int | None,
     realization_options=(),
     default_no_teach_title: str = "",
     values: dict | None = None,
     error: str = "",
-    realization_id: str = "",
+    realization_id: int | None = None,
 ):
     """The dialog for one day, with a tab per kind of entry the admin can add on that day.
 
@@ -74,7 +74,7 @@ def dialog_container():
     return Div(id=CONTAINER_ID, **{"hx-on::after-swap": _REOPEN_JS})
 
 
-def holiday_form(day: date, semester_id: str, values: dict, realization_id: str = ""):
+def holiday_form(day: date, semester_id: int | None, values: dict, realization_id: int | None = None):
     return _form(
         f"{DIALOG_PATH}/holiday",
         day,
@@ -82,11 +82,11 @@ def holiday_form(day: date, semester_id: str, values: dict, realization_id: str 
         Span("Title", cls="text-xs font-semibold text-gray-500"),
         Input(name="title", value=values.get("title", ""), required=True, cls=_INPUT_CLS),
         realization_id=realization_id,
-        editable_day=bool(realization_id),
+        editable_day=realization_id is not None,
     )
 
 
-def no_teach_week_form(day: date, semester_id: str, default_no_teach_title: str, values: dict):
+def no_teach_week_form(day: date, semester_id: int | None, default_no_teach_title: str, values: dict):
     return _form(
         f"{DIALOG_PATH}/no-teach-week",
         day,
@@ -138,7 +138,13 @@ def time_select(name: str, selected: str, latest: str):
     )
 
 
-def lesson_form(day: date, semester_id: str, realization_options, values: dict, realization_id: str = ""):
+def lesson_form(
+    day: date,
+    semester_id: int | None,
+    realization_options,
+    values: dict,
+    realization_id: int | None = None,
+):
     options = list(realization_options)
     if not options:
         return P("No CourseRealizations in this Semester yet.", cls="text-sm text-gray-500")
@@ -177,11 +183,18 @@ def lesson_form(day: date, semester_id: str, realization_options, values: dict, 
         Span("Notes", cls="text-xs font-semibold text-gray-500"),
         Input(name="notes", value=values.get("notes", ""), cls=_INPUT_CLS),
         realization_id=realization_id,
-        editable_day=bool(realization_id),
+        editable_day=realization_id is not None,
     )
 
 
-def _form(action: str, day: date, semester_id: str, *fields, realization_id: str = "", editable_day: bool = False):
+def _form(
+    action: str,
+    day: date,
+    semester_id: int | None,
+    *fields,
+    realization_id: int | None = None,
+    editable_day: bool = False,
+):
     """A form that posts the write and lets the response re-render the whole containing view."""
     if editable_day:
         day_fields = (
@@ -192,14 +205,14 @@ def _form(action: str, day: date, semester_id: str, *fields, realization_id: str
         day_fields = (Input(name="day", type="hidden", value=day.isoformat()),)
     return Form(
         Input(name="semester_id", type="hidden", value=semester_id),
-        Input(name="realization_id", type="hidden", value=realization_id) if realization_id else "",
+        Input(name="realization_id", type="hidden", value=realization_id) if realization_id is not None else "",
         *day_fields,
         *fields,
         Button("Save", type="submit", cls="mt-3 bg-blue-600 text-white rounded px-3 py-1"),
         action=action,
         method="post",
         hx_post=action,
-        hx_target=f"#{WEEK_TABLE_ID if realization_id else GRID_ID}",
+        hx_target=f"#{WEEK_TABLE_ID if realization_id is not None else GRID_ID}",
         hx_swap="outerHTML",
         **{
             "hx-on::before-swap": _ALLOW_ERROR_SWAP_JS,
@@ -209,9 +222,12 @@ def _form(action: str, day: date, semester_id: str, *fields, realization_id: str
     )
 
 
-def _tabs(kind: str, semester_id: str, day: date, realization_id: str = ""):
-    params = {"semester_id": semester_id, "day": day.isoformat()}
-    if realization_id:
+def _tabs(kind: str, semester_id: int | None, day: date, realization_id: int | None = None):
+    params = {}
+    if semester_id is not None:
+        params["semester_id"] = semester_id
+    params["day"] = day.isoformat()
+    if realization_id is not None:
         params["realization_id"] = realization_id
     return Div(
         *[
@@ -229,7 +245,7 @@ def _tabs(kind: str, semester_id: str, day: date, realization_id: str = ""):
     )
 
 
-def _body(kind, day, semester_id, realization_options, default_no_teach_title, values, realization_id: str = ""):
+def _body(kind, day, semester_id, realization_options, default_no_teach_title, values, realization_id: int | None = None):
     if kind == "no_teach_week":
         return no_teach_week_form(day, semester_id, default_no_teach_title, values)
     if kind == "lesson":

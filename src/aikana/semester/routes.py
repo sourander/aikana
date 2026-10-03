@@ -7,6 +7,7 @@ from fasthtml.common import RedirectResponse
 from ..auth import view as auth_view
 from ..auth.services import AuthService
 from ..shared import layout
+from ..shared.ids import parse_id
 from . import services, view
 from .services import SemesterService
 
@@ -14,7 +15,9 @@ from .services import SemesterService
 def register_routes(app, semester_service: SemesterService, auth_service: AuthService) -> None:
     @app.get("/")
     def index(session, semester_id: str = ""):
-        semester = semester_service.get_semester(semester_id) or semester_service.get_default_semester()
+        semester = (
+            semester_service.get_semester(parse_id(semester_id)) or semester_service.get_default_semester()
+        )
         is_admin = auth_service.is_admin(session)
         admin_link = auth_view.header_link(is_admin)
         semester_options = semester_service.list_semester_options()

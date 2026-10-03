@@ -36,11 +36,11 @@ def courses_page(
     courses: list[Course],
     is_admin: bool,
     error: str = "",
-    realizations_by_course: dict[str, list[tuple[str, str, str, str]]] | None = None,
-    semester_options: list[tuple[str, str]] = (),
-    selected_semester_id: str = "",
-    course_delete_counts: dict[str, tuple[int, int]] | None = None,
-    realization_lesson_counts: dict[str, int] | None = None,
+    realizations_by_course: dict[int, list[tuple[int, str, str, int]]] | None = None,
+    semester_options: list[tuple[int, str]] = (),
+    selected_semester_id: int | None = None,
+    course_delete_counts: dict[int, tuple[int, int]] | None = None,
+    realization_lesson_counts: dict[int, int] | None = None,
 ):
     """`realizations_by_course` holds `(id, label, group, semester_id)` rows; the count mappings carry how many
     realizations and Lessons each Course's delete would remove with it."""
@@ -116,12 +116,12 @@ def _course_details_row(course: Course, is_admin: bool):
 
 
 def _realizations_block(
-    rows: list[tuple[str, str, str, str]],
+    rows: list[tuple[int, str, str, int]],
     course: Course,
     is_admin: bool,
-    semester_options: list[tuple[str, str]],
-    selected_semester_id: str,
-    realization_lesson_counts: dict[str, int],
+    semester_options: list[tuple[int, str]],
+    selected_semester_id: int | None,
+    realization_lesson_counts: dict[int, int],
 ):
     """A Course's realizations across every Semester, each linking to its weekly view."""
     add_control = (
@@ -158,10 +158,10 @@ def _realizations_block(
 
 
 def _realization_row(
-    row: tuple[str, str, str, str],
+    row: tuple[int, str, str, int],
     course: Course,
     is_admin: bool,
-    selected_semester_id: str,
+    selected_semester_id: int | None,
     lesson_count: int,
 ):
     """One realization's label linking to its weekly view, plus the admin's edit and delete controls."""
@@ -198,8 +198,8 @@ def _open_dialog(dialog_id: str) -> str:
     return f"var d = document.getElementById('{dialog_id}'); if (d.open) d.close(); d.showModal();"
 
 
-def _realization_href(realization_id: str, selected_semester_id: str) -> str:
-    if selected_semester_id:
+def _realization_href(realization_id: int, selected_semester_id: int | None) -> str:
+    if selected_semester_id is not None:
         return f"/realizations?semester_id={selected_semester_id}&realization_id={realization_id}"
     return f"/realizations?realization_id={realization_id}"
 
@@ -270,8 +270,8 @@ def _course_delete_dialog(course: Course, realization_count: int, lesson_count: 
 
 def realization_dialog(
     course: Course,
-    semester_options: list[tuple[str, str]],
-    selected_semester_id: str = "",
+    semester_options: list[tuple[int, str]],
+    selected_semester_id: int | None = None,
 ):
     """The add-realization form for one Course; reports the missing Semester instead of an unusable select."""
     return Dialog(
@@ -291,7 +291,7 @@ def realization_dialog(
     )
 
 
-def _realization_edit_dialog(course: Course, row: tuple[str, str, str, str], semester_options: list[tuple[str, str]]):
+def _realization_edit_dialog(course: Course, row: tuple[int, str, str, int], semester_options: list[tuple[int, str]]):
     """One realization's edit form, prefilled with its group and Semester."""
     realization_id, label, group, semester_id = row
     return Dialog(
@@ -313,7 +313,7 @@ def _realization_edit_dialog(course: Course, row: tuple[str, str, str, str], sem
     )
 
 
-def _realization_delete_dialog(course: Course, row: tuple[str, str, str, str], lesson_count: int):
+def _realization_delete_dialog(course: Course, row: tuple[int, str, str, int], lesson_count: int):
     """The confirmation before one realization is removed; names the Lessons removed with it."""
     realization_id, label = row[0], row[1]
     return Dialog(
@@ -346,10 +346,10 @@ def _realization_delete_dialog(course: Course, row: tuple[str, str, str, str], l
 
 
 def _realization_form(
-    course_id: str,
+    course_id: int,
     action: str,
-    semester_options: list[tuple[str, str]],
-    selected_semester_id: str,
+    semester_options: list[tuple[int, str]],
+    selected_semester_id: int | None,
     group: str = "",
     submit_label: str = "Add Realization",
 ):

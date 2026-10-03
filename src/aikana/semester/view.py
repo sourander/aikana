@@ -64,7 +64,7 @@ def semester_view(vm: SemesterViewModel, is_admin: bool = False):
     return Div(grid, day_dialog_view.dialog_container(), cls="h-full min-h-0 flex flex-col")
 
 
-def _month_column(month: MonthColumn, semester_id: str, is_admin: bool):
+def _month_column(month: MonthColumn, semester_id: int, is_admin: bool):
     return Div(
         Div(month.label, cls="font-semibold text-center border-b border-gray-300 pb-1 mb-1"),
         Div(*[_day_row(day, semester_id, is_admin) for day in month.days], cls="flex-1 flex flex-col min-h-0"),
@@ -72,7 +72,7 @@ def _month_column(month: MonthColumn, semester_id: str, is_admin: bool):
     )
 
 
-def _day_row(day: DayCell, semester_id: str, is_admin: bool):
+def _day_row(day: DayCell, semester_id: int, is_admin: bool):
     is_blocked = bool(day.holiday_title or day.no_teach_title)
     tint_cls = "bg-red-50" if is_blocked or day.day.weekday() >= 5 else ""
     today_cls = "border-l-4 border-l-green-500" if day.is_today else ""

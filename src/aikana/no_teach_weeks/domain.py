@@ -12,8 +12,8 @@ _TEACHING_WEEKDAY_OFFSETS = range(5)
 
 @dataclass(frozen=True)
 class NoTeachWeek:
-    id: str
-    semester_id: str
+    id: int
+    semester_id: int
     week_number: int
     week_start: date
     title: str

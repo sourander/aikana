@@ -40,7 +40,7 @@ class InvalidTermError(Exception):
 @dataclass(frozen=True)
 class LessonSquare:
     color: str
-    realization_id: str
+    realization_id: int
     realization_label: str
     start_time: time
     end_time: time
@@ -90,8 +90,8 @@ class SemesterService:
     def list_semesters(self) -> list[Semester]:
         return self.repo.list()
 
-    def get_semester(self, semester_id: str) -> Semester | None:
-        return self.repo.get(semester_id) if semester_id else None
+    def get_semester(self, semester_id: int | None) -> Semester | None:
+        return self.repo.get(semester_id) if semester_id is not None else None
 
     def get_default_semester(self, today: date | None = None) -> Semester | None:
         return domain.default_semester(self.repo.list(), today or dates.today())
@@ -113,7 +113,7 @@ class SemesterService:
     def semester_label(self, semester: Semester) -> str:
         return f"{semester.term.capitalize()} {semester.year}"
 
-    def list_semester_options(self) -> list[tuple[str, str]]:
+    def list_semester_options(self) -> list[tuple[int, str]]:
         return [(semester.id, self.semester_label(semester)) for semester in self.list_semesters()]
 
     def build_semester_view_model(self, semester: Semester, today: date | None = None) -> SemesterViewModel:

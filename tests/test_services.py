@@ -11,7 +11,6 @@ from aikana.courses.services import (
     UnknownCourseError as UnknownCourseIdError,
 )
 from aikana.holidays.services import InvalidHolidayError
-from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.lessons.services import InvalidLessonError, UnknownLessonError, UnknownRealizationError
 from aikana.no_teach_weeks.services import (
     DuplicateNoTeachWeekError,
@@ -151,14 +150,15 @@ def test_add_lesson_stores_a_valid_lesson(services, realization):
     assert services.lessons.list_lessons_for_realization(realization.id) == [lesson]
 
 
-def test_lessons_are_ordered_by_date_then_start_time(services, realization, db):
+def test_lessons_are_ordered_by_date_then_start_time(services, realization):
     second_day = services.lessons.add_lesson(realization.id, date(2026, 9, 2), time(8, 0), time(10, 0), "Later day", "")
-    # Two Lessons on one day are inserted straight through the repository: @LessonService.add_lesson allows only
-    # one Lesson per day, but the listing still has to read a stale same-day pair in chronological order.
-    repo = SqliteLessonRepository(db)
-    late = repo.add(realization.id, date(2026, 9, 1), time(13, 0), time(15, 0), "Late", "")
-    early = repo.add(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Early", "")
-    assert services.lessons.list_lessons_for_realization(realization.id) == [early, late, second_day]
+    # A Lesson is unique per date and CourseRealization, so a same-day pair comes from two realizations; the
+    # listing still has to read them in chronological order.
+    other_course = services.courses.add_course("Databases", "Storage and queries.", 5)
+    other = services.realizations.add_realization(other_course.id, realization.semester_id, "TTV24SP")
+    late = services.lessons.add_lesson(other.id, date(2026, 9, 1), time(13, 0), time(15, 0), "Late", "")
+    early = services.lessons.add_lesson(realization.id, date(2026, 9, 1), time(8, 0), time(10, 0), "Early", "")
+    assert services.lessons.list_lessons_for_range(date(2026, 9, 1), date(2026, 9, 2)) == [early, late, second_day]
 
 
 def test_add_lesson_rejects_a_second_lesson_on_the_same_day(services, realization):

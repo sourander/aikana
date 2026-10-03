@@ -58,16 +58,18 @@ class RealizationService:
             raise RuntimeError("RealizationService.semester_service was not wired by the composition root.")
         return self.semester_service
 
-    def list_realizations_for_course(self, course_id: str) -> list[CourseRealization]:
+    def list_realizations_for_course(self, course_id: int) -> list[CourseRealization]:
         return self.repo.list_for_course(course_id)
 
-    def list_realizations_for_semester(self, semester_id: str) -> list[CourseRealization]:
+    def list_realizations_for_semester(self, semester_id: int) -> list[CourseRealization]:
         return self.repo.list_for_semester(semester_id)
 
-    def get_realization(self, realization_id: str) -> CourseRealization | None:
-        return self.repo.get(realization_id) if realization_id else None
+    def get_realization(self, realization_id: int | None) -> CourseRealization | None:
+        return self.repo.get(realization_id) if realization_id is not None else None
 
-    def add_realization(self, course_id: str, semester_id: str, group: str) -> CourseRealization:
+    def add_realization(
+        self, course_id: int | None, semester_id: int | None, group: str
+    ) -> CourseRealization:
         if self.course_service.get_course(course_id) is None:
             raise UnknownCourseError(f"No Course with id {course_id!r}.")
         if self._semesters().get_semester(semester_id) is None:
@@ -77,7 +79,9 @@ class RealizationService:
             raise InvalidRealizationError("A CourseRealization needs a non-empty group label.")
         return self.repo.add(course_id, semester_id, group)
 
-    def update_realization(self, realization_id: str, semester_id: str, group: str) -> CourseRealization:
+    def update_realization(
+        self, realization_id: int | None, semester_id: int | None, group: str
+    ) -> CourseRealization:
         """Re-labels a realization; its Course stays the one it was created under, per ../courses/courses.sdd."""
         existing = self.get_realization(realization_id)
         if existing is None:
@@ -89,23 +93,18 @@ class RealizationService:
             raise InvalidRealizationError("A CourseRealization needs a non-empty group label.")
         return self.repo.update(existing.id, existing.course_id, semester_id, group)
 
-    def delete_realization(self, realization_id: str) -> None:
-        """Removes a realization together with its Lessons, which would otherwise be orphaned."""
-        if self.get_realization(realization_id) is None:
+    def delete_realization(self, realization_id: int | None) -> None:
+        """Removes a realization; the database's foreign keys take its Lessons with it."""
+        existing = self.get_realization(realization_id)
+        if existing is None:
             raise UnknownRealizationError(f"No CourseRealization with id {realization_id!r}.")
-        self.lesson_service.delete_lessons_for_realization(realization_id)
-        self.repo.delete(realization_id)
-
-    def delete_realizations_for_course(self, course_id: str) -> None:
-        """Removes every realization of a Course with its Lessons, for removing the Course itself."""
-        for realization in self.repo.list_for_course(course_id):
-            self.delete_realization(realization.id)
+        self.repo.delete(existing.id)
 
     def realization_label(self, realization: CourseRealization, course: Course, semester: "Semester") -> str:
         """Composed at render time, never stored, per ./realizations.sdd Must."""
         return f"{course.name} ({realization.group}) \u2013 {semester.term.capitalize()} {semester.year}"
 
-    def list_realization_options(self, semester_id: str) -> list[tuple[str, str]]:
+    def list_realization_options(self, semester_id: int | None) -> list[tuple[int, str]]:
         """(id, label) pairs for the realizations of one Semester, for the weekly view's dropdown."""
         semester = self._semesters().get_semester(semester_id)
         if semester is None:
@@ -113,11 +112,11 @@ class RealizationService:
         courses_by_id = {course.id: course for course in self.course_service.list_courses()}
         return [
             (r.id, self.realization_label(r, courses_by_id[r.course_id], semester))
-            for r in self.list_realizations_for_semester(semester_id)
+            for r in self.list_realizations_for_semester(semester.id)
         ]
 
     def build_realization_view_model(
-        self, realization_id: str, today: date | None = None
+        self, realization_id: int | None, today: date | None = None
     ) -> "RealizationViewModel | None":
         realization = self.get_realization(realization_id)
         if realization is None:
@@ -218,7 +217,7 @@ class WeekEntry:
     notes: str
     start_time: str = ""
     end_time: str = ""
-    lesson_id: str = ""
+    lesson_id: int | None = None
     lesson_date: date | None = None
 
 
@@ -236,5 +235,3 @@ class RealizationViewModel:
     realization: CourseRealization
     label: str
     weeks: list[WeekRow]
-
-

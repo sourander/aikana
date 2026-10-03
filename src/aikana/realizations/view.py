@@ -40,17 +40,17 @@ _SHARE_JS = (
 )
 
 
-def lesson_path(lesson_id: str) -> str:
+def lesson_path(lesson_id: int) -> str:
     """The path of one Lesson's edit route, per ./realizations.sdd."""
     return f"{_LESSON_PATH}/{lesson_id}"
 
 
-def lesson_delete_path(lesson_id: str) -> str:
+def lesson_delete_path(lesson_id: int) -> str:
     """The path of one Lesson's delete route, per ./realizations.sdd."""
     return f"{lesson_path(lesson_id)}/delete"
 
 
-def realization_selector(options: list[tuple[str, str]], selected_id: str):
+def realization_selector(options: list[tuple[int, str]], selected_id: int):
     return layout.dropdown(
         "realization_id",
         options,

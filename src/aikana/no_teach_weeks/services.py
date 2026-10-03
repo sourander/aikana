@@ -35,22 +35,24 @@ class NoTeachWeekService:
         """The shared default title, exposed so other packages' views can prefill it without importing ./domain.py."""
         return DEFAULT_TITLE
 
-    def list_no_teach_weeks(self, semester_id: str) -> list[NoTeachWeek]:
+    def list_no_teach_weeks(self, semester_id: int) -> list[NoTeachWeek]:
         return self.repo.list_for_semester(semester_id)
 
-    def get_no_teach_week(self, no_teach_week_id: str) -> NoTeachWeek | None:
-        return self.repo.get(no_teach_week_id) if no_teach_week_id else None
+    def get_no_teach_week(self, no_teach_week_id: int | None) -> NoTeachWeek | None:
+        return self.repo.get(no_teach_week_id) if no_teach_week_id is not None else None
 
     def add_no_teach_week(
-        self, semester_id: str, week_number: int, title: str = DEFAULT_TITLE
+        self, semester_id: int | None, week_number: int, title: str = DEFAULT_TITLE
     ) -> NoTeachWeek:
         semester = self._semester(semester_id)
-        self._reject_duplicate(semester_id, week_number)
+        self._reject_duplicate(semester.id, week_number)
         return self.repo.add(
-            semester_id, week_number, self._week_start(semester.year, week_number), self._title(title)
+            semester.id, week_number, self._week_start(semester.year, week_number), self._title(title)
         )
 
-    def update_no_teach_week(self, no_teach_week_id: str, week_number: int, title: str) -> NoTeachWeek:
+    def update_no_teach_week(
+        self, no_teach_week_id: int | None, week_number: int, title: str
+    ) -> NoTeachWeek:
         existing = self.get_no_teach_week(no_teach_week_id)
         if existing is None:
             raise UnknownNoTeachWeekError(f"No NoTeachWeek with id {no_teach_week_id!r}.")
@@ -60,22 +62,23 @@ class NoTeachWeekService:
             existing.id, week_number, self._week_start(semester.year, week_number), self._title(title)
         )
 
-    def delete_no_teach_week(self, no_teach_week_id: str) -> None:
-        if self.get_no_teach_week(no_teach_week_id) is None:
+    def delete_no_teach_week(self, no_teach_week_id: int | None) -> None:
+        existing = self.get_no_teach_week(no_teach_week_id)
+        if existing is None:
             raise UnknownNoTeachWeekError(f"No NoTeachWeek with id {no_teach_week_id!r}.")
-        self.repo.delete(no_teach_week_id)
+        self.repo.delete(existing.id)
 
-    def create_defaults_for_semester(self, semester_id: str) -> list[NoTeachWeek]:
+    def create_defaults_for_semester(self, semester_id: int) -> list[NoTeachWeek]:
         """The term's default NoTeachWeeks, skipping a week that is already blocked in that Semester."""
         semester = self._semester(semester_id)
-        already_blocked = {week.week_number for week in self.repo.list_for_semester(semester_id)}
+        already_blocked = {week.week_number for week in self.repo.list_for_semester(semester.id)}
         return [
-            self.repo.add(semester_id, week_number, week_monday(semester.year, week_number), DEFAULT_TITLE)
+            self.repo.add(semester.id, week_number, week_monday(semester.year, week_number), DEFAULT_TITLE)
             for week_number in default_week_numbers(semester.term)
             if week_number not in already_blocked
         ]
 
-    def titles_by_teaching_day(self, semester_id: str) -> dict[date, str]:
+    def titles_by_teaching_day(self, semester_id: int) -> dict[date, str]:
         """Each blocked Monday-to-Friday date of a Semester mapped to its NoTeachWeek's title."""
         titles: dict[date, str] = {}
         for week in self.repo.list_for_semester(semester_id):
@@ -83,8 +86,8 @@ class NoTeachWeekService:
                 titles[day] = week.title
         return titles
 
-    def _semester(self, semester_id: str):
-        semester = self.semester_repo.get(semester_id) if semester_id else None
+    def _semester(self, semester_id: int | None):
+        semester = self.semester_repo.get(semester_id) if semester_id is not None else None
         if semester is None:
             raise UnknownSemesterError(f"No Semester with id {semester_id!r}.")
         return semester
@@ -102,7 +105,7 @@ class NoTeachWeekService:
             raise InvalidNoTeachWeekError("A NoTeachWeek needs a non-empty title.")
         return stripped
 
-    def _reject_duplicate(self, semester_id: str, week_number: int, ignore_id: str = "") -> None:
+    def _reject_duplicate(self, semester_id: int, week_number: int, ignore_id: int | None = None) -> None:
         if any(
             week.week_number == week_number and week.id != ignore_id
             for week in self.repo.list_for_semester(semester_id)

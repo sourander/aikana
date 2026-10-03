@@ -13,6 +13,7 @@ from ..realizations import services as realization_services
 from ..realizations.services import RealizationService
 from ..semester.services import SemesterService
 from ..shared import layout
+from ..shared.ids import parse_id
 from . import services, view
 from .services import CourseService
 
@@ -31,7 +32,7 @@ def register_routes(
             return realization.group
         return f"{realization.group} \u2013 {semester_service.semester_label(semester)}"
 
-    def _realization_rows(course_id: str, semesters_by_id) -> list[tuple[str, str, str, str]]:
+    def _realization_rows(course_id: int, semesters_by_id) -> list[tuple[int, str, str, int]]:
         """A Course's realizations as `(id, label, group, semester_id)` rows, plain data for ./view.py."""
         return [
             (
@@ -43,10 +44,10 @@ def register_routes(
             for realization in realization_service.list_realizations_for_course(course_id)
         ]
 
-    def _lesson_count(realization_id: str) -> int:
+    def _lesson_count(realization_id: int) -> int:
         return len(lesson_service.list_lessons_for_realization(realization_id))
 
-    def _course_delete_counts(rows_by_course: dict[str, list[tuple[str, str, str, str]]]) -> dict[str, tuple[int, int]]:
+    def _course_delete_counts(rows_by_course: dict[int, list[tuple[int, str, str, int]]]) -> dict[int, tuple[int, int]]:
         """How many realizations and Lessons each Course's delete removes with it, for the confirmation dialog."""
         return {
             course_id: (
@@ -61,9 +62,11 @@ def register_routes(
         courses = course_service.list_courses()
         is_admin = auth_service.is_admin(session)
         admin_link = auth_view.header_link(is_admin)
-        selected_semester = semester_service.get_semester(semester_id) or semester_service.get_default_semester()
+        selected_semester = (
+            semester_service.get_semester(parse_id(semester_id)) or semester_service.get_default_semester()
+        )
         semester_options = semester_service.list_semester_options()
-        selected_semester_id = selected_semester.id if selected_semester else ""
+        selected_semester_id = selected_semester.id if selected_semester else None
 
         if not courses:
             content = view.create_course_form(error=error) if is_admin else view.no_course_notice()
@@ -120,7 +123,7 @@ def register_routes(
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         try:
-            course_service.update_course(course_id, name, description, ects_credits)
+            course_service.update_course(parse_id(course_id), name, description, ects_credits)
         except (services.InvalidCourseError, services.DuplicateCourseError, services.UnknownCourseError) as exc:
             return RedirectResponse(f"/courses?error={quote(str(exc))}", status_code=303)
         return RedirectResponse("/courses", status_code=303)
@@ -130,10 +133,9 @@ def register_routes(
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         try:
-            # The Course's realizations go first, each with its Lessons, so no row is left pointing at it.
-            realization_service.delete_realizations_for_course(course_id)
-            course_service.delete_course(course_id)
-        except (services.UnknownCourseError, realization_services.UnknownRealizationError) as exc:
+            # The database's foreign keys take the Course's realizations and their Lessons with it.
+            course_service.delete_course(parse_id(course_id))
+        except services.UnknownCourseError as exc:
             return RedirectResponse(f"/courses?error={quote(str(exc))}", status_code=303)
         return RedirectResponse("/courses", status_code=303)
 
@@ -143,7 +145,7 @@ def register_routes(
             return RedirectResponse("/login", status_code=303)
         back = f"/courses?semester_id={semester_id}" if semester_id else "/courses"
         try:
-            realization_service.add_realization(course_id, semester_id, group)
+            realization_service.add_realization(parse_id(course_id), parse_id(semester_id), group)
         except (
             realization_services.UnknownCourseError,
             realization_services.UnknownSemesterError,
@@ -158,7 +160,7 @@ def register_routes(
             return RedirectResponse("/login", status_code=303)
         back = f"/courses?semester_id={semester_id}" if semester_id else "/courses"
         try:
-            realization_service.update_realization(realization_id, semester_id, group)
+            realization_service.update_realization(parse_id(realization_id), parse_id(semester_id), group)
         except (
             realization_services.UnknownRealizationError,
             realization_services.UnknownSemesterError,
@@ -172,7 +174,7 @@ def register_routes(
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         try:
-            realization_service.delete_realization(realization_id)
+            realization_service.delete_realization(parse_id(realization_id))
         except realization_services.UnknownRealizationError as exc:
             return RedirectResponse(f"/courses?error={quote(str(exc))}", status_code=303)
         return RedirectResponse("/courses", status_code=303)

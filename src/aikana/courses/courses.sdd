@@ -27,12 +27,14 @@ Depends on:
   ../lessons/lessons.sdd
 
 Must:
-  A Course has a unique name, a description and an ECTS credit count.
+  A Course has a unique name, a description and an ECTS credit count. The name's uniqueness ignores letter case
+  and is enforced both by @CourseService and by a case-insensitive unique index on the table.
   @CourseService.add_course rejects an empty name with @InvalidCourseError and a name matching an existing
     Course's (ignoring surrounding whitespace and letter case) with @DuplicateCourseError, before storage.
   @CourseService.update_course applies the same name checks, ignores the Course being edited when looking for a
     duplicate, and rejects an unknown id with @UnknownCourseError before storage.
-  @CourseService.delete_course rejects an unknown id with @UnknownCourseError before storage.
+  @CourseService.delete_course rejects an unknown id with @UnknownCourseError before storage; the database's
+    `course_id` foreign key cascades the removal to the Course's realizations and their Lessons.
   No color is stored on a Course; ../semester/semester.sdd's view assigns display colors dynamically per
     CourseRealization.
   @CourseRepository in ./ports.py exposes list, get, add, update and delete operations backing ./services.py.
@@ -50,9 +52,9 @@ Must:
     values and submitting it updates the Course; the admin-only `+ New Course` control links to `GET /courses/new`,
     which renders the same create form. That dialog also carries a `Delete Course` control opening a
     confirmation `<dialog>` that names the Course and, when it has any, how many of its realizations and Lessons the
-    removal takes with it; submitting it posts to `/courses/{course_id}/delete`, which removes the Course's
-    realizations with their Lessons before the Course itself, and re-renders a validation message when the Course is
-    unknown.
+    removal takes with it; submitting it posts to `/courses/{course_id}/delete`, which removes the Course and, through
+    the database's foreign key cascade, its realizations with their Lessons, and re-renders a validation message when
+    the Course is unknown.
   For the admin, a `+ Add Realization` control on each listed Course opens a `<dialog>` modal whose form takes a
     group label and a Semester, posts to `/courses/{course_id}/realizations` and creates the realization through
     ../realizations/realizations.sdd's @RealizationService; that route is rejected by ../auth/auth.sdd's guard for
@@ -153,7 +155,8 @@ Tasks:
     `POST /courses/{course_id}/realizations` route in ./routes.py that creates one through
     ../realizations/realizations.sdd's @RealizationService
   [x] Add a per-Course delete `<dialog>` naming the realizations and Lessons the cascade removes, @CourseService.delete_course
-    and the guarded `POST /courses/{course_id}/delete` route that removes the realizations with their Lessons first
+    and the guarded `POST /courses/{course_id}/delete` route that removes the Course through the database's
+    foreign key cascade
   [x] Add a per-realization edit `<dialog>` and a delete `<dialog>` naming the Lessons it removes to ./view.py, and
     the guarded update and delete routes in ./routes.py that write through ../realizations/realizations.sdd's
     @RealizationService

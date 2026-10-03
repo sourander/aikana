@@ -34,25 +34,29 @@ class LessonService:
         # ../no_teach_weeks/no_teach_weeks.sdd's service, used only to reject a date inside a NoTeachWeek.
         self.no_teach_week_service = no_teach_week_service
 
-    def list_lessons_for_realization(self, course_realization_id: str) -> list[Lesson]:
+    def list_lessons_for_realization(self, course_realization_id: int) -> list[Lesson]:
         return self.repo.list_for_realization(course_realization_id)
 
     def list_lessons_for_range(self, start: date, end: date) -> list[Lesson]:
         return self.repo.list_for_range(start, end)
 
-    def get_lesson(self, lesson_id: str) -> Lesson | None:
-        return self.repo.get(lesson_id) if lesson_id else None
+    def get_lesson(self, lesson_id: int | None) -> Lesson | None:
+        return self.repo.get(lesson_id) if lesson_id is not None else None
 
     def add_lesson(
         self,
-        course_realization_id: str,
+        course_realization_id: int | None,
         lesson_date: date,
         start_time: time,
         end_time: time,
         topic: str,
         notes: str,
     ) -> Lesson:
-        realization = self.realization_repo.get(course_realization_id)
+        realization = (
+            self.realization_repo.get(course_realization_id)
+            if course_realization_id is not None
+            else None
+        )
         if realization is None:
             raise UnknownRealizationError(f"No CourseRealization with id {course_realization_id!r}.")
         topic = self._validated_topic(
@@ -62,7 +66,7 @@ class LessonService:
 
     def update_lesson(
         self,
-        lesson_id: str,
+        lesson_id: int | None,
         lesson_date: date,
         start_time: time,
         end_time: time,
@@ -81,25 +85,26 @@ class LessonService:
             start_time,
             end_time,
             topic,
-            lesson_id,
+            existing.id,
         )
-        return self.repo.update(lesson_id, lesson_date, start_time, end_time, topic, notes)
+        return self.repo.update(existing.id, lesson_date, start_time, end_time, topic, notes)
 
-    def delete_lesson(self, lesson_id: str) -> None:
+    def delete_lesson(self, lesson_id: int | None) -> None:
         """Removes one Lesson, leaving its CourseRealization and its other Lessons untouched."""
-        if self.get_lesson(lesson_id) is None:
+        existing = self.get_lesson(lesson_id)
+        if existing is None:
             raise UnknownLessonError(f"No Lesson with id {lesson_id!r}.")
-        self.repo.delete(lesson_id)
+        self.repo.delete(existing.id)
 
     def _validated_topic(
         self,
-        semester_id: str,
-        course_realization_id: str,
+        semester_id: int,
+        course_realization_id: int,
         lesson_date: date,
         start_time: time,
         end_time: time,
         topic: str,
-        lesson_id: str = "",
+        lesson_id: int | None = None,
     ) -> str:
         """The checked topic every write shares; `lesson_id` excludes the Lesson being edited from the day check."""
         blocked = self.no_teach_week_service.titles_by_teaching_day(semester_id)
@@ -116,12 +121,10 @@ class LessonService:
             )
         return topic
 
-    def _claims_day(self, course_realization_id: str, lesson_date: date, lesson_id: str) -> bool:
+    def _claims_day(
+        self, course_realization_id: int, lesson_date: date, lesson_id: int | None
+    ) -> bool:
         return any(
             lesson.date == lesson_date and lesson.id != lesson_id
             for lesson in self.repo.list_for_realization(course_realization_id)
         )
-
-    def delete_lessons_for_realization(self, course_realization_id: str) -> None:
-        """Removes every Lesson of a CourseRealization, used when that realization is removed."""
-        self.repo.delete_for_realization(course_realization_id)

@@ -22,8 +22,11 @@ Depends on:
 
 Must:
   A NoTeachWeek has a reference to exactly one Semester stored as a plain id, an ISO week number, the Monday that starts
-  that week and a title. The Monday is resolved once from the Semester's year and the week number when the NoTeachWeek is
-  created, so the blocked weekdays are computed from the NoTeachWeek alone.
+  that week and a title. The Monday is a derived cache of the Semester's year and the week number, recomputed on every
+  write, so the blocked weekdays are computed from the NoTeachWeek alone.
+  The Semester reference is declared as a foreign key, so the database enforces it and cascades a removed Semester to
+  its NoTeachWeeks; a Semester's week numbers are unique, enforced both by @NoTeachWeekService and by a unique index
+  on the table.
   The blocked weekdays of a NoTeachWeek are that week's Monday through Friday; Saturday and Sunday are never blocked.
   A `fall` Semester defaults to NoTeachWeeks in weeks `42` and `51`; a `spring` Semester defaults to weeks `1`, `10` and
   `22`. Every default NoTeachWeek is titled `No teaching week`.

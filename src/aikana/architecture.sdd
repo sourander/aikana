@@ -39,6 +39,18 @@ Must:
   caller-given path); main.py calls it once and passes the single connection into each repository's constructor.
   No repository opens its own connection.
   Each repository_sqlite.py creates its own table at construction, idempotently, through the shared connection.
+  Every entity table uses an INTEGER PRIMARY KEY `id` and SQLite's STRICT mode: the database assigns each id
+  and rejects a value of the wrong type instead of applying type affinity. Ids are typed `int` in domain.py,
+  ports.py and services.py, never as generated strings.
+  Every column is declared `not_null` unless its absence is meaningful, so the schema, not only services.py,
+  carries what the domain always requires.
+  A reference to another feature's entity is declared as a `foreign_keys` entry in the referencing
+  repository's create call, so the database enforces the reference and cascades a parent's deletion to its
+  children. Services.py must not hand-delete children before a parent, and the referenced table must be
+  created before the referencing one; main.py and the test fixtures construct parents first for that reason.
+  A uniqueness rule that services.py checks is also a unique index on the table, so a write that bypasses the
+  service still cannot store a duplicate, and foreign-key and filter columns carry indexes so listings and
+  cascades do not scan whole tables.
   Dependencies point inward only: routes.py depends on services.py and view.py; services.py depends on domain.py and
   ports.py; repository_sqlite.py depends on domain.py and ports.py; domain.py and ports.py depend on nothing local.
   Cross-feature use goes through a dependency's services.py or ports.py, never through another feature's

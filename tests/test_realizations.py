@@ -10,6 +10,7 @@ from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import RealizationService
+from aikana.semester.repository_sqlite import SqliteSemesterRepository
 from conftest import has_checked_calendar_day
 
 
@@ -20,6 +21,8 @@ def realization_service(db):
     The listing methods under test never touch the wired `semester_service`, so it stays unset here.
     """
     course_service = CourseService(SqliteCourseRepository(db))
+    # The realizations table references the semesters table, so it is created first, per ../architecture.sdd.
+    SqliteSemesterRepository(db)
     return RealizationService(SqliteCourseRealizationRepository(db), course_service, None, None, None)
 
 
@@ -27,7 +30,7 @@ def _create_semester(admin_client, year, term):
     response = admin_client.post(
         "/semesters", data={"year": str(year), "term": term}, follow_redirects=False
     )
-    return response.headers["location"].removeprefix("/?semester_id=")
+    return int(response.headers["location"].removeprefix("/?semester_id="))
 
 
 @pytest.fixture

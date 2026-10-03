@@ -48,7 +48,7 @@ def test_admin_creates_a_semester_through_the_form(admin_client, services):
     response = admin_client.post("/semesters", data={"year": "2026", "term": "fall"}, follow_redirects=False)
 
     assert response.status_code == 303
-    semester_id = response.headers["location"].removeprefix("/?semester_id=")
+    semester_id = int(response.headers["location"].removeprefix("/?semester_id="))
 
     page = admin_client.get(f"/?semester_id={semester_id}")
     assert "Fall 2026" in page.text

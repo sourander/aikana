@@ -27,7 +27,10 @@ Depends on:
   ../day_dialog/day_dialog.sdd
 
 Must:
-  A Semester has a year and a term of `spring` or `fall`; the year and term combination is unique.
+  A Semester has a year and a term of `spring` or `fall`; the year and term combination is unique, enforced both
+  by @SemesterService and by a unique index on the table.
+  Semesters are listed in calendar order: by year, and within a year `spring` before `fall`, since `spring` starts
+  the calendar year and `fall` ends it.
   @SemesterService.create_semester rejects any term other than `spring` or `fall` with @InvalidTermError before
   storage, so a crafted request cannot persist a Semester whose period would compute incorrectly.
   @SemesterRepository in ./ports.py exposes list, get and add operations backing ./services.py.

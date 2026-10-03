@@ -6,6 +6,7 @@ Purpose:
 
 Owns:
   ./db.py
+  ./ids.py
   ./layout.py
   ./dates.py
   ./static/input.css
@@ -19,6 +20,9 @@ Must:
   ./db.py exposes @create_database, which opens a `fastlite` `Database` at `/data/app.db` (or a caller-given
   path), creating the parent directory when it does not exist. main.py calls it once and passes the single
   connection into every feature's repository_sqlite.py constructor, per ../architecture.sdd.
+  ./ids.py exposes @parse_id, which turns a route path or query value into the integer id the services expect,
+  returning `None` for an empty or non-numeric value so a route can treat it as absent; routes.py parse ids
+  with it instead of passing raw strings to services.py.
   ./layout.py renders the shared page shell: header, a `<link>` to the compiled Tailwind stylesheet and the HTMX
   script tag, used by every feature's view.py.
   ./layout.py also emits one inline script for the whole page that keeps a hover tooltip inside the visible area:

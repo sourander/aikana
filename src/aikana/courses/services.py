@@ -23,27 +23,33 @@ class CourseService:
     def list_courses(self) -> list[Course]:
         return self.repo.list()
 
-    def get_course(self, course_id: str) -> Course | None:
-        return self.repo.get(course_id)
+    def get_course(self, course_id: int | None) -> Course | None:
+        return self.repo.get(course_id) if course_id is not None else None
 
     def add_course(self, name: str, description: str, ects_credits: int) -> Course:
         return self.repo.add(self._validated_name(name), description, ects_credits)
 
-    def update_course(self, course_id: str, name: str, description: str, ects_credits: int) -> Course:
-        if self.repo.get(course_id) is None:
+    def update_course(
+        self, course_id: int | None, name: str, description: str, ects_credits: int
+    ) -> Course:
+        existing = self.get_course(course_id)
+        if existing is None:
             raise UnknownCourseError(f"No Course with id {course_id!r}.")
-        return self.repo.update(course_id, self._validated_name(name, exclude_id=course_id), description, ects_credits)
+        return self.repo.update(
+            existing.id, self._validated_name(name, exclude_id=existing.id), description, ects_credits
+        )
 
-    def delete_course(self, course_id: str) -> None:
-        if self.repo.get(course_id) is None:
+    def delete_course(self, course_id: int | None) -> None:
+        existing = self.get_course(course_id)
+        if existing is None:
             raise UnknownCourseError(f"No Course with id {course_id!r}.")
-        self.repo.delete(course_id)
+        # The database's foreign keys cascade to the Course's realizations and their Lessons.
+        self.repo.delete(existing.id)
 
-    def _validated_name(self, name: str, exclude_id: str | None = None) -> str:
+    def _validated_name(self, name: str, exclude_id: int | None = None) -> str:
         name = name.strip()
         if not name:
             raise InvalidCourseError("A Course needs a non-empty name.")
         if any(course.id != exclude_id and course.name.lower() == name.lower() for course in self.repo.list()):
             raise DuplicateCourseError(f"A Course named {name!r} already exists.")
         return name
-

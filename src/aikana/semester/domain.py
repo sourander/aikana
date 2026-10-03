@@ -7,7 +7,7 @@ Term = Literal["spring", "fall"]
 
 @dataclass(frozen=True)
 class Semester:
-    id: str
+    id: int
     year: int
     term: Term
 

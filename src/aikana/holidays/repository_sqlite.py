@@ -1,7 +1,6 @@
 """Adapter implementing @HolidayRepository using `fastlite`, per ../architecture.sdd."""
 
 from datetime import date
-from uuid import uuid4
 
 from fastlite import Database
 
@@ -15,7 +14,14 @@ def _to_domain(row: dict) -> Holiday:
 class SqliteHolidayRepository:
     def __init__(self, db: Database) -> None:
         self._table = db.t.holidays
-        self._table.create(columns={"id": str, "date": str, "title": str}, pk="id", if_not_exists=True)
+        self._table.create(
+            columns={"id": int, "date": str, "title": str},
+            pk="id",
+            if_not_exists=True,
+            not_null=["date", "title"],
+            strict=True,
+        )
+        self._table.create_index(["date"], if_not_exists=True)
 
     def list_for_range(self, start: date, end: date) -> list[Holiday]:
         rows = self._table(
@@ -26,5 +32,5 @@ class SqliteHolidayRepository:
         return [_to_domain(row) for row in rows]
 
     def add(self, holiday_date: date, title: str) -> Holiday:
-        row = self._table.insert({"id": uuid4().hex, "date": holiday_date.isoformat(), "title": title})
+        row = self._table.insert({"date": holiday_date.isoformat(), "title": title})
         return _to_domain(row)

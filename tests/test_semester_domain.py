@@ -4,8 +4,8 @@ from datetime import date
 
 from aikana.semester.domain import Semester, default_semester, semester_bounds, semester_months
 
-FALL_2026 = Semester(id="fall-2026", year=2026, term="fall")
-SPRING_2027 = Semester(id="spring-2027", year=2027, term="spring")
+FALL_2026 = Semester(id=1, year=2026, term="fall")
+SPRING_2027 = Semester(id=2, year=2027, term="spring")
 
 
 def test_fall_semester_spans_august_to_december():

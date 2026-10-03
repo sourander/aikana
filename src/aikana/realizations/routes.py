@@ -12,6 +12,7 @@ from ..auth.services import AuthService
 from ..lessons.services import InvalidLessonError, LessonService, UnknownLessonError
 from ..semester.services import SemesterService
 from ..shared import layout
+from ..shared.ids import parse_id
 from . import view
 from .services import RealizationService
 
@@ -19,7 +20,7 @@ _PATH = "/realizations"
 _LESSON_PATH = f"{_PATH}/lessons"
 
 
-def share_url(request, realization_id: str, semester_id: str) -> str:
+def share_url(request, realization_id: int, semester_id: int) -> str:
     """The canonical absolute URL of one realization's weekly view, carrying both ids, per ./realizations.sdd."""
     query = urlencode({"realization_id": realization_id, "semester_id": semester_id})
     return f"{str(request.base_url).rstrip('/')}{_PATH}?{query}"
@@ -32,7 +33,7 @@ def register_routes(
     auth_service: AuthService,
     lesson_service: LessonService,
 ) -> None:
-    def lesson_back_url(lesson_id: str, error: str = "") -> str:
+    def lesson_back_url(lesson_id: int | None, error: str = "") -> str:
         """The weekly view of the CourseRealization the Lesson belongs to, so a write returns to it."""
         lesson = lesson_service.get_lesson(lesson_id)
         realization = realization_service.get_realization(lesson.course_realization_id) if lesson else None
@@ -45,12 +46,16 @@ def register_routes(
     def index(session, request, realization_id: str = "", semester_id: str = "", error: str = ""):
         is_admin = auth_service.is_admin(session)
         admin_link = auth_view.header_link(is_admin)
-        if not semester_id and realization_id:
-            realization = realization_service.get_realization(realization_id)
+        realization_id_value = parse_id(realization_id)
+        semester_id_value = parse_id(semester_id)
+        if semester_id_value is None and realization_id_value is not None:
+            realization = realization_service.get_realization(realization_id_value)
             if realization is not None:
-                semester_id = realization.semester_id
+                semester_id_value = realization.semester_id
         semester_options = semester_service.list_semester_options()
-        active_semester = semester_service.get_semester(semester_id) or semester_service.get_default_semester()
+        active_semester = (
+            semester_service.get_semester(semester_id_value) or semester_service.get_default_semester()
+        )
         if active_semester is None:
             return layout.page(
                 view.no_semester_state(),
@@ -61,11 +66,13 @@ def register_routes(
 
         options = realization_service.list_realization_options(active_semester.id)
 
-        selected_id = realization_id if any(option_id == realization_id for option_id, _ in options) else (
-            options[0][0] if options else ""
+        selected_id = (
+            realization_id_value
+            if any(option_id == realization_id_value for option_id, _ in options)
+            else (options[0][0] if options else None)
         )
 
-        if not selected_id:
+        if selected_id is None:
             return layout.page(
                 view.empty_state(),
                 active_nav="realizations",
@@ -103,9 +110,10 @@ def register_routes(
         """Edits one Lesson in place, per ../lessons/lessons.sdd; a rejected write returns to the same week table."""
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
+        lesson_id_value = parse_id(lesson_id)
         try:
             lesson_service.update_lesson(
-                lesson_id,
+                lesson_id_value,
                 parsed_day(day),
                 parsed_time(start_time, "start"),
                 parsed_time(end_time, "end"),
@@ -113,18 +121,19 @@ def register_routes(
                 notes,
             )
         except (_Rejected, UnknownLessonError, InvalidLessonError) as exc:
-            return RedirectResponse(lesson_back_url(lesson_id, str(exc)), status_code=303)
-        return RedirectResponse(lesson_back_url(lesson_id), status_code=303)
+            return RedirectResponse(lesson_back_url(lesson_id_value, str(exc)), status_code=303)
+        return RedirectResponse(lesson_back_url(lesson_id_value), status_code=303)
 
     @app.post(f"{_LESSON_PATH}/{{lesson_id}}/delete")
     def delete_lesson(session, lesson_id: str):
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
+        lesson_id_value = parse_id(lesson_id)
         try:
-            lesson_service.delete_lesson(lesson_id)
+            lesson_service.delete_lesson(lesson_id_value)
         except UnknownLessonError as exc:
-            return RedirectResponse(lesson_back_url(lesson_id, str(exc)), status_code=303)
-        return RedirectResponse(lesson_back_url(lesson_id), status_code=303)
+            return RedirectResponse(lesson_back_url(lesson_id_value, str(exc)), status_code=303)
+        return RedirectResponse(lesson_back_url(lesson_id_value), status_code=303)
 
 
 class _Rejected(Exception):
@@ -143,4 +152,3 @@ def parsed_time(raw: str, which: str) -> time:
         return time.fromisoformat(raw)
     except ValueError:
         raise _Rejected(f"Enter a valid {which} time as HH:MM.") from None
-
