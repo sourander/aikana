@@ -62,9 +62,29 @@ tailwindcss -i src/aikana/shared/static/input.css -o src/aikana/shared/static/ap
 
 ## Deployment
 
-Deployment is set up and run by the maintainer and is out of scope for this repository's tooling. The app deploys as a
-Docker image: a plain `docker build .` builds the last stage of `Dockerfile` (`prod`), which contains no development
-dependencies. A persistent volume must be mounted at `/data`, and `AIKANA_PASSWD` must be set.
+Production is hosted on the maintainer's Dokku server at `ssh.munpaas.com` as the Dokku app `aikana`, served at
+[aikana.munpaas.com](https://aikana.munpaas.com). The server-side setup is done: the app has been created
+(`dokku apps:create aikana`), HTTPS has been enabled with the `letsencrypt` plugin
+(`dokku letsencrypt:enable aikana`), the admin password is configured
+(`dokku config:set aikana AIKANA_PASSWD=...`), and persistent storage is mounted at `/data`
+(`dokku storage:ensure-directory aikana --chown root` and
+`dokku storage:mount aikana /var/lib/dokku/data/storage/aikana:/data`). The image definition is named `Dockerfile`, so
+no `dockerfile-path` setting is needed.
+
+No code has been pushed to Dokku yet. Deployment is currently manual: the maintainer adds the Dokku git remote once,
+then pushes `main`.
+
+```sh
+git remote add dokku dokku@ssh.munpaas.com:aikana   # once
+git push dokku main
+```
+
+An automated CI/CD pipeline is planned to replace the manual push.
+
+Deployment is run by the maintainer and is out of scope for this repository's tooling. The app deploys as a Docker
+image: a plain `docker build .` builds the last stage of `Dockerfile` (`prod`), which contains no development
+dependencies. The SQLite database lives in the mounted `/data` volume on the server
+(`/var/lib/dokku/data/storage/aikana`), so production data survives redeploys and restarts.
 
 To build the production image by hand:
 

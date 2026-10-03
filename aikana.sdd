@@ -53,6 +53,10 @@ Must:
   image without development dependencies or tests.
   `compose.yml` builds the `prod` stage through `target: prod`, so local runs exercise the deployed image.
   The container starts the app with `python -m aikana.main`, so no `Procfile` exists.
+  The production deployment target is the Dokku app `aikana` on `ssh.munpaas.com`, served at
+  `https://aikana.munpaas.com` with a TLS certificate managed by the `letsencrypt` plugin; its `/data` directory is
+  backed by Dokku persistent storage, so the SQLite database survives redeploys and restarts; deployments are manual
+  git pushes by the maintainer until an automated pipeline replaces them.
   The repository root contains no application source files.
   Development proceeds in small increments and every increment is tested locally in Docker first.
 
