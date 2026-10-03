@@ -1,16 +1,24 @@
 # ---- css: compile the Tailwind stylesheet with the standalone CLI (no Node.js/npm toolchain) ----
 FROM debian:bookworm-slim AS css
 
+# The CLI is pinned and checksum-verified, so the build never executes an unvetted upstream binary.
+# Bump the version and both checksums (from the release's sha256sums.txt) together.
+ARG TAILWIND_VERSION=v4.3.3
+ARG TAILWIND_SHA256_X64=dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
+ARG TAILWIND_SHA256_ARM64=55fd0b241214eff3de1e8ee4f22796662f2d2e7a49bcfca7477cfd0bac398195
+
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
     && case "$(dpkg --print-architecture)" in \
-         amd64) tw_arch=x64 ;; \
-         arm64) tw_arch=arm64 ;; \
+         amd64) tw_arch=x64; tw_sha256=${TAILWIND_SHA256_X64} ;; \
+         arm64) tw_arch=arm64; tw_sha256=${TAILWIND_SHA256_ARM64} ;; \
          *) echo "Unsupported architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
        esac \
-    && curl -sLo /usr/local/bin/tailwindcss \
-         "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-${tw_arch}" \
-    && chmod +x /usr/local/bin/tailwindcss
+    && curl -sLo "/tmp/tailwindcss-linux-${tw_arch}" \
+         "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-${tw_arch}" \
+    && echo "${tw_sha256}  /tmp/tailwindcss-linux-${tw_arch}" | sha256sum -c - \
+    && install "/tmp/tailwindcss-linux-${tw_arch}" /usr/local/bin/tailwindcss \
+    && rm "/tmp/tailwindcss-linux-${tw_arch}"
 
 WORKDIR /app
 COPY src/ ./src/

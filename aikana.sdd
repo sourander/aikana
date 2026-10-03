@@ -45,6 +45,8 @@ Must:
   contains the year's first Thursday.
   Tailwind CSS is compiled ahead of time with the standalone Tailwind CLI in `Dockerfile`'s `css` stage (no
   Node.js/npm toolchain) and served as a static file; the Play CDN script (`cdn.tailwindcss.com`) must not be used.
+  The CLI download is pinned to an exact version and verified against its SHA-256 checksum at build time, so the
+  build never executes an unvetted upstream binary.
   Dependencies are declared in `pyproject.toml` and locked in `uv.lock`, and every Docker stage installs exactly the
   locked set with `uv`.
   `Dockerfile` has a `base` stage with the common setup, a `test` stage and a `prod` stage that both inherit from
@@ -88,6 +90,8 @@ Tasks:
   [x] #10 Add a CourseRealization from the Courses tab: every listed Course lists its realizations across every
     Semester, each linking to ./src/aikana/realizations/realizations.sdd's weekly view, and the admin adds one
     through a per-Course `<dialog>` posting to `/courses/{course_id}/realizations`
+  [x] #11 Pin the Tailwind CLI download in ./Dockerfile to an exact version and verify its SHA-256
+    checksum instead of using `releases/latest`
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

@@ -160,7 +160,7 @@ def test_share_button_copies_the_url_with_both_ids(admin_client, course_id, seme
     response = admin_client.get("/realizations")
     query = f"realization_id={realization.id}&amp;semester_id={semester_id}"
 
-    assert f'data-share-url="http://testserver/realizations?{query}"' in response.text
+    assert f'data-share-url="https://testserver/realizations?{query}"' in response.text
     assert "navigator.clipboard.writeText" in response.text
 
 

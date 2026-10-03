@@ -33,6 +33,13 @@ Must:
   using `./shared/layout.py`'s `STATIC_DIR`, per ./shared/shared.sdd.
   Every feature package below has a same-basename spec inside it, following ./architecture.sdd.
   Views render for unauthenticated visitors without any editing affordances.
+  Every HTTP response carries the baseline security headers `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY` and `Referrer-Policy: same-origin`, set by a middleware in ./main.py.
+  The session cookie is marked `Secure`, since production serves HTTPS only.
+
+Must not:
+  FastHTML's default `surreal@main` and `css-scope-inline@main` CDN scripts must not be loaded: their mutable
+  refs would let upstream commits run arbitrary JavaScript on every page, and no view uses them.
 
 Tasks:
   [ ] Implement ./shared/, then ./auth/, then ./courses/ and ./semester/ (entities), then ./holidays/, then
@@ -50,3 +57,9 @@ Tasks:
   [x] Implement ./day_dialog/ (view.py and routes.py) and wire it into ./main.py, so an admin can add a Holiday, a
     NoTeachWeek or a Lesson on a clicked day of ../semester/semester.sdd's wall planner through the HTMX swap that
     semester view's grid id is the target of
+  [x] Pass `surreal=False` to FastHTML in ./main.py so the unused, mutable `surreal@main` and
+    `css-scope-inline@main` CDN scripts are no longer loaded on every page
+  [x] Pass `sess_https_only=True` to FastHTML in ./main.py so the session cookie is marked `Secure`
+    and never sent over plain HTTP; cover with a Set-Cookie flags test in /tests/
+  [x] Add a middleware in ./main.py setting baseline security headers on every response
+    (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`)

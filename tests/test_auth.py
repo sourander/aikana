@@ -2,6 +2,7 @@
 
 from starlette.testclient import TestClient
 
+from aikana.auth.services import AuthService
 from aikana.main import create_app
 from conftest import AIKANA_PASSWD
 
@@ -23,7 +24,7 @@ def test_login_with_a_wrong_password_is_rejected(client):
 def test_login_is_impossible_without_a_configured_password(db, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("AIKANA_PASSWD", raising=False)
-    client = TestClient(create_app(db))
+    client = TestClient(create_app(db), base_url="https://testserver")
 
     response = client.post("/login", data={"password": "anything"}, follow_redirects=True)
 
@@ -34,7 +35,7 @@ def test_login_is_impossible_without_a_configured_password(db, tmp_path, monkeyp
 def test_login_is_impossible_with_an_empty_configured_password(db, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("AIKANA_PASSWD", "")
-    client = TestClient(create_app(db))
+    client = TestClient(create_app(db), base_url="https://testserver")
 
     response = client.post("/login", data={"password": ""}, follow_redirects=True)
 
@@ -70,3 +71,54 @@ def test_the_password_is_never_rendered(client):
 
     for path in ("/", "/login?error=1", "/courses", "/realizations"):
         assert AIKANA_PASSWD not in client.get(path).text
+
+
+def test_the_session_cookie_is_httponly_lax_and_secure(client):
+    response = client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=False)
+
+    cookie = response.headers["set-cookie"].lower()
+    assert "httponly" in cookie
+    assert "samesite=lax" in cookie
+    # `Secure`: the production site is HTTPS, so the cookie must never travel over plain HTTP.
+    assert "secure" in cookie
+
+
+# Login throttling
+
+
+def test_login_is_locked_after_repeated_failures(client):
+    for _ in range(5):
+        client.post("/login", data={"password": "wrong"}, follow_redirects=True)
+
+    # The cooldown has started, so even the correct password is rejected for now.
+    response = client.post("/login", data={"password": AIKANA_PASSWD}, follow_redirects=True)
+
+    assert "Incorrect password." in response.text
+    assert 'action="/logout"' not in response.text
+
+
+def test_login_works_again_after_the_cooldown():
+    clock = [100.0]
+    service = AuthService("secret", max_attempts=2, cooldown_seconds=30.0, now=lambda: clock[0])
+    session = {}
+
+    assert service.login(session, "wrong") is False
+    assert service.login(session, "wrong") is False
+    assert service.login(session, "secret") is False
+
+    clock[0] += 31.0
+    assert service.login(session, "secret") is True
+    assert session["admin"] is True
+
+
+def test_a_successful_login_resets_the_failure_count():
+    service = AuthService("secret", max_attempts=3)
+
+    for _ in range(2):
+        service.login({}, "wrong")
+    assert service.login({}, "secret") is True
+
+    # Only consecutive failures count, so these two misses do not lock login.
+    for _ in range(2):
+        service.login({}, "wrong")
+    assert service.login({}, "secret") is True

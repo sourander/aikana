@@ -26,6 +26,8 @@ Must:
   A logout action clears the admin session.
   The password comparison is constant-time.
   Login is impossible when `AIKANA_PASSWD` is unset or empty.
+  After five consecutive failed logins, further attempts are rejected during a 60-second cooldown; the throttle
+  is in-memory only, resets on restart, and a successful login resets the failure count.
   The shared page shell shows a login link to visitors and a logout link to the admin.
 
 Must not:
@@ -34,3 +36,6 @@ Must not:
 Tasks:
   [x] Implement login, logout and the admin check in ./services.py, ./view.py and ./routes.py
   [x] Show the login/logout link through ../shared/shared.sdd's page shell
+  [x] Throttle /login attempts: after a few consecutive failures, enforce a short cooldown (in-memory
+    only, no storage), so online brute force against the single admin password is bounded; cover with
+    a test in /tests/test_auth.py

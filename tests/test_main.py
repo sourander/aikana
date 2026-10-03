@@ -19,6 +19,24 @@ def test_index_shows_no_semester_notice_to_a_visitor(client):
     assert "Create Semester" not in response.text
 
 
+def test_every_response_carries_baseline_security_headers(client):
+    for path in ("/", "/courses", "/realizations", "/login"):
+        response = client.get(path)
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "DENY"
+        assert response.headers["referrer-policy"] == "same-origin"
+
+
+def test_pages_do_not_load_the_mutable_cdn_scripts(client):
+    # The app never used surreal.js or css-scope-inline, and their mutable `@main` CDN refs would let
+    # upstream commits run arbitrary JavaScript on every page.
+    for path in ("/", "/courses", "/realizations", "/login"):
+        response = client.get(path)
+        assert "surreal" not in response.text
+        assert "css-scope-inline" not in response.text
+        assert "htmx" in response.text
+
+
 def test_index_shows_the_create_semester_form_to_the_admin(admin_client):
     response = admin_client.get("/")
 

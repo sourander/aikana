@@ -33,7 +33,9 @@ def client(db, tmp_path, monkeypatch):
     # FastHTML writes a session key file into the working directory on app construction.
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("AIKANA_PASSWD", AIKANA_PASSWD)
-    return TestClient(create_app(db))
+    # Production serves HTTPS, so the in-process client runs over TLS too: the session cookie is `Secure`
+    # and would not be sent over plain HTTP.
+    return TestClient(create_app(db), base_url="https://testserver")
 
 
 @pytest.fixture

@@ -3,6 +3,7 @@ import os
 import uvicorn
 from fasthtml.common import FastHTML
 from fastlite import Database
+from starlette.datastructures import MutableHeaders
 
 from aikana.auth import routes as auth_routes
 from aikana.auth.services import AuthService
@@ -24,6 +25,33 @@ from aikana.semester.repository_sqlite import SqliteSemesterRepository
 from aikana.semester.services import SemesterService
 from aikana.shared import layout
 from aikana.shared.db import create_database
+
+
+class _SecurityHeadersMiddleware:
+    """Pure ASGI middleware adding baseline security headers to every HTTP response."""
+
+    _HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "same-origin",
+    }
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                for name, value in self._HEADERS.items():
+                    headers[name] = value
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 
 def create_app(db: Database) -> FastHTML:
@@ -60,8 +88,12 @@ def create_app(db: Database) -> FastHTML:
     )
     realization_service.semester_service = semester_service
 
-    app = FastHTML(title="Aikana", hdrs=layout.extra_headers())
+    # `surreal=False` drops FastHTML's default surreal.js and css-scope-inline scripts, which load from mutable
+    # `@main` CDN refs and are unused by the views; `sess_https_only=True` marks the session cookie `Secure`.
+    app = FastHTML(title="Aikana", hdrs=layout.extra_headers(), surreal=False, sess_https_only=True)
     app.static_route(ext=".css", prefix="/static/", static_path=str(layout.STATIC_DIR))
+    app.add_middleware(_SecurityHeadersMiddleware)
+
     auth_routes.register_routes(app, auth_service)
     courses_routes.register_routes(app, course_service, realization_service, semester_service, auth_service)
     semester_routes.register_routes(app, semester_service, auth_service)
