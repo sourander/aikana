@@ -4,9 +4,8 @@ services:
       context: .
       target: prod
     ports:
-      - "8000:8000"
+      - "8000:80"
     environment:
-      PORT: "8000"
       AIKANA_PASSWD: "${AIKANA_PASSWD:-}"
     volumes:
       - ./data:/data

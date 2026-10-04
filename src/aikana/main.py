@@ -176,7 +176,7 @@ def create_app(db: Database) -> FastHTML:
 
 
 def main() -> None:
-    uvicorn.run(create_app(create_database()), host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
+    uvicorn.run(create_app(create_database()), host="0.0.0.0", port=80)
 
 
 if __name__ == "__main__":

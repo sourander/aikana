@@ -21,7 +21,8 @@ Views:
 |---------------------|-------------------------------------------------------------------------------|
 | `AIKANA_PASSWD`     | Password of the single admin. Login is disabled if unset                      |
 | `AIKANA_MCP_TOKEN`  | Bearer token for MCP write tools. MCP writes are disabled if unset            |
-| `PORT`              | Port the app listens on (set automatically by Dokku)                          |
+
+The app always listens on port `80`. `docker compose` publishes it on host port `8000`, and Dokku proxies to it.
 
 The SQLite database is stored at `/data/app.db`. Mount a volume at `/data` to persist it.
 
@@ -123,7 +124,8 @@ Production is hosted on the maintainer's Dokku server at `ssh.munpaas.com` as th
 (`dokku config:set aikana AIKANA_PASSWD=...`), and persistent storage is mounted at `/data`
 (`dokku storage:ensure-directory aikana --chown root` and
 `dokku storage:mount aikana /var/lib/dokku/data/storage/aikana:/data`). The image definition is named `Dockerfile`, so
-no `dockerfile-path` setting is needed.
+no `dockerfile-path` setting is needed. Since the app listens on port `80`, the proxy target must be set to it
+(`dokku proxy:port-set aikana 80`).
 
 The MCP write token is configured the same way, for example
 `dokku config:set aikana AIKANA_MCP_TOKEN=$(openssl rand -hex 32)`. Leave it unset to keep the MCP endpoint

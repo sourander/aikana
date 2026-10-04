@@ -14,7 +14,8 @@ Structure:
   ./README.md: how to launch the app and how to connect an AI agent to its MCP endpoint
   ./CONTRIBUTE.md: how to develop iteratively with SpecDD
   ./Dockerfile: multi-stage image definition shared by local testing and production
-  ./compose.yml: local run configuration that builds the `prod` stage and mounts `./data` at `/data`
+  ./compose.yml: local run configuration that builds the `prod` stage, publishes container port `80` on host port
+    `8000` and mounts `./data` at `/data`
   ./pyproject.toml: package metadata, dependencies and tool configuration
   ./uv.lock: locked dependency versions produced by `uv`
 
@@ -33,7 +34,8 @@ References:
 
 Must:
   The SQLite database file lives at `/data/app.db` so that it can be mounted as a persistent volume.
-  The admin password is read from the `AIKANA_PASSWD` environment variable and the listening port from `PORT`.
+  The admin password is read from the `AIKANA_PASSWD` environment variable. The app always listens on port `80`,
+    so no port environment variable exists.
   The MCP write token is read from the `AIKANA_MCP_TOKEN` environment variable.
   Unauthenticated visitors can view all data and cannot create, change or delete anything.
   Only the authenticated admin (session login) or a caller presenting the `AIKANA_MCP_TOKEN` bearer token
@@ -60,9 +62,9 @@ Must:
   `compose.yml` builds the `prod` stage through `target: prod`, so local runs exercise the deployed image.
   The container starts the app with `python -m aikana.main`, so no `Procfile` exists.
   The production deployment target is the Dokku app `aikana` on `ssh.munpaas.com`, served at
-  `https://aikana.munpaas.com` with a TLS certificate managed by the `letsencrypt` plugin; its `/data` directory is
-  backed by Dokku persistent storage, so the SQLite database survives redeploys and restarts; deployments are manual
-  git pushes by the maintainer until an automated pipeline replaces them.
+    `https://aikana.munpaas.com` with a TLS certificate managed by the `letsencrypt` plugin, and proxying to the app's
+    port `80`; its `/data` directory is backed by Dokku persistent storage, so the SQLite database survives redeploys
+    and restarts; deployments are manual git pushes by the maintainer until an automated pipeline replaces them.
   The repository root contains no application source files.
   Development proceeds in small increments and every increment is tested locally in Docker first.
 

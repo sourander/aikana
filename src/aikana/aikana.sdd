@@ -7,7 +7,7 @@ Purpose:
 Structure:
   ./__init__.py: package marker
   ./main.py: the composition root; builds the shared database connection and each feature's repository and
-    service, registers every feature's routes on the FastHTML app, and binds to the `$PORT` environment variable
+    service, registers every feature's routes on the FastHTML app, and listens on port `80`
   ./architecture.sdd: the Ports and Adapters (Hexagonal) contract shared by every feature package below
   ./shared/: cross-cutting kernel (database connection, page layout shell) with no business rules of its own
   ./auth/: admin login, logout and the write guard used by other feature packages
@@ -31,7 +31,7 @@ Owns:
   ./main.py
 
 Must:
-  `python -m aikana.main` starts the server on the port given by `$PORT`, defaulting to `8000`.
+  `python -m aikana.main` starts the server on port `80`; the port is not configurable through the environment.
   `main.py` registers the compiled Tailwind stylesheet as a static route (`app.static_route`) at `/static/app.css`,
   using `./shared/layout.py`'s `STATIC_DIR`, per ./shared/shared.sdd.
   `main.py` builds ./mcp_server/'s MCP server from the shared feature services and mounts its Streamable HTTP app
