@@ -18,6 +18,10 @@ Depends on:
 
 Must:
   A Holiday has a date and a title. Its date is indexed for range listings.
+  A date carries at most one Holiday: @HolidayService.add_holiday rejects a date that already holds one with
+    @DuplicateHolidayError, @HolidayService.update_holiday re-checks it while ignoring the Holiday being edited,
+    and a unique index on the table's date enforces it for a write that bypasses the service. A titled day row
+    therefore never depends on which Holiday the view happens to read last.
   A Holiday has no foreign key: holidays are global to the calendar, not owned by a Semester or a Course.
   @HolidayService.add_holiday rejects an empty title with @InvalidHolidayError before storage.
   @HolidayService.update_holiday applies the same title check as @HolidayService.add_holiday and rejects an
@@ -25,7 +29,8 @@ Must:
   @HolidayService.delete_holiday removes one Holiday, rejecting an unknown id with @UnknownHolidayError.
   @HolidayRepository in ./ports.py exposes operations to get, list holidays for a date range, and to add, update
   and delete one.
-  The table is created automatically on startup when it does not exist.
+  The table is created automatically on startup when it does not exist, and its unique date index replaces an
+    earlier non-unique index of the same name instead of leaving the constraint absent.
 
 Tasks:
   [x] Decide that a Holiday may be edited and deleted after creation
@@ -36,3 +41,6 @@ Tasks:
   [x] Replace the hardcoded ./services.py with a class-based @HolidayRepository-backed `HolidayService`
     (./ports.py and ./repository_sqlite.py), per ../architecture.sdd's Example
   [x] Reject empty Holiday titles in @HolidayService.add_holiday with @InvalidHolidayError
+  [x] Keep at most one Holiday per date: reject a duplicate date in @HolidayService.add_holiday and
+    @HolidayService.update_holiday with @DuplicateHolidayError, back it with a unique index on the date, and
+    replace an earlier non-unique index of the same name

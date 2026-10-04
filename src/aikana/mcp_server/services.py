@@ -105,6 +105,7 @@ _DOMAIN_ERRORS: tuple[type[Exception], ...] = (
     course_services.InvalidCourseError,
     course_services.DuplicateCourseError,
     course_services.UnknownCourseError,
+    holiday_services.DuplicateHolidayError,
     holiday_services.InvalidHolidayError,
     holiday_services.UnknownHolidayError,
     lesson_services.InvalidLessonError,

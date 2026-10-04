@@ -10,7 +10,7 @@ from aikana.courses.services import (
     InvalidCourseError,
     UnknownCourseError as UnknownCourseIdError,
 )
-from aikana.holidays.services import InvalidHolidayError, UnknownHolidayError
+from aikana.holidays.services import DuplicateHolidayError, InvalidHolidayError, UnknownHolidayError
 from aikana.lessons.services import InvalidLessonError, UnknownLessonError, UnknownRealizationError
 from aikana.no_teach_weeks.services import (
     DuplicateNoTeachWeekError,
@@ -282,6 +282,28 @@ def test_add_lesson_accepts_a_saturday_inside_a_no_teach_week(services, realizat
 def test_add_holiday_rejects_an_empty_title(services):
     with pytest.raises(InvalidHolidayError):
         services.holidays.add_holiday(date(2026, 12, 6), "  ")
+
+
+def test_add_holiday_rejects_a_date_that_already_has_one(services):
+    services.holidays.add_holiday(date(2026, 12, 6), "Independence Day")
+
+    with pytest.raises(DuplicateHolidayError):
+        services.holidays.add_holiday(date(2026, 12, 6), "Second Holiday")
+
+    stored = services.holidays.list_holidays_for_range(date(2026, 12, 6), date(2026, 12, 6))
+    assert [(holiday.date, holiday.title) for holiday in stored] == [(date(2026, 12, 6), "Independence Day")]
+
+
+def test_update_holiday_keeps_its_own_date_and_rejects_another_holidays(services):
+    holiday = services.holidays.add_holiday(date(2026, 12, 6), "Independence Day")
+    other = services.holidays.add_holiday(date(2026, 12, 24), "Christmas Eve")
+
+    updated = services.holidays.update_holiday(holiday.id, date(2026, 12, 6), "Retitled")
+    assert (updated.date, updated.title) == (date(2026, 12, 6), "Retitled")
+
+    with pytest.raises(DuplicateHolidayError):
+        services.holidays.update_holiday(holiday.id, date(2026, 12, 24), "Christmas Eve")
+    assert services.holidays.get_holiday(other.id).title == "Christmas Eve"
 
 
 def test_update_holiday_changes_the_stored_values(services):

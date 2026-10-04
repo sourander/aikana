@@ -21,7 +21,10 @@ class SqliteHolidayRepository:
             not_null=["date", "title"],
             strict=True,
         )
-        self._table.create_index(["date"], if_not_exists=True)
+        # A date carries at most one Holiday, per ./holidays.sdd. An earlier database may already hold a
+        # non-unique index of the same name, which `if_not_exists` would silently keep, so it is dropped first.
+        db.execute("DROP INDEX IF EXISTS [idx_holidays_date]")
+        self._table.create_index(["date"], unique=True, if_not_exists=True)
 
     def get(self, holiday_id: int) -> Holiday | None:
         row = self._table.get(holiday_id, default=None)

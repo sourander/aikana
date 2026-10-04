@@ -58,4 +58,4 @@ Tasks:
   [x] Block the week in ../semester/semester.sdd's wall planner and as a single line in
     ../realizations/realizations.sdd's weekly view, and reject a Lesson inside one in ../lessons/lessons.sdd
   [x] Expose the shared default title through @NoTeachWeekService for ../day_dialog/day_dialog.sdd's form
-  [ ] Add the admin UI that edits and removes a Semester's NoTeachWeeks in ../day_dialog/day_dialog.sdd
+  [x] Add the admin UI that edits and removes a Semester's NoTeachWeeks in ../day_dialog/day_dialog.sdd

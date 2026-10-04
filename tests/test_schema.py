@@ -115,6 +115,32 @@ def test_a_no_teach_week_is_unique_per_semester_and_week(db):
         weeks.add(semester.id, 42, date(2026, 10, 12), "Again")
 
 
+def test_a_date_has_at_most_one_holiday(db):
+    holidays = SqliteHolidayRepository(db)
+    holidays.add(date(2026, 12, 6), "Independence Day")
+
+    with pytest.raises(apsw.ConstraintError):
+        holidays.add(date(2026, 12, 6), "Second Holiday")
+
+
+def test_a_non_unique_holiday_date_index_is_replaced_on_startup(db):
+    # An earlier database already holds a non-unique index of the same name, which the unique index must replace.
+    db.t.holidays.create(
+        columns={"id": int, "date": str, "title": str},
+        pk="id",
+        if_not_exists=True,
+        not_null=["date", "title"],
+        strict=True,
+    )
+    db.t.holidays.create_index(["date"], if_not_exists=True)
+
+    SqliteHolidayRepository(db)
+
+    assert db.conn.execute(
+        "select sql from sqlite_master where name = 'idx_holidays_date'"
+    ).fetchone()[0].upper().startswith("CREATE UNIQUE INDEX")
+
+
 def test_a_realization_has_at_most_one_lesson_per_date(db):
     repos = _build(db)
     course = repos.courses.add("Machine Learning", "An introduction.", 5)

@@ -1,16 +1,17 @@
 """Registers the admin day dialog's routes, the package's only inbound adapter."""
 
-from datetime import date, time
+from datetime import date, time, timedelta
 
 from fasthtml.common import FtResponse, RedirectResponse
 
 from ..auth.services import AuthService
-from ..holidays.services import HolidayService, InvalidHolidayError
+from ..holidays.services import DuplicateHolidayError, HolidayService, InvalidHolidayError, UnknownHolidayError
 from ..lessons.services import InvalidLessonError, LessonService, UnknownRealizationError
 from ..no_teach_weeks.services import (
     DuplicateNoTeachWeekError,
     InvalidNoTeachWeekError,
     NoTeachWeekService,
+    UnknownNoTeachWeekError,
     UnknownSemesterError,
 )
 from ..realizations import view as realizations_view
@@ -49,6 +50,26 @@ def register_routes(
             return realizations_view.week_table(view_model, is_admin=True)
         return grid(semester_id)
 
+    def holiday_on(day: date):
+        """The Holiday already stored on that date, if any; a date carries at most one, per
+        ../holidays/holidays.sdd."""
+        found = holiday_service.list_holidays_for_range(day, day)
+        return found[0] if found else None
+
+    def no_teach_week_on(semester_id: int | None, day: date):
+        """The NoTeachWeek blocking that date, if any, identified by the Monday its week starts on.
+
+        The clicked day's own Monday is used rather than its ISO week number, so a Saturday or Sunday resolves to the
+        same week as the weekdays around it, and a week stored for another ISO year still matches.
+        """
+        if semester_id is None:
+            return None
+        monday = day - timedelta(days=day.weekday())
+        return next(
+            (week for week in no_teach_week_service.list_no_teach_weeks(semester_id) if week.week_start == monday),
+            None,
+        )
+
     def dialog(
         kind: str,
         semester_id: int | None,
@@ -66,6 +87,8 @@ def register_routes(
             values=values,
             error=error,
             realization_id=realization_id,
+            holiday=holiday_on(day),
+            no_teach_week=no_teach_week_on(semester_id, day),
         )
 
     def parsed_day(day_str: str) -> date:
@@ -185,6 +208,97 @@ def register_routes(
             )
         except (_Rejected, UnknownRealizationError, InvalidLessonError) as exc:
             return reject(day, semester_id_value, "lesson", values, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
+    @app.post(f"{view.HOLIDAY_PATH}/{{holiday_id}}")
+    def update_holiday(
+        session,
+        holiday_id: str,
+        semester_id: str = "",
+        day: str = "",
+        title: str = "",
+        realization_id: str = "",
+    ):
+        """Edits the Holiday already stored on the clicked date, per ./day_dialog.sdd."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        holiday_id_value = parse_id(holiday_id)
+        values = {"holiday_id": holiday_id_value, "day": day, "title": title}
+        try:
+            holiday_service.update_holiday(holiday_id_value, parsed_day(day), title)
+        except (_Rejected, UnknownHolidayError, InvalidHolidayError, DuplicateHolidayError) as exc:
+            return reject(day, semester_id_value, "holiday", values, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
+    @app.post(f"{view.HOLIDAY_PATH}/{{holiday_id}}/delete")
+    def delete_holiday(
+        session,
+        holiday_id: str,
+        semester_id: str = "",
+        day: str = "",
+        realization_id: str = "",
+    ):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        try:
+            holiday_service.delete_holiday(parse_id(holiday_id))
+        except UnknownHolidayError as exc:
+            return reject(day, semester_id_value, "holiday", {}, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
+    @app.post(f"{view.NO_TEACH_WEEK_PATH}/{{no_teach_week_id}}")
+    def update_no_teach_week(
+        session,
+        no_teach_week_id: str,
+        semester_id: str = "",
+        day: str = "",
+        week_number: str = "",
+        title: str = "",
+        realization_id: str = "",
+    ):
+        """Edits the NoTeachWeek already blocking the clicked date, per ./day_dialog.sdd."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        no_teach_week_id_value = parse_id(no_teach_week_id)
+        values = {"no_teach_week_id": no_teach_week_id_value, "week_number": week_number, "title": title}
+        try:
+            parsed_day(day)
+            no_teach_week_service.update_no_teach_week(
+                no_teach_week_id_value,
+                parsed_week(week_number),
+                title or no_teach_week_service.default_title,
+            )
+        except (
+            _Rejected,
+            UnknownNoTeachWeekError,
+            InvalidNoTeachWeekError,
+            DuplicateNoTeachWeekError,
+        ) as exc:
+            return reject(day, semester_id_value, "no_teach_week", values, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
+    @app.post(f"{view.NO_TEACH_WEEK_PATH}/{{no_teach_week_id}}/delete")
+    def delete_no_teach_week(
+        session,
+        no_teach_week_id: str,
+        semester_id: str = "",
+        day: str = "",
+        realization_id: str = "",
+    ):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        try:
+            no_teach_week_service.delete_no_teach_week(parse_id(no_teach_week_id))
+        except UnknownNoTeachWeekError as exc:
+            return reject(day, semester_id_value, "no_teach_week", {}, str(exc), realization_id_value)
         return write_response(semester_id_value, realization_id_value)
 
 

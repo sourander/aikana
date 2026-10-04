@@ -513,3 +513,259 @@ def _assert_bare_week_table(response):
 def _range(day: str):
     parsed = date.fromisoformat(day)
     return parsed, parsed
+
+
+# Editing and removing the entries already on the clicked date, per ./src/aikana/day_dialog/day_dialog.sdd.
+
+
+def test_the_holiday_tab_edits_the_holiday_already_on_that_day(admin_client, semester, services):
+    holiday = services.holidays.add_holiday(date(2026, 10, 20), "Autumn break")
+
+    response = _open_dialog(admin_client, semester, kind="holiday")
+
+    assert f'action="/day/dialog/holidays/{holiday.id}"' in response.text
+    assert 'value="Autumn break"' in response.text
+    assert has_checked_calendar_day(response.text, FREE_DAY)
+    assert 'action="/day/dialog/holiday"' not in response.text
+    # One day calendar, one Save and one Delete, so the edit form replaces the add form instead of doubling it.
+    assert response.text.count(">Mon</span>") == 1
+    assert response.text.count(">Save</button>") == 1
+    assert response.text.count(">Delete</button>") == 1
+
+
+def test_the_admin_edits_a_holiday_through_the_dialog(admin_client, semester, services):
+    holiday = services.holidays.add_holiday(date(2026, 10, 20), "Autumn break")
+
+    response = admin_client.post(
+        f"/day/dialog/holidays/{holiday.id}",
+        data={"semester_id": semester.id, "day": "2026-10-21", "title": "Staff day"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    _assert_bare_grid(response)
+    assert "Staff day" in response.text
+    assert "Autumn break" not in response.text
+    stored = services.holidays.get_holiday(holiday.id)
+    assert (stored.date, stored.title) == (date(2026, 10, 21), "Staff day")
+    assert services.holidays.list_holidays_for_range(*_range(FREE_DAY)) == []
+
+
+def test_a_rejected_holiday_edit_keeps_the_stored_holiday_and_what_the_admin_typed(
+    admin_client, semester, services
+):
+    holiday = services.holidays.add_holiday(date(2026, 10, 20), "Autumn break")
+
+    response = admin_client.post(
+        f"/day/dialog/holidays/{holiday.id}",
+        data={"semester_id": semester.id, "day": FREE_DAY, "title": "  "},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert response.headers["HX-Retarget"] == "#day-dialog"
+    assert 'value="  "' in response.text
+    stored = services.holidays.get_holiday(holiday.id)
+    assert (stored.date, stored.title) == (date(2026, 10, 20), "Autumn break")
+
+
+def test_a_holiday_edit_onto_a_day_that_already_has_one_is_rejected(admin_client, semester, services):
+    holiday = services.holidays.add_holiday(date(2026, 10, 20), "Autumn break")
+    services.holidays.add_holiday(date(2026, 10, 21), "Staff day")
+
+    response = admin_client.post(
+        f"/day/dialog/holidays/{holiday.id}",
+        data={"semester_id": semester.id, "day": "2026-10-21", "title": "Autumn break"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "already has a Holiday" in response.text
+    assert services.holidays.get_holiday(holiday.id).date == date(2026, 10, 20)
+
+
+def test_the_admin_deletes_a_holiday_through_the_dialog(admin_client, semester, services):
+    holiday = services.holidays.add_holiday(date(2026, 10, 20), "Autumn break")
+
+    dialog = _open_dialog(admin_client, semester, kind="holiday")
+    assert f'hx-post="/day/dialog/holidays/{holiday.id}/delete"' in dialog.text
+    assert 'hx-confirm="Delete the Holiday Autumn break on 20.10.2026?"' in dialog.text
+
+    response = admin_client.post(
+        f"/day/dialog/holidays/{holiday.id}/delete",
+        data={"semester_id": semester.id, "day": FREE_DAY},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    _assert_bare_grid(response)
+    assert "Autumn break" not in response.text
+    assert services.holidays.list_holidays_for_range(*_range(FREE_DAY)) == []
+
+
+def test_deleting_an_unknown_holiday_is_reported_in_the_dialog(admin_client, semester):
+    response = admin_client.post(
+        "/day/dialog/holidays/9999/delete",
+        data={"semester_id": semester.id, "day": FREE_DAY},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "No Holiday with id" in response.text
+
+
+def test_the_no_teach_week_tab_edits_the_week_already_blocking_that_day(admin_client, semester, services):
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+
+    response = _open_dialog(admin_client, semester, kind="no_teach_week", day="2026-10-13")
+
+    assert f'action="/day/dialog/no-teach-weeks/{week.id}"' in response.text
+    assert 'name="week_number" type="number" min="1" max="53" value="42"' in response.text
+    assert 'name="title" value="No teaching week"' in response.text
+    assert 'action="/day/dialog/no-teach-week"' not in response.text
+    assert response.text.count(">Save</button>") == 1
+    assert response.text.count(">Delete</button>") == 1
+
+
+def test_the_admin_edits_a_no_teach_week_through_the_dialog(admin_client, semester, services):
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+
+    response = admin_client.post(
+        f"/day/dialog/no-teach-weeks/{week.id}",
+        data={"semester_id": semester.id, "day": "2026-10-13", "week_number": "44", "title": "Sick leave"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    # The week moved, so all five of its new Monday-to-Friday rows are tinted and titled.
+    assert response.text.count("Sick leave") == 5
+    stored = services.no_teach_weeks.get_no_teach_week(week.id)
+    assert (stored.week_number, stored.week_start, stored.title) == (44, date(2026, 10, 26), "Sick leave")
+
+
+def test_a_rejected_no_teach_week_edit_keeps_the_stored_week_and_what_the_admin_typed(
+    admin_client, semester, services
+):
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+    services.no_teach_weeks.add_no_teach_week(semester.id, 44, "Sick leave")
+
+    response = admin_client.post(
+        f"/day/dialog/no-teach-weeks/{week.id}",
+        data={"semester_id": semester.id, "day": "2026-10-13", "week_number": "44", "title": "Later"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 422
+    assert "already a NoTeachWeek" in response.text
+    assert 'value="Later"' in response.text
+    stored = services.no_teach_weeks.get_no_teach_week(week.id)
+    assert (stored.week_number, stored.title) == (42, "No teaching week")
+
+
+def test_the_admin_deletes_a_no_teach_week_through_the_dialog(admin_client, semester, services):
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+
+    response = admin_client.post(
+        f"/day/dialog/no-teach-weeks/{week.id}/delete",
+        data={"semester_id": semester.id, "day": "2026-10-13"},
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    # Only the Semester's other default NoTeachWeek is left, so five rows stay tinted.
+    assert response.text.count("No teaching week") == 5
+    assert [w.week_number for w in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [51]
+
+
+def test_the_no_teach_week_tab_adds_a_week_on_a_day_no_week_blocks(admin_client, semester):
+    response = _open_dialog(admin_client, semester, kind="no_teach_week")
+
+    assert 'action="/day/dialog/no-teach-week"' in response.text
+    assert "/no-teach-weeks/" not in response.text
+
+
+def test_a_weekend_day_in_a_blocked_week_edits_that_week(admin_client, semester, services):
+    # A NoTeachWeek blocks Monday to Friday, but Saturday and Sunday are in the same week, so a day row that is not
+    # tinted still resolves to the week blocking it.
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+
+    response = _open_dialog(admin_client, semester, kind="no_teach_week", day="2026-10-17")
+
+    assert f'action="/day/dialog/no-teach-weeks/{week.id}"' in response.text
+    assert 'value="42"' in response.text
+
+
+def test_a_visitor_can_neither_edit_nor_delete_through_the_dialog(client, semester, services):
+    holiday = services.holidays.add_holiday(date(2026, 10, 20), "Autumn break")
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+
+    for path, data in (
+        (f"/day/dialog/holidays/{holiday.id}", {"day": FREE_DAY, "title": "Nope"}),
+        (f"/day/dialog/holidays/{holiday.id}/delete", {"day": FREE_DAY}),
+        (f"/day/dialog/no-teach-weeks/{week.id}", {"day": FREE_DAY, "week_number": "44", "title": "Nope"}),
+        (f"/day/dialog/no-teach-weeks/{week.id}/delete", {"day": FREE_DAY}),
+    ):
+        response = client.post(path, data=data, follow_redirects=False)
+        assert response.status_code == 303
+        assert response.headers["location"] == "/login"
+
+    assert (services.holidays.get_holiday(holiday.id).title, week.week_number) == ("Autumn break", 42)
+
+
+def test_a_holiday_edit_from_the_weekly_view_keeps_the_weekly_table_swap(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+    holiday = services.holidays.add_holiday(date(2026, 10, 21), "Staff day")
+
+    response = admin_client.post(
+        f"/day/dialog/holidays/{holiday.id}",
+        data={
+            "semester_id": semester.id,
+            "realization_id": realization.id,
+            "day": "2026-10-21",
+            "title": "Staff day off",
+        },
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    _assert_bare_week_table(response)
+    assert "Staff day off" in response.text
+    assert services.holidays.get_holiday(holiday.id).title == "Staff day off"
+
+
+def test_a_no_teach_week_edit_from_the_weekly_view_keeps_the_weekly_table_swap(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
+
+    dialog = admin_client.get(
+        "/day/dialog",
+        params={
+            "semester_id": semester.id,
+            "day": "2026-10-13",
+            "kind": "no_teach_week",
+            "realization_id": realization.id,
+        },
+        headers=HTMX,
+    )
+    assert 'hx-target="#realization-week-table"' in dialog.text
+    assert (
+        f'hx-post="/day/dialog/no-teach-weeks/{week.id}/delete" '
+        'hx-confirm="Delete the NoTeachWeek in week 42?" hx-swap="outerHTML"'
+    ) in dialog.text
+
+    response = admin_client.post(
+        f"/day/dialog/no-teach-weeks/{week.id}",
+        data={
+            "semester_id": semester.id,
+            "realization_id": realization.id,
+            "day": "2026-10-13",
+            "week_number": "42",
+            "title": "Sick leave",
+        },
+        headers=HTMX,
+    )
+
+    assert response.status_code == 200
+    _assert_bare_week_table(response)
+    assert "Sick leave" in response.text
+    assert services.no_teach_weeks.get_no_teach_week(week.id).title == "Sick leave"

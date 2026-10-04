@@ -25,10 +25,12 @@ Depends on:
 
 Exposes:
   ./view.py's @dialog_container, @GRID_ID, @WEEK_TABLE_ID, @CONTAINER_ID and @DIALOG_PATH: the container, the wall
-  planner grid id, the weekly table id, the swap targets and the dialog path that ../semester/semester.sdd's and
-  ../realizations/realizations.sdd's view.py need to render their admin affordances.
+    planner grid id, the weekly table id, the swap targets and the dialog path that ../semester/semester.sdd's and
+    ../realizations/realizations.sdd's view.py need to render their admin affordances.
   ./view.py's @time_select with @START_TIME_LATEST and @END_TIME_LATEST: the `HH:MM` dropdown builder and its
-  start-time and end-time bounds, which ../realizations/realizations.sdd's Lesson edit dialog uses too.
+    start-time and end-time bounds, which ../realizations/realizations.sdd's Lesson edit dialog uses too.
+  ./view.py's @HOLIDAY_PATH and @NO_TEACH_WEEK_PATH with @holiday_path, @holiday_delete_path, @no_teach_week_path
+    and @no_teach_week_delete_path: the edit and delete routes ./routes.py registers and ./view.py's forms post to.
 
 Must:
   Clicking a day row in ../semester/semester.sdd's wall planner opens a `<dialog>` for the admin and does nothing for
@@ -58,8 +60,25 @@ Must:
   A submission that the underlying service rejects, or whose form field cannot be parsed, leaves the entry unstored
   and re-renders the dialog with a validation message and the values the admin submitted.
   Opening the dialog and every submission are rejected by the ../auth/auth.sdd guard for non-admin sessions.
+  When the clicked date already holds a Holiday, the Holiday tab offers that Holiday's edit form instead of the add
+    form: its title and its date through ../shared/shared.sdd's @day_calendar are prefilled, and it posts to
+    `/day/dialog/holidays/{holiday_id}`. When the clicked date falls inside a NoTeachWeek, the NoTeachWeek tab
+    offers that week's edit form instead, prefilled with its stored week number rather than the clicked date's ISO
+    week and with its title, posting to `/day/dialog/no-teach-week/{no_teach_week_id}`. A date no NoTeachWeek
+    blocks still offers the add form.
+  The blocked week is found through the clicked date's own Monday, so a Saturday or Sunday of a blocked week edits
+    that same week instead of offering the add form, which that Semester would reject as a duplicate.
+  Each edit form carries a `Delete` control that confirms, naming the entry and its date, before removing it
+    through `/day/dialog/holidays/{holiday_id}/delete` or `/day/dialog/no-teach-week/{no_teach_week_id}/delete`,
+    which writes through ../holidays/holidays.sdd's @HolidayService.delete_holiday and
+    ../no_teach_weeks/no_teach_weeks.sdd's @NoTeachWeekService.delete_no_teach_week.
+  An edit writes through @HolidayService.update_holiday and @NoTeachWeekService.update_no_teach_week and re-renders
+    the same containing view an added entry does; a rejected edit or delete leaves the stored entry as it was and
+    re-renders the dialog with the validation message and the values the admin submitted.
+  The dialog edits only the Holiday and the NoTeachWeek; a Lesson is edited from ../realizations/realizations.sdd's
+    weekly table, so no Lesson appears here for editing.
   This package crosses into ../semester/semester.sdd only through its view.py and services.py, never through its
-  domain.py or ports.py, so the pair is the mutual dependency ../architecture.sdd permits.
+    domain.py or ports.py, so the pair is the mutual dependency ../architecture.sdd permits.
 
 Scenario: Admin adds a lesson
   Given the admin is logged in and views the semester view
@@ -87,6 +106,16 @@ Scenario: Rejected entry is not stored
   When the response arrives
   Then the dialog stays open with a validation message and the entry is not stored
 
+Scenario: Admin edits an existing holiday
+  Given a Holiday is stored on a date the admin clicks in ../semester/semester.sdd's wall planner
+  When the admin changes its title or date in the dialog's Holiday tab and saves
+  Then that day row shows the new title without a page reload
+
+Scenario: Admin removes a no-teach week
+  Given a NoTeachWeek blocks a week of the shown Semester
+  When the admin confirms the delete control on a day inside that week
+  Then the week's Monday-to-Friday rows are no longer tinted, with the other NoTeachWeeks left in place
+
 Scenario: Admin adds a lesson from the weekly view
   Given the admin is logged in and views a realization's weekly table
   When the admin clicks a week row, chooses a course realization, picks the date on the Monday-first calendar, enters
@@ -97,8 +126,9 @@ Tasks:
   [x] Implement the dialog, its tab per kind and the holiday form with the HTMX grid swap
   [x] Implement the lesson form
   [x] Implement the NoTeachWeek form, prefilled with the clicked day's ISO week
-  [ ] Implement editing of existing entries
-  [ ] Let the admin edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd
+  [x] Implement editing of existing entries for the Holiday and the NoTeachWeek, prefilled with their stored values
+    and deletable through a confirming control, leaving the Lesson to ../realizations/realizations.sdd's weekly table
+  [x] Let the admin edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd
   [x] Open the dialog from ../realizations/realizations.sdd's week rows, with the Monday-first month calendar for the
     Holiday and Lesson forms and the weekly-table swap
   [x] Render the date through ../shared/shared.sdd's @day_calendar instead of a browser date picker, so the dialog's
