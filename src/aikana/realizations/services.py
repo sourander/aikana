@@ -1,11 +1,12 @@
 """@CourseRealizationRepository-backed use cases and weekly view-model, per ./realizations.sdd."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from ..courses.domain import Course
 from ..courses.services import CourseService
+from ..deadlines.services import DeadlineService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
 from ..no_teach_weeks.services import NoTeachWeekService
@@ -44,6 +45,7 @@ class RealizationService:
         holiday_service: HolidayService,
         no_teach_week_service: NoTeachWeekService,
         week_theme_service: WeekThemeService,
+        deadline_service: DeadlineService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
@@ -51,6 +53,9 @@ class RealizationService:
         self.holiday_service = holiday_service
         self.no_teach_week_service = no_teach_week_service
         self.week_theme_service = week_theme_service
+        # ../deadlines/deadlines.sdd's service, used only to list the realization's Deadlines for the `Deadline`
+        # column of the weekly view.
+        self.deadline_service = deadline_service
         # Set by main.py once ../semester/semester.sdd's SemesterService is constructed (mutual pair, wired in
         # two phases per ../architecture.sdd).
         self.semester_service: "SemesterService | None" = None
@@ -147,6 +152,13 @@ class RealizationService:
             theme.week_start: (theme.id, theme.title)
             for theme in self.week_theme_service.list_week_themes(realization.id)
         }
+        # One listing of the realization's ../deadlines/deadlines.sdd Deadlines gives every week row's `Deadline` cell
+        # its entries and the id each per-Deadline dialog addresses the stored Deadline by.
+        deadlines_by_day: dict[date, list[DeadlineEntry]] = {}
+        for deadline in self.deadline_service.list_deadlines_for_realization(realization.id):
+            deadlines_by_day.setdefault(deadline.date, []).append(
+                DeadlineEntry(id=deadline.id, date=deadline.date, title=deadline.title)
+            )
 
         weeks: list[WeekRow] = []
         week_start = start - timedelta(days=start.weekday())
@@ -203,6 +215,11 @@ class RealizationService:
                     is_current_week=week_start <= today <= week_end,
                     theme=theme,
                     theme_id=theme_id,
+                    deadlines=[
+                        entry
+                        for day in _week_days(week_start)
+                        for entry in deadlines_by_day.get(day, [])
+                    ],
                 )
             )
             week_start += timedelta(days=7)
@@ -234,6 +251,18 @@ class WeekEntry:
 
 
 @dataclass(frozen=True)
+class DeadlineEntry:
+    """One ../deadlines/deadlines.sdd Deadline shown in a WeekRow's Deadline cell.
+
+    `id` is the stored Deadline's id, which that cell's per-Deadline edit and delete controls address it by.
+    """
+
+    id: int
+    date: date
+    title: str
+
+
+@dataclass(frozen=True)
 class WeekRow:
     week_number: int
     start: date
@@ -244,6 +273,14 @@ class WeekRow:
     # stored theme's id, which the Week cell's admin dialogs address it by. Both are empty for an unthemed week.
     theme: str = ""
     theme_id: int | None = None
+    # The week's ../deadlines/deadlines.sdd Deadlines, ordered by date, which its Deadline cell renders and whose ids
+    # that cell's admin controls address them by.
+    deadlines: list[DeadlineEntry] = field(default_factory=list)
+
+
+def _week_days(week_start: date) -> list[date]:
+    """One Monday-to-Sunday week as its seven dates, so a row's `Deadline` cell can find its own days."""
+    return [week_start + timedelta(days=offset) for offset in range(7)]
 
 
 @dataclass(frozen=True)

@@ -8,6 +8,7 @@ from datetime import date, time
 from typing import TYPE_CHECKING
 
 from ..courses.services import CourseService
+from ..deadlines.services import DeadlineService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
 from ..no_teach_weeks.services import NoTeachWeekService
@@ -53,10 +54,24 @@ class LessonSquare:
 
 
 @dataclass(frozen=True)
+class DeadlineCircle:
+    """One ../deadlines/deadlines.sdd Deadline drawn as a circle on its day row.
+
+    `color` is the CourseRealization's own wall-planner color, the one its Lesson squares share.
+    """
+
+    color: str
+    realization_id: int
+    realization_label: str
+    title: str
+
+
+@dataclass(frozen=True)
 class DayCell:
     day: date
     weekday_label: str
     squares: list[LessonSquare]
+    circles: list[DeadlineCircle]
     holiday_title: str | None
     no_teach_title: str | None
     is_today: bool = False
@@ -83,6 +98,7 @@ class SemesterService:
         lesson_service: LessonService,
         realization_service: "RealizationService",
         no_teach_week_service: NoTeachWeekService,
+        deadline_service: DeadlineService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
@@ -90,6 +106,9 @@ class SemesterService:
         self.lesson_service = lesson_service
         self.realization_service = realization_service
         self.no_teach_week_service = no_teach_week_service
+        # ../deadlines/deadlines.sdd's service, used only to read the Semesters Deadlines for the wall planner's
+        # circles.
+        self.deadline_service = deadline_service
 
     def list_semesters(self) -> list[Semester]:
         return self.repo.list()
@@ -163,6 +182,22 @@ class SemesterService:
         }
         no_teach_titles_by_day = self.no_teach_week_service.titles_by_teaching_day(semester.id)
 
+        # Every Deadline of the Semester's own realizations, colored with the color its Lesson squares share, so a
+        # deadline circle reads as that realization's marker.
+        circles_by_day: dict[date, list[DeadlineCircle]] = {}
+        for deadline in self.deadline_service.list_deadlines_for_range(start, end):
+            realization_id = deadline.course_realization_id
+            if realization_id not in colors:
+                continue
+            circles_by_day.setdefault(deadline.date, []).append(
+                DeadlineCircle(
+                    color=colors[realization_id],
+                    realization_id=realization_id,
+                    realization_label=labels[realization_id],
+                    title=deadline.title,
+                )
+            )
+
         months = []
         for year, month in domain.semester_months(semester):
             _, days_in_month = calendar.monthrange(year, month)
@@ -174,6 +209,9 @@ class SemesterService:
                         day=day,
                         weekday_label=day.strftime("%a"),
                         squares=squares_by_day.get(day, []),
+                        # A Deadline is an obligation rather than teaching, so its circle stays on a NoTeachWeek's
+                        # rows, unlike the Lesson squares.
+                        circles=circles_by_day.get(day, []),
                         holiday_title=holiday_titles_by_day.get(day),
                         no_teach_title=no_teach_titles_by_day.get(day),
                         is_today=day == today,

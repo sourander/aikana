@@ -1,5 +1,6 @@
 """Pure rendering of the per-CourseRealization weekly table, its realization selector and, for the admin, the
-per-Lesson edit and delete controls with their dialogs, per ./realizations.sdd.
+per-Lesson edit and delete controls, the per-week deadline controls and the per-week theme dialogs with their
+dialogs, per ./realizations.sdd.
 """
 
 from fasthtml.common import (
@@ -21,7 +22,7 @@ from fasthtml.common import (
 
 from ..day_dialog import view as day_dialog_view
 from ..shared import dates, layout
-from .services import RealizationViewModel, WeekEntry, WeekRow
+from .services import DeadlineEntry, RealizationViewModel, WeekEntry, WeekRow
 
 _HEADER_CLS = "text-left text-xs font-semibold text-gray-500 px-2 py-1 border-b border-gray-200"
 _CELL_CLS = "px-2 py-2 border-b border-gray-100 align-top"
@@ -32,6 +33,7 @@ _CANCEL_BTN_CLS = "border border-gray-300 rounded px-3 py-1"
 
 _LESSON_PATH = "/realizations/lessons"
 _WEEK_THEME_PATH = "/realizations/week-themes"
+_DEADLINE_PATH = "/realizations/deadlines"
 
 # The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
 _SHARE_JS = (
@@ -68,6 +70,21 @@ def week_theme_dialog_id(week: WeekRow) -> str:
 def week_theme_delete_dialog_id(week: WeekRow) -> str:
     """The id of one week's WeekTheme delete confirmation, per ./realizations.sdd."""
     return f"week-theme-delete-dialog-{week.start.isoformat()}"
+
+
+def deadline_path(deadline_id: int) -> str:
+    """The path of one Deadline's edit route, per ./realizations.sdd."""
+    return f"{_DEADLINE_PATH}/{deadline_id}"
+
+
+def deadline_delete_path(deadline_id: int) -> str:
+    """The path of one Deadline's delete route, per ./realizations.sdd."""
+    return f"{deadline_path(deadline_id)}/delete"
+
+
+def deadline_dialog_id(week: WeekRow) -> str:
+    """The id of one week's Deadline add dialog, which that week's `Deadline` cell opens, per ./realizations.sdd."""
+    return f"deadline-dialog-{week.start.isoformat()}"
 
 
 def realization_selector(options: list[tuple[int, str]], selected_id: int):
@@ -122,13 +139,21 @@ def realization_view(vm: RealizationViewModel, is_admin: bool = False, share_url
 def week_table(vm: RealizationViewModel, is_admin: bool = False):
     """The bare weekly table, the swap target of the dialog's write responses, per ./realizations.sdd.
 
-    The per-Lesson and per-week dialogs live inside it so a swap from ../day_dialog/day_dialog.sdd's dialog, which
-    returns the bare table, keeps every control and its dialog.
+    The per-Lesson, per-week theme and per-Deadline dialogs live inside it so a swap from
+    ../day_dialog/day_dialog.sdd's dialog, which returns the bare table, keeps every control and its dialog.
     """
     lessons = [entry for week in vm.weeks for entry in week.entries if entry.lesson_id] if is_admin else []
+    deadlines = [entry for week in vm.weeks for entry in week.deadlines] if is_admin else []
     return Div(
         Table(
-            Thead(Tr(Th("Week", cls=_HEADER_CLS), Th("Lessons", cls=_HEADER_CLS), Th("Notes", cls=_HEADER_CLS))),
+            Thead(
+                Tr(
+                    Th("Week", cls=_HEADER_CLS),
+                    Th("Lessons", cls=_HEADER_CLS),
+                    Th("Notes", cls=_HEADER_CLS),
+                    Th("Deadline", cls=_HEADER_CLS),
+                )
+            ),
             Tbody(*[row for week in vm.weeks for row in _week_rows(week, vm.realization, is_admin)]),
             cls="w-full border-collapse",
         ),
@@ -144,7 +169,13 @@ def week_table(vm: RealizationViewModel, is_admin: bool = False):
             for dialog in (
                 _week_theme_dialog(week, vm.realization),
                 _week_theme_delete_dialog(week),
+                _deadline_dialog(week, vm.realization),
             )
+        ],
+        *[
+            dialog
+            for entry in deadlines
+            for dialog in (_deadline_edit_dialog(entry), _deadline_delete_dialog(entry))
         ],
         id=day_dialog_view.WEEK_TABLE_ID,
         cls="h-full overflow-y-auto px-4 pb-4",
@@ -158,6 +189,9 @@ def _week_rows(week: WeekRow, realization, is_admin: bool):
             *([_week_cell(week, is_admin, len(entries))] if i == 0 else []),
             _lessons_cell(entry, is_admin),
             _notes_cell(entry),
+            # The Deadline cell spans the whole week, so it is rendered on the first sub-row only and spans the rest,
+            # like the Week cell.
+            *([_deadlines_cell(week, realization, is_admin, len(entries))] if i == 0 else []),
             **_week_row_attrs(week, realization, is_admin),
         )
         for i, entry in enumerate(entries)
@@ -237,6 +271,54 @@ def _lesson_when(entry: WeekEntry) -> str:
 def _notes_cell(entry: WeekEntry | None):
     text = entry.notes if entry and not (entry.is_holiday or entry.is_no_teach_week) else ""
     return Td(text, cls=f"{_CELL_CLS} text-gray-600 text-sm")
+
+
+def _deadlines_cell(week: WeekRow, realization, is_admin: bool, rowspan: int):
+    """One week's `Deadline` cell, per ./realizations.sdd.
+
+    The cell lists the week's ../deadlines/deadlines.sdd Deadlines by title over their `d.m.yyyy` date. For the admin
+    it is also the trigger opening that week's add dialog, and the click's propagation stops here so the surrounding
+    week row does not open ../day_dialog/day_dialog.sdd's dialog behind it.
+    """
+    content = Div(
+        *[_deadline_entry(entry, is_admin) for entry in week.deadlines],
+        "—" if not week.deadlines else "",
+        onclick=_open_dialog(deadline_dialog_id(week), stop_propagation=True) if is_admin else "",
+        cls="cursor-pointer" if is_admin else "",
+    )
+    return Td(content, rowspan=rowspan, cls=f"{_CELL_CLS} w-48")
+
+
+def _deadline_entry(entry: DeadlineEntry, is_admin: bool):
+    return Div(
+        Div(entry.title, cls="text-gray-900"),
+        Div(dates.format_date(entry.date), cls="text-xs text-gray-500"),
+        _deadline_controls(entry) if is_admin else "",
+        cls="mb-1 last:mb-0",
+    )
+
+
+def _deadline_controls(entry: DeadlineEntry):
+    """The admin's per-Deadline edit and delete controls.
+
+    Each click stops its own propagation first: the cell around them is the trigger for that week's Deadline add
+    dialog, which would otherwise open behind the control's own dialog.
+    """
+    return Div(
+        A(
+            "Edit",
+            href="#",
+            onclick=_open_dialog(f"deadline-edit-dialog-{entry.id}", stop_propagation=True),
+            cls="text-xs text-blue-700 hover:text-blue-900",
+        ),
+        A(
+            "Delete",
+            href="#",
+            onclick=_open_dialog(f"deadline-delete-dialog-{entry.id}", stop_propagation=True),
+            cls="text-xs text-red-700 hover:text-red-900",
+        ),
+        cls="flex items-center gap-2 mt-1",
+    )
 
 
 def _lesson_controls(entry: WeekEntry):
@@ -412,5 +494,93 @@ def _week_theme_delete_dialog(week: WeekRow):
             action=week_theme_delete_path(week.theme_id),
         ),
         id=week_theme_delete_dialog_id(week),
+        cls="rounded p-4 w-96",
+    )
+
+
+def _deadline_dialog(week: WeekRow, realization):
+    """One week's Deadline add form, opened from that week row's `Deadline` cell, per ./realizations.sdd.
+
+    The add dialog adds only within its own week: its date field is ../shared/shared.sdd's @day_calendar over that
+    week's Monday and the shown realization is a hidden field, since the cell that opened it names both.
+    """
+    date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
+    return Dialog(
+        Div(f"Add a Deadline in week {week.week_number}, {date_range}", cls="font-semibold text-sm mb-2"),
+        Form(
+            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            layout.day_calendar(week.start),
+            Input(name="title", required=True, cls=_INPUT_CLS),
+            Input(name="realization_id", type="hidden", value=realization.id),
+            Div(
+                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button(
+                    "Cancel",
+                    type="button",
+                    onclick="this.closest('dialog').close()",
+                    cls=_CANCEL_BTN_CLS,
+                ),
+                cls="flex gap-2 mt-3",
+            ),
+            method="post",
+            action=_DEADLINE_PATH,
+            cls="flex flex-col gap-1",
+        ),
+        id=deadline_dialog_id(week),
+        cls="rounded p-4 w-96",
+    )
+
+
+def _deadline_edit_dialog(entry: DeadlineEntry):
+    """One Deadline's edit form, prefilled with its date and title.
+
+    The Deadline stays in the realization it already belongs to, so no realization field is carried here.
+    """
+    return Dialog(
+        Form(
+            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            layout.day_calendar(entry.date),
+            Input(name="title", value=entry.title, required=True, cls=_INPUT_CLS),
+            Div(
+                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button(
+                    "Cancel",
+                    type="button",
+                    onclick="this.closest('dialog').close()",
+                    cls=_CANCEL_BTN_CLS,
+                ),
+                cls="flex gap-2 mt-3",
+            ),
+            method="post",
+            action=deadline_path(entry.id),
+            cls="flex flex-col gap-1",
+        ),
+        id=f"deadline-edit-dialog-{entry.id}",
+        cls="rounded p-4 w-96",
+    )
+
+
+def _deadline_delete_dialog(entry: DeadlineEntry):
+    """The confirmation before one Deadline is removed, naming the Deadline and its date."""
+    return Dialog(
+        Div(
+            f"Delete the Deadline {entry.title} on {dates.format_date(entry.date)}?",
+            cls="font-semibold text-sm mb-2",
+        ),
+        Form(
+            Div(
+                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button(
+                    "Cancel",
+                    type="button",
+                    onclick="this.closest('dialog').close()",
+                    cls=_CANCEL_BTN_CLS,
+                ),
+                cls="flex gap-2 justify-end",
+            ),
+            method="post",
+            action=deadline_delete_path(entry.id),
+        ),
+        id=f"deadline-delete-dialog-{entry.id}",
         cls="rounded p-4 w-96",
     )

@@ -9,6 +9,7 @@ import apsw
 import pytest
 
 from aikana.courses.repository_sqlite import SqliteCourseRepository
+from aikana.deadlines.repository_sqlite import SqliteDeadlineRepository
 from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
@@ -27,6 +28,7 @@ def _build(db) -> SimpleNamespace:
         realizations=SqliteCourseRealizationRepository(db),
         lessons=SqliteLessonRepository(db),
         week_themes=SqliteWeekThemeRepository(db),
+        deadlines=SqliteDeadlineRepository(db),
     )
 
 
@@ -45,6 +47,7 @@ def test_every_table_is_strict(db):
         "holidays",
         "no_teach_weeks",
         "week_themes",
+        "deadlines",
     ):
         sql = db.conn.execute("select sql from sqlite_master where name = ?", (table,)).fetchone()[0]
         assert sql.rstrip().endswith("STRICT")
@@ -116,6 +119,25 @@ def test_deleting_a_realization_cascades_to_its_week_themes(db):
     repos.realizations.delete(realization.id)
 
     assert repos.week_themes.get(theme.id) is None
+
+
+def test_deleting_a_realization_cascades_to_its_deadlines(db):
+    repos = _build(db)
+    course = repos.courses.add("Machine Learning", "An introduction.", 5)
+    semester = repos.semesters.add(2026, "fall")
+    realization = repos.realizations.add(course.id, semester.id, "TTV24SP")
+    deadline = repos.deadlines.add(realization.id, date(2026, 9, 21), "Assignment 1")
+
+    repos.realizations.delete(realization.id)
+
+    assert repos.deadlines.get(deadline.id) is None
+
+
+def test_a_deadline_needs_an_existing_realization(db):
+    repos = _build(db)
+
+    with pytest.raises(apsw.ConstraintError):
+        repos.deadlines.add(999, date(2026, 9, 21), "Orphan")
 
 
 def test_a_week_theme_needs_an_existing_realization(db):

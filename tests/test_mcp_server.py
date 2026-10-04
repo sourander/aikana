@@ -33,6 +33,7 @@ def mcp(services):
         holiday_service=services.holidays,
         no_teach_week_service=services.no_teach_weeks,
         week_theme_service=services.week_themes,
+        deadline_service=services.deadlines,
     )
 
 
@@ -154,6 +155,27 @@ def test_an_unknown_week_theme_is_an_mcp_error(mcp):
         mcp.get_week_theme(123)
 
 
+def test_a_deadline_dict_carries_its_date_and_title(mcp, services):
+    realization = _realization(services)
+    deadline = mcp.create_deadline(realization.id, "2026-09-21", "Assignment 1")
+
+    assert deadline["date"] == "2026-09-21"
+    assert mcp.get_deadline(deadline["id"]) == deadline
+    assert mcp.list_deadlines(realization.id) == [deadline]
+
+
+def test_an_empty_deadline_title_is_rejected_over_the_wire(mcp, services):
+    realization = _realization(services)
+
+    with pytest.raises(McpError, match="non-empty title"):
+        mcp.create_deadline(realization.id, "2026-09-21", "   ")
+
+
+def test_an_unknown_deadline_is_an_mcp_error(mcp):
+    with pytest.raises(McpError, match="No Deadline"):
+        mcp.get_deadline(123)
+
+
 # The mounted `/mcp` endpoint
 
 
@@ -171,6 +193,8 @@ def test_tools_list_exposes_every_tool_anonymously(mcp_client):
         "list_holidays", "create_holiday", "update_holiday", "delete_holiday",
         "list_no_teach_weeks", "create_no_teach_week", "update_no_teach_week", "delete_no_teach_week",
         "get_week_theme", "list_week_themes", "create_week_theme", "update_week_theme", "delete_week_theme",
+        "get_deadline", "list_deadlines", "list_deadlines_for_range", "create_deadline",
+        "update_deadline", "delete_deadline",
     }
 
 
@@ -265,6 +289,45 @@ def test_a_week_theme_write_is_rejected_without_a_token(mcp_client, services):
 
     assert result["isError"] is True
     assert services.week_themes.list_week_themes(realization.id) == []
+
+
+def test_the_deadline_tools_are_token_gated(mcp_client, services):
+    client, session_id = mcp_client
+    realization = _realization(services)
+
+    created = _call_tool(
+        client, session_id, "create_deadline",
+        {"course_realization_id": realization.id, "deadline_date": "2026-09-21", "title": "Assignment 1"},
+        token=MCP_TOKEN,
+    )
+    listed = _call_tool(client, session_id, "list_deadlines", {"course_realization_id": realization.id})
+    updated = _call_tool(
+        client, session_id, "update_deadline",
+        {"deadline_id": created["structuredContent"]["id"], "deadline_date": "2026-09-28", "title": "Assignment 2"},
+        token=MCP_TOKEN,
+    )
+    deleted = _call_tool(
+        client, session_id, "delete_deadline", {"deadline_id": created["structuredContent"]["id"]},
+        token=MCP_TOKEN,
+    )
+
+    assert created["isError"] is False
+    assert [d["title"] for d in listed["structuredContent"]["result"]] == ["Assignment 1"]
+    assert updated["structuredContent"]["date"] == "2026-09-28"
+    assert deleted["structuredContent"] == {"deleted": created["structuredContent"]["id"]}
+
+
+def test_a_deadline_write_is_rejected_without_a_token(mcp_client, services):
+    client, session_id = mcp_client
+    realization = _realization(services)
+
+    result = _call_tool(
+        client, session_id, "create_deadline",
+        {"course_realization_id": realization.id, "deadline_date": "2026-09-21", "title": "Assignment 1"},
+    )
+
+    assert result["isError"] is True
+    assert services.deadlines.list_deadlines_for_realization(realization.id) == []
 
 
 def test_the_html_routes_are_not_shadowed_by_the_mcp_mount(mcp_client):

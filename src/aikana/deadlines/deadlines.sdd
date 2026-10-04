@@ -1,0 +1,67 @@
+Spec: Deadline entity
+
+Purpose:
+  The Deadline entity: one dated obligation of a CourseRealization, such as `Assignment 1` due on `2026-09-21`.
+  It carries a date and a title and nothing else, so a realization can hold many of them: one per assignment,
+  exam or report the group owes. A view-less, route-less package used by ../realizations/realizations.sdd,
+  whose `Deadline` column owns the affordances that create, edit and remove one, and by
+  ../semester/semester.sdd, which draws each one as a circle.
+
+Owns:
+  ./__init__.py
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../realizations/realizations.sdd
+
+Must:
+  A Deadline has a reference to exactly one CourseRealization stored as a plain id, a date and a non-empty
+    free-text title; it carries nothing else, per ./deadlines.sdd's Purpose.
+  The CourseRealization reference is declared as a foreign key, so the database enforces it and cascades a removed
+    CourseRealization to its Deadlines; no service hand-deletes Deadlines.
+  Several Deadlines may share one date, since a realization can owe more than one thing the same day, so the table
+    carries no uniqueness rule and a duplicate date is never rejected.
+  A Deadline's date is not checked against its CourseRealization's Semester period or its NoTeachWeeks, because a
+    deadline is an obligation rather than teaching: it may fall in a break week or, stored over the MCP write tools,
+    outside the Semester the weekly view covers.
+  @DeadlineService.add_deadline validates that the CourseRealization id exists (through
+    ../realizations/realizations.sdd's ports.py, per ../architecture.sdd) and that the title is non-empty, rejecting
+    with @UnknownRealizationError or @InvalidDeadlineError before storage.
+  @DeadlineService.update_deadline applies the same checks and keeps the CourseRealization the Deadline already
+    belongs to; it rejects an unknown id with @UnknownDeadlineError.
+  @DeadlineService.delete_deadline removes one Deadline and leaves the realization's other Deadlines untouched,
+    rejecting an unknown id with @UnknownDeadlineError.
+  @DeadlineService.list_deadlines_for_realization returns one CourseRealization's Deadlines ordered by date, which is
+    what ../realizations/realizations.sdd's weekly view-model reads once for every week row's `Deadline` cell and
+    every per-Deadline dialog it renders.
+  @DeadlineService.list_deadlines_for_range returns every Deadline dated between two dates across all
+    CourseRealizations, ordered by date, which is what ../semester/semester.sdd's wall planner reads for its
+    circles.
+  @DeadlineRepository in ./ports.py exposes get, list Deadlines for a CourseRealization or a date range, and add,
+    update and delete operations backing ./services.py.
+  The table is created automatically on startup when it does not exist.
+
+Must not:
+  This package must not gain a view.py or routes.py: a Deadline is created, edited and removed only through
+    ../realizations/realizations.sdd's `Deadline` column, so the feature's affordances and routes stay owned there.
+
+Scenario: A realization's deadlines are removed with it
+  Given a CourseRealization has two Deadlines
+  When the CourseRealization is removed
+  Then neither Deadline remains
+
+Scenario: Admin removes one Deadline from the weekly view
+  Given a CourseRealization's weekly table shows two Deadlines in its `Deadline` column
+  And the admin is logged in
+  When the admin confirms the first Deadline's delete dialog, which names the Deadline and its date
+  Then the `Deadline` column shows the other one and the realization keeps its Lessons and its other entries
+
+Tasks:
+  [x] Implement @Deadline in ./domain.py, and ./ports.py, ./services.py and ./repository_sqlite.py with
+    @DeadlineService validating through ../realizations/realizations.sdd's ports.py, per ../architecture.sdd

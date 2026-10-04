@@ -7,6 +7,8 @@ from starlette.testclient import TestClient
 
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
+from aikana.deadlines.repository_sqlite import SqliteDeadlineRepository
+from aikana.deadlines.services import DeadlineService
 from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
@@ -67,12 +69,14 @@ def services(db):
     realization_repo = SqliteCourseRealizationRepository(db)
     lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
     week_theme_service = WeekThemeService(SqliteWeekThemeRepository(db), realization_repo)
+    deadline_service = DeadlineService(SqliteDeadlineRepository(db), realization_repo)
     realization_service = RealizationService(
         realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service,
-        week_theme_service,
+        week_theme_service, deadline_service,
     )
     semester_service = SemesterService(
-        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
+        semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service,
+        deadline_service,
     )
     realization_service.semester_service = semester_service
     return SimpleNamespace(
@@ -83,4 +87,5 @@ def services(db):
         realizations=realization_service,
         semesters=semester_service,
         week_themes=week_theme_service,
+        deadlines=deadline_service,
     )

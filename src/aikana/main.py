@@ -13,6 +13,8 @@ from aikana.courses import routes as courses_routes
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
 from aikana.day_dialog import routes as day_dialog_routes
+from aikana.deadlines.repository_sqlite import SqliteDeadlineRepository
+from aikana.deadlines.services import DeadlineService
 from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
@@ -82,6 +84,10 @@ def create_app(db: Database) -> FastHTML:
     # WeekThemeService validates realization ids through the same realizations port, so it shares the instance too.
     week_theme_service = WeekThemeService(SqliteWeekThemeRepository(db), realization_repo)
 
+    # DeadlineService validates realization ids through the same realizations port for the weekly view's `Deadline`
+    # column, and the wall planner reads Deadlines through the same instance.
+    deadline_service = DeadlineService(SqliteDeadlineRepository(db), realization_repo)
+
     # RealizationService and SemesterService are a genuine mutual pair; realization_service is constructed first
     # without a semester_service, then wired onto it once semester_service exists, per ./architecture.sdd.
     realization_service = RealizationService(
@@ -91,6 +97,7 @@ def create_app(db: Database) -> FastHTML:
         holiday_service,
         no_teach_week_service,
         week_theme_service,
+        deadline_service,
     )
     semester_service = SemesterService(
         semester_repo,
@@ -99,6 +106,7 @@ def create_app(db: Database) -> FastHTML:
         lesson_service,
         realization_service,
         no_teach_week_service,
+        deadline_service,
     )
     realization_service.semester_service = semester_service
 
@@ -114,6 +122,7 @@ def create_app(db: Database) -> FastHTML:
             holiday_service,
             no_teach_week_service,
             week_theme_service,
+            deadline_service,
         ),
         McpWriteGuard(os.environ.get("AIKANA_MCP_TOKEN", "")),
     )
@@ -143,7 +152,13 @@ def create_app(db: Database) -> FastHTML:
     )
     semester_routes.register_routes(app, semester_service, auth_service)
     realizations_routes.register_routes(
-        app, realization_service, semester_service, auth_service, lesson_service, week_theme_service
+        app,
+        realization_service,
+        semester_service,
+        auth_service,
+        lesson_service,
+        week_theme_service,
+        deadline_service,
     )
     day_dialog_routes.register_routes(
         app,

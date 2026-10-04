@@ -15,6 +15,7 @@ from mcp.types import ToolAnnotations
 
 from .services import (
     CourseDict,
+    DeadlineDict,
     DeletedDict,
     HolidayDict,
     LessonDict,
@@ -35,9 +36,10 @@ _DELETE = ToolAnnotations(read_only_hint=False, destructive_hint=True)
 _INSTRUCTIONS = (
     "Aikana is a teacher's lesson calendar. A Semester is a teaching period (spring: January to June, fall: "
     "August to December). A Course is realized as a CourseRealization (the Course taught to one group in one "
-    "Semester), which has Lessons and one WeekTheme per themed week. Holidays block single days and NoTeachWeeks "
-    "block Monday-to-Friday weeks; a Lesson cannot be dated inside a NoTeachWeek, and at most one Lesson exists per "
-    "day and CourseRealization. "
+    "Semester), which has Lessons, one WeekTheme per themed week and Deadlines (dated obligations such as an "
+    "assignment due date). Holidays block single days and NoTeachWeeks block Monday-to-Friday weeks; a Lesson "
+    "cannot be dated inside a NoTeachWeek, and at most one Lesson exists per day and CourseRealization, while a "
+    "CourseRealization may have many Deadlines on the same date. "
     "Dates are ISO yyyy-mm-dd and times HH:MM. Reads need no credentials; writes require the AIKANA_MCP_TOKEN "
     "bearer token."
 )
@@ -276,5 +278,40 @@ def create_mcp_server(service: McpService, guard: McpWriteGuard) -> MCPServer:
         """Delete one WeekTheme, leaving its CourseRealization and its other WeekThemes untouched."""
         require_write(ctx)
         return call(service.delete_week_theme, week_theme_id)
+
+    # Deadlines
+
+    @server.tool(annotations=_READ)
+    def get_deadline(deadline_id: int) -> DeadlineDict:
+        """Get one Deadline by its id."""
+        return call(service.get_deadline, deadline_id)
+
+    @server.tool(annotations=_READ)
+    def list_deadlines(course_realization_id: int) -> list[DeadlineDict]:
+        """List one CourseRealization's Deadlines, ordered by date; a realization may have many, and several may share a date."""
+        return call(service.list_deadlines, course_realization_id)
+
+    @server.tool(annotations=_READ)
+    def list_deadlines_for_range(start: str, end: str) -> list[DeadlineDict]:
+        """List every Deadline dated between `start` and `end` (ISO yyyy-mm-dd, inclusive) across all CourseRealizations, ordered by date."""
+        return call(service.list_deadlines_for_range, start, end)
+
+    @server.tool(annotations=_WRITE)
+    def create_deadline(course_realization_id: int, deadline_date: str, title: str, ctx: Context) -> DeadlineDict:
+        """Create a Deadline for one CourseRealization on `deadline_date` (yyyy-mm-dd) with a non-empty title; its date is not checked against the Semester or its NoTeachWeeks, and several Deadlines may share a date."""
+        require_write(ctx)
+        return call(service.create_deadline, course_realization_id, deadline_date, title)
+
+    @server.tool(annotations=_WRITE)
+    def update_deadline(deadline_id: int, deadline_date: str, title: str, ctx: Context) -> DeadlineDict:
+        """Edit one Deadline's date and title; it stays in its CourseRealization, and create_deadline's checks apply."""
+        require_write(ctx)
+        return call(service.update_deadline, deadline_id, deadline_date, title)
+
+    @server.tool(annotations=_DELETE)
+    def delete_deadline(deadline_id: int, ctx: Context) -> DeletedDict:
+        """Delete one Deadline, leaving its CourseRealization and its other Deadlines untouched."""
+        require_write(ctx)
+        return call(service.delete_deadline, deadline_id)
 
     return server

@@ -97,7 +97,10 @@ def _day_row(day: DayCell, semester_id: int, is_admin: bool):
         Span(day.weekday_label, cls="w-8 text-xs text-gray-500 shrink-0"),
         Span(str(day.day.day), cls="w-5 text-sm shrink-0"),
         Div(
+            # The Lesson squares come first and the ../deadlines/deadlines.sdd circles after them, so a deadline
+            # drawn on a day with a Lesson overlaps that square instead of pushing it away.
             *[_lesson_square(square, is_admin) for square in squares],
+            *[_deadline_circle(circle, is_admin) for circle in day.circles],
             cls="flex-1 flex items-center gap-1 flex-wrap",
         ),
         Span(title, cls="text-xs text-red-600 truncate pr-2") if title else "",
@@ -129,4 +132,21 @@ def _lesson_square(square, is_admin: bool):
         # The square is the tooltip's anchor; the script follows this marker on hover.
         **{"data-tip": ""},
         **square_attrs,
+    )
+
+
+def _deadline_circle(circle, is_admin: bool):
+    """One ../deadlines/deadlines.sdd Deadline as a half-transparent circle on its day row.
+
+    It shares the CourseRealization's square color and links to that realization's weekly view exactly as that
+    realization's lesson squares do, so the click must not also open the day dialog of the row around it.
+    """
+    # The circle is a link to the weekly view, so it must not also open the day dialog of the row around it.
+    circle_attrs = {"hx-on:click": "event.stopPropagation()"} if is_admin else {}
+    return A(
+        title=circle.title,
+        href=f"/realizations?realization_id={circle.realization_id}",
+        cls="inline-block w-3 h-3 rounded-full",
+        style=f"background-color:{circle.color}; opacity:0.5;",
+        **circle_attrs,
     )

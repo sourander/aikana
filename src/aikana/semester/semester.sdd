@@ -24,6 +24,7 @@ Depends on:
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
+  ../deadlines/deadlines.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
@@ -63,7 +64,15 @@ Must:
   A day row shows the weekday abbreviation, the date number and a wider space for lesson indicators.
   The day row for today carries a green bar along its left edge; no other day row does.
   Lessons appear as inline-block squares of `12px` by `12px`. The view assigns each CourseRealization a color from a
-  fixed palette at render time; no color is stored in the database.
+    fixed palette at render time; no color is stored in the database.
+  A ../deadlines/deadlines.sdd Deadline appears on its day row as a circle of the same `12px` by `12px`, drawn in the
+    color of the CourseRealization it belongs to, the color its Lesson squares share, and at `50%` opacity. Clicking
+    a circle navigates to ../realizations/realizations.sdd's weekly view for that Deadline's CourseRealization, the
+    same target one of that realization's Lesson squares links to, so an admin's click on a circle opens neither this
+    view's day dialog nor any other.
+  A day row draws its Lesson squares first and its Deadline circles after them, so a Deadline dated on a day with a
+    Lesson overlaps that square instead of pushing it away. A NoTeachWeek's rows suppress the Lesson squares but
+    keep the Deadline circles, since a deadline is an obligation rather than teaching.
   Hovering a square shows lesson details through a tooltip that does not change the row height. The tooltip always
   fits the grid area: ../shared/shared.sdd's script opens it above the square when there is room and below it
   otherwise, and keeps it clear of the left-most and right-most month columns, so the first days of a month are
@@ -129,4 +138,7 @@ Tasks:
     database's foreign-key cascade for its CourseRealizations, their Lessons and its NoTeachWeeks
   [x] Pre-populate a new Semester's period with Finnish public holidays from @SemesterService.create_semester through
     ../holidays/holidays.sdd
+  [x] Render each ../deadlines/deadlines.sdd Deadline as a half-transparent circle in its realization's own color,
+    after that day's lesson squares, in ./view.py, read through @SemesterService in ./services.py
+  [x] Link each deadline circle to its realization's weekly view, like that realization's lesson squares
 

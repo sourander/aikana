@@ -5,7 +5,8 @@ Purpose:
   that ties a Course and a Semester to the Lessons taught in it. For example, the Course `Machine Learning` has a
   realization for group `TTV24SP` during the fall 2026 Semester; that realization is what the Lessons actually taught
   in that offering reference. The package also owns the per-CourseRealization weekly table (one row per calendar
-  week, with `Week`, `Lessons` and `Notes` columns), the single view a visitor or the admin lands on to see one
+  week, with `Week`, `Lessons`, `Notes` and `Deadline` columns), the single view a visitor or the admin lands on
+  to see one
   realization's Lessons, resolving ../courses/courses.sdd's former open decision in favor of "one selected
   realization" over an aggregated per-Course or date-range view. Creating, editing and removing one is driven from
   ../courses/courses.sdd's page, which lists a Course's realizations.
@@ -30,6 +31,7 @@ Depends on:
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
   ../week_themes/week_themes.sdd
+  ../deadlines/deadlines.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
@@ -53,8 +55,9 @@ Must:
     them the same way and keeps the realization's Course, because ../courses/courses.sdd's edit dialog edits a
     realization from inside its own Course.
   @RealizationService.delete_realization removes a realization, rejecting an unknown id with
-    @UnknownRealizationError; the database's `course_realization_id` foreign key takes its
-    ../lessons/lessons.sdd Lessons with it, so no Lesson is left pointing at it.
+    @UnknownRealizationError; the database's `course_realization_id` foreign keys take its
+    ../lessons/lessons.sdd Lessons and its ../deadlines/deadlines.sdd Deadlines with it, so nothing is left pointing
+    at it.
   Each Lesson references exactly one CourseRealization; a CourseRealization's Lessons are found by querying
     ../lessons/lessons.sdd's service for that CourseRealization, not through a stored list.
   The table is created automatically on startup when it does not exist.
@@ -134,6 +137,27 @@ Must:
     current address bar carries only one of them.
   The Share button's URL and label sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
     which swaps only the weekly table, leaves the button in place.
+  The rightmost column is `Deadline` and carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline
+    shows in the `Deadline` cell of the row of the week it falls in, with its title over its `d.m.yyyy` date, and a
+    week with none shows a dash. The cell spans that week's sub-rows (`rowspan`) like the `Week` cell, and both are
+    shown to visitors and the admin alike.
+  For the admin, the `Deadline` cell is also the trigger adding a Deadline to that week: it opens that week row's own
+    `<dialog>`, whose date field is ../shared/shared.sdd's @day_calendar over that week's Monday and whose title
+    field is empty, and it stops the click's propagation so the same click does not also open
+    ../day_dialog/day_dialog.sdd's dialog. Each listed Deadline carries its own `Edit` and `Delete` controls, which
+    stop the click's propagation first so they do not open that week's add dialog behind their own.
+  `Edit` opens a `<dialog>` whose date field is @day_calendar with that Deadline's date checked and whose title is
+    prefilled, posting to `/realizations/deadlines/{deadline_id}`, which writes through
+    ../deadlines/deadlines.sdd's @DeadlineService.update_deadline and keeps the Deadline in the realization it
+    already belongs to. `Delete` opens a confirmation `<dialog>` naming the Deadline and its date, posting to
+    `/realizations/deadlines/{deadline_id}/delete`, which writes through @DeadlineService.delete_deadline and
+    leaves the realization and its other entries in place.
+  A week row's add dialog posts to `/realizations/deadlines`, which writes through @DeadlineService.add_deadline.
+    Like the per-Lesson and per-week theme routes, all three routes redirect back to the shown realization's weekly
+    view carrying a rejected write's message as an `error` query parameter, a write is rejected by
+    ../auth/auth.sdd's guard for a non-admin session and leaves the Deadline unstored, and every one of these
+    dialogs sits inside the weekly table's swap target, so a write leaves the cell's trigger and its dialogs in
+    place.
 
 Scenario: Deleting a realization takes its Lessons with it
   Given a CourseRealization has two Lessons
@@ -190,3 +214,6 @@ Tasks:
     that cell the admin's own add and edit dialog plus delete confirmation in ./view.py
   [x] Add the guarded `/realizations/week-themes` create, update and delete routes in ./routes.py writing through
     ../week_themes/week_themes.sdd's @WeekThemeService
+  [x] Add the rightmost `Deadline` column with each week's add dialog and the per-Deadline edit and delete
+    dialogs in ./view.py, and the guarded `/realizations/deadlines` routes in ./routes.py writing through
+    ../deadlines/deadlines.sdd's @DeadlineService

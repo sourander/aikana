@@ -106,6 +106,12 @@ Tasks:
     shown in the Week column of ./src/aikana/realizations/realizations.sdd's weekly view and created, edited and
     removed by clicking that column, with read and token-gated write tools in
     ./src/aikana/mcp_server/mcp_server.sdd
+  [x] #15 Add the Deadline entity (./src/aikana/deadlines/deadlines.sdd): a dated obligation of a
+    CourseRealization, listed in the rightmost `Deadline` column of
+    ./src/aikana/realizations/realizations.sdd's weekly view and created, edited and removed there by clicking
+    that column, drawn as a half-transparent circle in the realization's own color in
+    ./src/aikana/semester/semester.sdd, with read and token-gated write tools in
+    ./src/aikana/mcp_server/mcp_server.sdd
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

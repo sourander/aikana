@@ -14,6 +14,9 @@ from typing import TypedDict
 from ..courses import services as course_services
 from ..courses.domain import Course
 from ..courses.services import CourseService
+from ..deadlines import services as deadline_services
+from ..deadlines.domain import Deadline
+from ..deadlines.services import DeadlineService
 from ..holidays import services as holiday_services
 from ..holidays.domain import Holiday
 from ..holidays.services import HolidayService
@@ -87,6 +90,13 @@ class WeekThemeDict(TypedDict):
     title: str
 
 
+class DeadlineDict(TypedDict):
+    id: int
+    course_realization_id: int
+    date: str
+    title: str
+
+
 class DeletedDict(TypedDict):
     deleted: int
 
@@ -115,6 +125,9 @@ _DOMAIN_ERRORS: tuple[type[Exception], ...] = (
     course_services.InvalidCourseError,
     course_services.DuplicateCourseError,
     course_services.UnknownCourseError,
+    deadline_services.InvalidDeadlineError,
+    deadline_services.UnknownDeadlineError,
+    deadline_services.UnknownRealizationError,
     holiday_services.DuplicateHolidayError,
     holiday_services.InvalidHolidayError,
     holiday_services.UnknownHolidayError,
@@ -217,8 +230,17 @@ def _week_theme_dict(theme: WeekTheme) -> WeekThemeDict:
     }
 
 
+def _deadline_dict(deadline: Deadline) -> DeadlineDict:
+    return {
+        "id": deadline.id,
+        "course_realization_id": deadline.course_realization_id,
+        "date": deadline.date.isoformat(),
+        "title": deadline.title,
+    }
+
+
 class McpService:
-    """The seven feature services adapted to the plain-dict, ISO-string interface the MCP tools expose."""
+    """The eight feature services adapted to the plain-dict, ISO-string interface the MCP tools expose."""
 
     def __init__(
         self,
@@ -229,6 +251,7 @@ class McpService:
         holiday_service: HolidayService,
         no_teach_week_service: NoTeachWeekService,
         week_theme_service: WeekThemeService,
+        deadline_service: DeadlineService,
     ) -> None:
         self.courses = course_service
         self.semesters = semester_service
@@ -237,6 +260,7 @@ class McpService:
         self.holidays = holiday_service
         self.no_teach_weeks = no_teach_week_service
         self.week_themes = week_theme_service
+        self.deadlines = deadline_service
 
     def _semester_dict(self, semester: Semester) -> SemesterDict:
         start, end = self.semesters.semester_bounds(semester)
@@ -446,3 +470,39 @@ class McpService:
         with _translated():
             self.week_themes.delete_week_theme(week_theme_id)
         return {"deleted": week_theme_id}
+
+    # Deadlines
+
+    def get_deadline(self, deadline_id: int) -> DeadlineDict:
+        deadline = self.deadlines.get_deadline(deadline_id)
+        if deadline is None:
+            raise McpError(f"No Deadline with id {deadline_id!r}.")
+        return _deadline_dict(deadline)
+
+    def list_deadlines(self, course_realization_id: int) -> list[DeadlineDict]:
+        return [
+            _deadline_dict(d) for d in self.deadlines.list_deadlines_for_realization(course_realization_id)
+        ]
+
+    def list_deadlines_for_range(self, start: str, end: str) -> list[DeadlineDict]:
+        return [
+            _deadline_dict(d)
+            for d in self.deadlines.list_deadlines_for_range(_parse_date(start), _parse_date(end))
+        ]
+
+    def create_deadline(self, course_realization_id: int, deadline_date: str, title: str) -> DeadlineDict:
+        with _translated():
+            deadline = self.deadlines.add_deadline(
+                course_realization_id, _parse_date(deadline_date), title
+            )
+        return _deadline_dict(deadline)
+
+    def update_deadline(self, deadline_id: int, deadline_date: str, title: str) -> DeadlineDict:
+        with _translated():
+            deadline = self.deadlines.update_deadline(deadline_id, _parse_date(deadline_date), title)
+        return _deadline_dict(deadline)
+
+    def delete_deadline(self, deadline_id: int) -> DeletedDict:
+        with _translated():
+            self.deadlines.delete_deadline(deadline_id)
+        return {"deleted": deadline_id}

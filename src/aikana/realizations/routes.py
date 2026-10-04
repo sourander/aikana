@@ -1,5 +1,5 @@
-"""Registers the per-CourseRealization weekly view at `/realizations`, its per-Lesson edit and delete routes, the
-package's only inbound adapter.
+"""Registers the per-CourseRealization weekly view at `/realizations`, its per-Lesson, per-week theme and
+per-Deadline edit and delete routes, the package's only inbound adapter.
 """
 
 from datetime import date, time
@@ -9,6 +9,8 @@ from fasthtml.common import RedirectResponse
 
 from ..auth import view as auth_view
 from ..auth.services import AuthService
+from ..deadlines import services as deadline_services
+from ..deadlines.services import DeadlineService
 from ..lessons.services import InvalidLessonError, LessonService, UnknownLessonError
 from ..semester.services import SemesterService
 from ..shared import layout
@@ -21,6 +23,7 @@ from .services import RealizationService
 _PATH = "/realizations"
 _LESSON_PATH = f"{_PATH}/lessons"
 _WEEK_THEME_PATH = f"{_PATH}/week-themes"
+_DEADLINE_PATH = f"{_PATH}/deadlines"
 
 
 def share_url(request, realization_id: int, semester_id: int) -> str:
@@ -36,6 +39,7 @@ def register_routes(
     auth_service: AuthService,
     lesson_service: LessonService,
     week_theme_service: WeekThemeService,
+    deadline_service: DeadlineService,
 ) -> None:
     def realization_back_url(realization_id: int | None, error: str = "") -> str:
         """The weekly view of one realization, so a write returns to it."""
@@ -57,6 +61,11 @@ def register_routes(
         """The weekly view of the CourseRealization the WeekTheme belongs to, so a write returns to it."""
         theme = week_theme_service.get_week_theme(week_theme_id)
         return realization_back_url(theme.course_realization_id if theme else None, error)
+
+    def deadline_back_url(deadline_id: int | None, error: str = "") -> str:
+        """The weekly view of the CourseRealization the Deadline belongs to, so a write returns to it."""
+        deadline = deadline_service.get_deadline(deadline_id)
+        return realization_back_url(deadline.course_realization_id if deadline else None, error)
 
     @app.get(_PATH)
     def index(session, request, realization_id: str = "", semester_id: str = "", error: str = ""):
@@ -186,6 +195,41 @@ def register_routes(
             return RedirectResponse(week_theme_back_url(week_theme_id_value, str(exc)), status_code=303)
         return RedirectResponse(week_theme_back_url(week_theme_id_value), status_code=303)
 
+    @app.post(_DEADLINE_PATH)
+    def create_deadline(session, realization_id: str = "", day: str = "", title: str = ""):
+        """Adds one Deadline from the `Deadline` cell's dialog, per ../deadlines/deadlines.sdd."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        realization_id_value = parse_id(realization_id)
+        try:
+            deadline_service.add_deadline(realization_id_value, parsed_day(day), title)
+        except (_Rejected, *_DEADLINE_ERRORS) as exc:
+            return RedirectResponse(realization_back_url(realization_id_value, str(exc)), status_code=303)
+        return RedirectResponse(realization_back_url(realization_id_value), status_code=303)
+
+    @app.post(f"{_DEADLINE_PATH}/{{deadline_id}}")
+    def update_deadline(session, deadline_id: str, day: str = "", title: str = ""):
+        """Re-dates or re-titles one Deadline, leaving it in the realization it already belongs to."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        deadline_id_value = parse_id(deadline_id)
+        try:
+            deadline_service.update_deadline(deadline_id_value, parsed_day(day), title)
+        except (_Rejected, *_DEADLINE_ERRORS) as exc:
+            return RedirectResponse(deadline_back_url(deadline_id_value, str(exc)), status_code=303)
+        return RedirectResponse(deadline_back_url(deadline_id_value), status_code=303)
+
+    @app.post(f"{_DEADLINE_PATH}/{{deadline_id}}/delete")
+    def delete_deadline(session, deadline_id: str):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        deadline_id_value = parse_id(deadline_id)
+        try:
+            deadline_service.delete_deadline(deadline_id_value)
+        except deadline_services.UnknownDeadlineError as exc:
+            return RedirectResponse(deadline_back_url(deadline_id_value, str(exc)), status_code=303)
+        return RedirectResponse(deadline_back_url(deadline_id_value), status_code=303)
+
 
 class _Rejected(Exception):
     """A malformed form field, reported back on the weekly view instead of reaching the services."""
@@ -197,6 +241,13 @@ _WEEK_THEME_ERRORS = (
     week_theme_services.InvalidWeekThemeError,
     week_theme_services.UnknownRealizationError,
     week_theme_services.UnknownWeekThemeError,
+)
+
+# Every anticipated failure @DeadlineService raises, reported back as an `error` query parameter.
+_DEADLINE_ERRORS = (
+    deadline_services.InvalidDeadlineError,
+    deadline_services.UnknownDeadlineError,
+    deadline_services.UnknownRealizationError,
 )
 
 

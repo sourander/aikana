@@ -10,6 +10,9 @@ Structure:
     password's secrecy
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit and delete dialogs
   ./test_dates.py: unit tests for the shared Europe/Helsinki date policy
+  ./test_deadlines.py: service-layer validation tests for the Deadline package, in-process client tests of the
+    weekly view's `Deadline` column with its add, edit and delete dialogs and their admin guard, and tests of the
+    wall planner's deadline circles
   ./test_day_dialog.py: in-process client tests of the admin day dialog's forms, its guard and its grid and
     weekly-table swaps, and of editing and removing the Holiday and NoTeachWeek already on the clicked date
   ./test_main.py: in-process client tests of the app entry point, the semester routes and the wall planner's
