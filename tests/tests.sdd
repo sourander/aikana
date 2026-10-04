@@ -26,6 +26,8 @@ Structure:
   ./test_services.py: service-layer validation tests against temporary databases, and the default NoTeachWeeks and
     public holidays a created Semester starts with
   ./test_shared.py: tests of the shared kernel's database factory, page shell and its Monday-first day calendar
+  ./test_week_themes.py: service-layer validation tests for the WeekTheme package and in-process client tests of the
+    weekly view's week theme, its add, edit and delete dialogs and their admin guard
 
 Owns:
   ./test_*.py

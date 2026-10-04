@@ -102,6 +102,10 @@ Tasks:
   [x] #13 Give the default NoTeachWeeks their Finnish break titles and pre-populate a new Semester's dates with
     Finnish public holidays, per ./src/aikana/no_teach_weeks/no_teach_weeks.sdd,
     ./src/aikana/holidays/holidays.sdd and ./src/aikana/semester/semester.sdd
+  [x] #14 Add the WeekTheme entity (./src/aikana/week_themes/week_themes.sdd): a per-CourseRealization week theme
+    shown in the Week column of ./src/aikana/realizations/realizations.sdd's weekly view and created, edited and
+    removed by clicking that column, with read and token-gated write tools in
+    ./src/aikana/mcp_server/mcp_server.sdd
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

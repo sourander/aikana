@@ -28,16 +28,19 @@ Depends on:
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
+  ../week_themes/week_themes.sdd
 
 Exposes:
   @create_mcp_server in ./server.py, building the MCP server from @McpService and @McpWriteGuard for
-  ../main.py to mount.
+    ../main.py to mount.
   Anonymous read tools: `list_semesters`, `list_courses`, `get_course`, `get_realization`, `list_realizations`,
-    `get_lesson`, `list_lessons`, `list_lessons_for_range`, `list_holidays`, `list_no_teach_weeks`.
+    `get_lesson`, `list_lessons`, `list_lessons_for_range`, `list_holidays`, `list_no_teach_weeks`,
+    `get_week_theme`, `list_week_themes`.
   Token-gated write tools: `create_semester`, `delete_semester`, `create_course`, `update_course`,
     `delete_course`, `create_realization`, `update_realization`, `delete_realization`, `create_lesson`,
     `update_lesson`, `delete_lesson`, `create_holiday`, `update_holiday`, `delete_holiday`,
-    `create_no_teach_week`, `update_no_teach_week`, `delete_no_teach_week`.
+    `create_no_teach_week`, `update_no_teach_week`, `delete_no_teach_week`, `create_week_theme`,
+    `update_week_theme`, `delete_week_theme`.
 
 Must:
   The endpoint is served at `/mcp` through the `mcp` SDK's Streamable HTTP transport with JSON responses.
@@ -66,3 +69,5 @@ Must not:
 Tasks:
   [x] Implement ./services.py: @McpWriteGuard, @McpService, @McpError and the entity serializers
   [x] Implement ./server.py: @create_mcp_server with the read and write tools, and wire it into ../main.py
+  [x] Add the WeekTheme read and write tools for ../week_themes/week_themes.sdd, whose `week_start` goes on the wire
+    as the ISO `yyyy-mm-dd` Monday of the themed week

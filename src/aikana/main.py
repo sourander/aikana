@@ -29,6 +29,8 @@ from aikana.semester.repository_sqlite import SqliteSemesterRepository
 from aikana.semester.services import SemesterService
 from aikana.shared import layout
 from aikana.shared.db import create_database
+from aikana.week_themes.repository_sqlite import SqliteWeekThemeRepository
+from aikana.week_themes.services import WeekThemeService
 
 
 class _SecurityHeadersMiddleware:
@@ -77,10 +79,18 @@ def create_app(db: Database) -> FastHTML:
     realization_repo = SqliteCourseRealizationRepository(db)
     lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
 
+    # WeekThemeService validates realization ids through the same realizations port, so it shares the instance too.
+    week_theme_service = WeekThemeService(SqliteWeekThemeRepository(db), realization_repo)
+
     # RealizationService and SemesterService are a genuine mutual pair; realization_service is constructed first
     # without a semester_service, then wired onto it once semester_service exists, per ./architecture.sdd.
     realization_service = RealizationService(
-        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
+        realization_repo,
+        course_service,
+        lesson_service,
+        holiday_service,
+        no_teach_week_service,
+        week_theme_service,
     )
     semester_service = SemesterService(
         semester_repo,
@@ -103,6 +113,7 @@ def create_app(db: Database) -> FastHTML:
             lesson_service,
             holiday_service,
             no_teach_week_service,
+            week_theme_service,
         ),
         McpWriteGuard(os.environ.get("AIKANA_MCP_TOKEN", "")),
     )
@@ -132,7 +143,7 @@ def create_app(db: Database) -> FastHTML:
     )
     semester_routes.register_routes(app, semester_service, auth_service)
     realizations_routes.register_routes(
-        app, realization_service, semester_service, auth_service, lesson_service
+        app, realization_service, semester_service, auth_service, lesson_service, week_theme_service
     )
     day_dialog_routes.register_routes(
         app,

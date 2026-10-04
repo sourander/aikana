@@ -29,6 +29,9 @@ from ..realizations.services import RealizationService
 from ..semester import services as semester_services
 from ..semester.domain import Semester
 from ..semester.services import SemesterService
+from ..week_themes import services as week_theme_services
+from ..week_themes.domain import WeekTheme
+from ..week_themes.services import WeekThemeService
 
 
 class SemesterDict(TypedDict):
@@ -73,6 +76,13 @@ class NoTeachWeekDict(TypedDict):
     id: int
     semester_id: int
     week_number: int
+    week_start: str
+    title: str
+
+
+class WeekThemeDict(TypedDict):
+    id: int
+    course_realization_id: int
     week_start: str
     title: str
 
@@ -122,6 +132,10 @@ _DOMAIN_ERRORS: tuple[type[Exception], ...] = (
     semester_services.DuplicateSemesterError,
     semester_services.InvalidTermError,
     semester_services.UnknownSemesterError,
+    week_theme_services.DuplicateWeekThemeError,
+    week_theme_services.InvalidWeekThemeError,
+    week_theme_services.UnknownWeekThemeError,
+    week_theme_services.UnknownRealizationError,
 )
 
 
@@ -194,8 +208,17 @@ def _no_teach_week_dict(week: NoTeachWeek) -> NoTeachWeekDict:
     }
 
 
+def _week_theme_dict(theme: WeekTheme) -> WeekThemeDict:
+    return {
+        "id": theme.id,
+        "course_realization_id": theme.course_realization_id,
+        "week_start": theme.week_start.isoformat(),
+        "title": theme.title,
+    }
+
+
 class McpService:
-    """The six feature services adapted to the plain-dict, ISO-string interface the MCP tools expose."""
+    """The seven feature services adapted to the plain-dict, ISO-string interface the MCP tools expose."""
 
     def __init__(
         self,
@@ -205,6 +228,7 @@ class McpService:
         lesson_service: LessonService,
         holiday_service: HolidayService,
         no_teach_week_service: NoTeachWeekService,
+        week_theme_service: WeekThemeService,
     ) -> None:
         self.courses = course_service
         self.semesters = semester_service
@@ -212,6 +236,7 @@ class McpService:
         self.lessons = lesson_service
         self.holidays = holiday_service
         self.no_teach_weeks = no_teach_week_service
+        self.week_themes = week_theme_service
 
     def _semester_dict(self, semester: Semester) -> SemesterDict:
         start, end = self.semesters.semester_bounds(semester)
@@ -393,3 +418,31 @@ class McpService:
         with _translated():
             self.no_teach_weeks.delete_no_teach_week(no_teach_week_id)
         return {"deleted": no_teach_week_id}
+
+    # WeekThemes
+
+    def get_week_theme(self, week_theme_id: int) -> WeekThemeDict:
+        theme = self.week_themes.get_week_theme(week_theme_id)
+        if theme is None:
+            raise McpError(f"No WeekTheme with id {week_theme_id!r}.")
+        return _week_theme_dict(theme)
+
+    def list_week_themes(self, course_realization_id: int) -> list[WeekThemeDict]:
+        return [_week_theme_dict(t) for t in self.week_themes.list_week_themes(course_realization_id)]
+
+    def create_week_theme(self, course_realization_id: int, week_start: str, title: str) -> WeekThemeDict:
+        with _translated():
+            theme = self.week_themes.add_week_theme(
+                course_realization_id, _parse_date(week_start), title
+            )
+        return _week_theme_dict(theme)
+
+    def update_week_theme(self, week_theme_id: int, week_start: str, title: str) -> WeekThemeDict:
+        with _translated():
+            theme = self.week_themes.update_week_theme(week_theme_id, _parse_date(week_start), title)
+        return _week_theme_dict(theme)
+
+    def delete_week_theme(self, week_theme_id: int) -> DeletedDict:
+        with _translated():
+            self.week_themes.delete_week_theme(week_theme_id)
+        return {"deleted": week_theme_id}

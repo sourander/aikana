@@ -32,7 +32,15 @@ def mcp(services):
         lesson_service=services.lessons,
         holiday_service=services.holidays,
         no_teach_week_service=services.no_teach_weeks,
+        week_theme_service=services.week_themes,
     )
+
+
+def _realization(services):
+    """A CourseRealization to theme, created through the shared `services` fixture's database."""
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    semester = services.semesters.create_semester(2026, "fall")
+    return services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
 
 def _post(client, payload, session_id=None, token=None):
@@ -126,6 +134,26 @@ def test_a_malformed_iso_date_becomes_an_mcp_error(mcp):
         mcp.create_holiday("6.12.2026", "Independence Day")
 
 
+def test_a_week_theme_dict_carries_its_monday_and_title(mcp, services):
+    realization = _realization(services)
+    theme = mcp.create_week_theme(realization.id, "2026-09-14", "Gradient descent")
+
+    assert mcp.get_week_theme(theme["id"]) == theme
+    assert mcp.list_week_themes(realization.id) == [theme]
+
+
+def test_a_non_monday_week_start_is_rejected_over_the_wire(mcp, services):
+    realization = _realization(services)
+
+    with pytest.raises(McpError, match="Monday"):
+        mcp.create_week_theme(realization.id, "2026-09-15", "Gradient descent")
+
+
+def test_an_unknown_week_theme_is_an_mcp_error(mcp):
+    with pytest.raises(McpError, match="No WeekTheme"):
+        mcp.get_week_theme(123)
+
+
 # The mounted `/mcp` endpoint
 
 
@@ -142,6 +170,7 @@ def test_tools_list_exposes_every_tool_anonymously(mcp_client):
         "get_lesson", "list_lessons", "list_lessons_for_range", "create_lesson", "update_lesson", "delete_lesson",
         "list_holidays", "create_holiday", "update_holiday", "delete_holiday",
         "list_no_teach_weeks", "create_no_teach_week", "update_no_teach_week", "delete_no_teach_week",
+        "get_week_theme", "list_week_themes", "create_week_theme", "update_week_theme", "delete_week_theme",
     }
 
 
@@ -202,6 +231,40 @@ def test_writes_fail_closed_when_no_token_is_configured(db, tmp_path, monkeypatc
             token=MCP_TOKEN,
         )
     assert result["isError"] is True
+
+
+def test_the_week_theme_tools_are_token_gated(mcp_client, services):
+    client, session_id = mcp_client
+    realization = _realization(services)
+
+    created = _call_tool(
+        client, session_id, "create_week_theme",
+        {"course_realization_id": realization.id, "week_start": "2026-09-14", "title": "Gradient descent"},
+        token=MCP_TOKEN,
+    )
+    listed = _call_tool(client, session_id, "list_week_themes", {"course_realization_id": realization.id})
+    deleted = _call_tool(
+        client, session_id, "delete_week_theme", {"week_theme_id": created["structuredContent"]["id"]},
+        token=MCP_TOKEN,
+    )
+
+    assert created["isError"] is False
+    assert created["structuredContent"]["title"] == "Gradient descent"
+    assert [t["title"] for t in listed["structuredContent"]["result"]] == ["Gradient descent"]
+    assert deleted["structuredContent"] == {"deleted": created["structuredContent"]["id"]}
+
+
+def test_a_week_theme_write_is_rejected_without_a_token(mcp_client, services):
+    client, session_id = mcp_client
+    realization = _realization(services)
+
+    result = _call_tool(
+        client, session_id, "create_week_theme",
+        {"course_realization_id": realization.id, "week_start": "2026-09-14", "title": "Gradient descent"},
+    )
+
+    assert result["isError"] is True
+    assert services.week_themes.list_week_themes(realization.id) == []
 
 
 def test_the_html_routes_are_not_shadowed_by_the_mcp_mount(mcp_client):

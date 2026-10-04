@@ -19,6 +19,8 @@ from aikana.realizations.services import RealizationService
 from aikana.semester.repository_sqlite import SqliteSemesterRepository
 from aikana.semester.services import SemesterService
 from aikana.shared.db import create_database
+from aikana.week_themes.repository_sqlite import SqliteWeekThemeRepository
+from aikana.week_themes.services import WeekThemeService
 
 AIKANA_PASSWD = "test-password"
 
@@ -64,8 +66,10 @@ def services(db):
     no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
     realization_repo = SqliteCourseRealizationRepository(db)
     lesson_service = LessonService(SqliteLessonRepository(db), realization_repo, no_teach_week_service)
+    week_theme_service = WeekThemeService(SqliteWeekThemeRepository(db), realization_repo)
     realization_service = RealizationService(
-        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service
+        realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service,
+        week_theme_service,
     )
     semester_service = SemesterService(
         semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service
@@ -78,4 +82,5 @@ def services(db):
         no_teach_weeks=no_teach_week_service,
         realizations=realization_service,
         semesters=semester_service,
+        week_themes=week_theme_service,
     )

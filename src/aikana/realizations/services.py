@@ -10,6 +10,7 @@ from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
 from ..no_teach_weeks.services import NoTeachWeekService
 from ..shared import dates
+from ..week_themes.services import WeekThemeService
 from .domain import CourseRealization
 from .ports import CourseRealizationRepository
 
@@ -42,12 +43,14 @@ class RealizationService:
         lesson_service: LessonService,
         holiday_service: HolidayService,
         no_teach_week_service: NoTeachWeekService,
+        week_theme_service: WeekThemeService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
         self.lesson_service = lesson_service
         self.holiday_service = holiday_service
         self.no_teach_week_service = no_teach_week_service
+        self.week_theme_service = week_theme_service
         # Set by main.py once ../semester/semester.sdd's SemesterService is constructed (mutual pair, wired in
         # two phases per ../architecture.sdd).
         self.semester_service: "SemesterService | None" = None
@@ -138,6 +141,12 @@ class RealizationService:
             week.week_number: week.title
             for week in self.no_teach_week_service.list_no_teach_weeks(realization.semester_id)
         }
+        # One listing of the realization's ../week_themes/week_themes.sdd themes gives the view-model both the title
+        # each week renders and the id its dialogs address the stored theme by.
+        themes_by_week_start: dict[date, tuple[int, str]] = {
+            theme.week_start: (theme.id, theme.title)
+            for theme in self.week_theme_service.list_week_themes(realization.id)
+        }
 
         weeks: list[WeekRow] = []
         week_start = start - timedelta(days=start.weekday())
@@ -184,6 +193,7 @@ class RealizationService:
                             )
                         )
                     day += timedelta(days=1)
+            theme_id, theme = themes_by_week_start.get(week_start, (None, ""))
             weeks.append(
                 WeekRow(
                     week_number=week_number,
@@ -191,6 +201,8 @@ class RealizationService:
                     end=week_end,
                     entries=entries,
                     is_current_week=week_start <= today <= week_end,
+                    theme=theme,
+                    theme_id=theme_id,
                 )
             )
             week_start += timedelta(days=7)
@@ -228,6 +240,10 @@ class WeekRow:
     end: date
     entries: list[WeekEntry]
     is_current_week: bool = False
+    # The week's ../week_themes/week_themes.sdd theme: `theme` is what the Week cell renders and `theme_id` is the
+    # stored theme's id, which the Week cell's admin dialogs address it by. Both are empty for an unthemed week.
+    theme: str = ""
+    theme_id: int | None = None
 
 
 @dataclass(frozen=True)

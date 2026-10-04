@@ -29,6 +29,7 @@ Depends on:
   ../lessons/lessons.sdd
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
+  ../week_themes/week_themes.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
@@ -76,18 +77,36 @@ Must:
   omits the year because the row's `Week` cell already carries the week's full date range. Its free-text notes go in
   the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in the `Lessons` column with an
   empty `Notes` cell. A week with neither shows a single empty sub-row.
+  A week's `Week` cell shows that week's ../week_themes/week_themes.sdd WeekTheme, when one exists, on the same line
+  as the week number, with the date range on the line below; the theme is shown to visitors and the admin alike, and
+  a week without one shows no placeholder.
   The week row containing today carries a green bar along its left edge; no other week row does.
   A NoTeachWeek of the realization's Semester, read through ../no_teach_weeks/no_teach_weeks.sdd, consumes its whole
   week: that week shows exactly one sub-row whose `Lessons` cell reads the NoTeachWeek's title, and an empty `Notes`
   cell; no Lesson sub-row is shown for it, because no Lesson is ever added inside a NoTeachWeek.
   Clicking a lesson square in ../semester/semester.sdd's wall planner navigates to this view with that lesson's
-  `realization_id`.
+    `realization_id`.
   ./view.py and ./routes.py depend on ../lessons/lessons.sdd even though ../lessons/lessons.sdd also depends on this
-  package: this is the same safe join-entity pattern as the ../courses/courses.sdd and ../semester/semester.sdd
-  mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
-  the boundary.
-  For the admin, clicking a week row opens the dialog specified in ../day_dialog/day_dialog.sdd to add a Holiday,
-    a NoTeachWeek or a Lesson for that week; a visitor is shown no week-row trigger.
+    package: this is the same safe join-entity pattern as the ../courses/courses.sdd and ../semester/semester.sdd
+    mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
+    the boundary.
+  For the admin, clicking a week row outside its `Week` cell opens the dialog specified in
+    ../day_dialog/day_dialog.sdd to add a Holiday, a NoTeachWeek or a Lesson for that week; a visitor is shown no
+    week-row trigger.
+  Clicking a week row's `Week` cell is the admin's affordance for that week's ../week_themes/week_themes.sdd
+    WeekTheme instead of the day dialog: it opens that week's own `<dialog>`, which offers the add form when the week
+    has no theme and the edit form prefilled with the stored title when it has one, and it stops the click's
+    propagation so the same click does not also open ../day_dialog/day_dialog.sdd's dialog. A visitor's `Week` cell
+    carries no such trigger.
+  The `Week` cell's dialog posts to `/realizations/week-themes` for a new theme and to
+    `/realizations/week-themes/{week_theme_id}` for an edited one, and its `Delete` control confirms before posting
+    to `/realizations/week-themes/{week_theme_id}/delete`, naming the theme and its week. These routes write through
+    ../week_themes/week_themes.sdd's @WeekThemeService and, like the per-Lesson routes, redirect back to the shown
+    realization's weekly view carrying a rejected write's message as an `error` query parameter. Those dialogs sit
+    beside the weekly table inside its swap target, like the per-Lesson dialogs and not inside the week row, so a
+    click on one of their controls never also opens ../day_dialog/day_dialog.sdd's dialog; a write, which swaps only
+    the bare table, leaves every control and its dialog in place, and a write is rejected by ../auth/auth.sdd's guard
+    for a non-admin session and leaves the WeekTheme unstored.
   A successful write re-renders the weekly table in place: the table carries the id
     ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
   Each Lesson sub-row carries an `Edit` and a `Delete` control for the admin, and no Holiday or NoTeachWeek
@@ -127,6 +146,12 @@ Scenario: Admin deletes one Lesson from the weekly view
   When the admin confirms the first Lesson's delete dialog, which names the Lesson and its date
   Then the weekly table shows the other Lesson and the realization keeps both its Course and its other entries
 
+Scenario: Admin themes one week from the weekly view
+  Given a CourseRealization's weekly table shows a week without a WeekTheme
+  And the admin is logged in
+  When the admin clicks that week's `Week` cell, enters a title and submits
+  Then the week shows the theme next to its week number and the Lessons and Notes columns are untouched
+
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
     CourseRealizations (one per placeholder Course) for the single hardcoded Semester, including the display-label
@@ -161,3 +186,7 @@ Tasks:
     grid, instead of a browser date picker
   [x] Offer the per-Lesson `Edit` dialog's start and end times as prefilled ../day_dialog/day_dialog.sdd's
     @time_select dropdowns side by side on one row
+  [x] Show each week's ../week_themes/week_themes.sdd theme in its `Week` cell on the week number's line, and give
+    that cell the admin's own add and edit dialog plus delete confirmation in ./view.py
+  [x] Add the guarded `/realizations/week-themes` create, update and delete routes in ./routes.py writing through
+    ../week_themes/week_themes.sdd's @WeekThemeService

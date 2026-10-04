@@ -13,11 +13,14 @@ from ..lessons.services import InvalidLessonError, LessonService, UnknownLessonE
 from ..semester.services import SemesterService
 from ..shared import layout
 from ..shared.ids import parse_id
+from ..week_themes import services as week_theme_services
+from ..week_themes.services import WeekThemeService
 from . import view
 from .services import RealizationService
 
 _PATH = "/realizations"
 _LESSON_PATH = f"{_PATH}/lessons"
+_WEEK_THEME_PATH = f"{_PATH}/week-themes"
 
 
 def share_url(request, realization_id: int, semester_id: int) -> str:
@@ -32,15 +35,28 @@ def register_routes(
     semester_service: SemesterService,
     auth_service: AuthService,
     lesson_service: LessonService,
+    week_theme_service: WeekThemeService,
 ) -> None:
+    def realization_back_url(realization_id: int | None, error: str = "") -> str:
+        """The weekly view of one realization, so a write returns to it."""
+        realization = realization_service.get_realization(realization_id) if realization_id is not None else None
+        if realization is None:
+            return f"{_PATH}?error={quote(error)}" if error else _PATH
+        query = urlencode({"realization_id": realization.id, "semester_id": realization.semester_id})
+        return f"{_PATH}?{query}" + (f"&error={quote(error)}" if error else "")
+
     def lesson_back_url(lesson_id: int | None, error: str = "") -> str:
         """The weekly view of the CourseRealization the Lesson belongs to, so a write returns to it."""
         lesson = lesson_service.get_lesson(lesson_id)
         realization = realization_service.get_realization(lesson.course_realization_id) if lesson else None
         if realization is None:
-            return f"{_PATH}?error={quote(error)}" if error else _PATH
-        query = urlencode({"realization_id": realization.id, "semester_id": realization.semester_id})
-        return f"{_PATH}?{query}" + (f"&error={quote(error)}" if error else "")
+            return realization_back_url(None, error)
+        return realization_back_url(realization.id, error)
+
+    def week_theme_back_url(week_theme_id: int | None, error: str = "") -> str:
+        """The weekly view of the CourseRealization the WeekTheme belongs to, so a write returns to it."""
+        theme = week_theme_service.get_week_theme(week_theme_id)
+        return realization_back_url(theme.course_realization_id if theme else None, error)
 
     @app.get(_PATH)
     def index(session, request, realization_id: str = "", semester_id: str = "", error: str = ""):
@@ -135,9 +151,61 @@ def register_routes(
             return RedirectResponse(lesson_back_url(lesson_id_value, str(exc)), status_code=303)
         return RedirectResponse(lesson_back_url(lesson_id_value), status_code=303)
 
+    @app.post(_WEEK_THEME_PATH)
+    def create_week_theme(session, realization_id: str = "", week_start: str = "", title: str = ""):
+        """Adds one week's WeekTheme from the `Week` cell's dialog, per ../week_themes/week_themes.sdd."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        realization_id_value = parse_id(realization_id)
+        try:
+            week_theme_service.add_week_theme(realization_id_value, parsed_week_start(week_start), title)
+        except (_Rejected, *_WEEK_THEME_ERRORS) as exc:
+            return RedirectResponse(realization_back_url(realization_id_value, str(exc)), status_code=303)
+        return RedirectResponse(realization_back_url(realization_id_value), status_code=303)
+
+    @app.post(f"{_WEEK_THEME_PATH}/{{week_theme_id}}")
+    def update_week_theme(session, week_theme_id: str, week_start: str = "", title: str = ""):
+        """Edits one week's theme title, leaving it in the realization and week it already themes."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        week_theme_id_value = parse_id(week_theme_id)
+        try:
+            week_theme_service.update_week_theme(week_theme_id_value, parsed_week_start(week_start), title)
+        except (_Rejected, *_WEEK_THEME_ERRORS) as exc:
+            return RedirectResponse(week_theme_back_url(week_theme_id_value, str(exc)), status_code=303)
+        return RedirectResponse(week_theme_back_url(week_theme_id_value), status_code=303)
+
+    @app.post(f"{_WEEK_THEME_PATH}/{{week_theme_id}}/delete")
+    def delete_week_theme(session, week_theme_id: str):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        week_theme_id_value = parse_id(week_theme_id)
+        try:
+            week_theme_service.delete_week_theme(week_theme_id_value)
+        except week_theme_services.UnknownWeekThemeError as exc:
+            return RedirectResponse(week_theme_back_url(week_theme_id_value, str(exc)), status_code=303)
+        return RedirectResponse(week_theme_back_url(week_theme_id_value), status_code=303)
+
 
 class _Rejected(Exception):
     """A malformed form field, reported back on the weekly view instead of reaching the services."""
+
+
+# Every anticipated failure @WeekThemeService raises, reported back as an `error` query parameter.
+_WEEK_THEME_ERRORS = (
+    week_theme_services.DuplicateWeekThemeError,
+    week_theme_services.InvalidWeekThemeError,
+    week_theme_services.UnknownRealizationError,
+    week_theme_services.UnknownWeekThemeError,
+)
+
+
+def parsed_week_start(raw: str) -> date:
+    """The Monday of the themed week, from the `Week` cell dialog's `week_start` field."""
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        raise _Rejected("Enter a valid week start date.") from None
 
 
 def parsed_day(day: str) -> date:

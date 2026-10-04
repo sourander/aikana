@@ -24,6 +24,7 @@ from .services import (
     NoTeachWeekDict,
     RealizationDict,
     SemesterDict,
+    WeekThemeDict,
 )
 
 # The annotations let agents tell read-only and destructive tools apart, per ./mcp_server.sdd.
@@ -34,8 +35,9 @@ _DELETE = ToolAnnotations(read_only_hint=False, destructive_hint=True)
 _INSTRUCTIONS = (
     "Aikana is a teacher's lesson calendar. A Semester is a teaching period (spring: January to June, fall: "
     "August to December). A Course is realized as a CourseRealization (the Course taught to one group in one "
-    "Semester), which has Lessons. Holidays block single days and NoTeachWeeks block Monday-to-Friday weeks; a "
-    "Lesson cannot be dated inside a NoTeachWeek, and at most one Lesson exists per day and CourseRealization. "
+    "Semester), which has Lessons and one WeekTheme per themed week. Holidays block single days and NoTeachWeeks "
+    "block Monday-to-Friday weeks; a Lesson cannot be dated inside a NoTeachWeek, and at most one Lesson exists per "
+    "day and CourseRealization. "
     "Dates are ISO yyyy-mm-dd and times HH:MM. Reads need no credentials; writes require the AIKANA_MCP_TOKEN "
     "bearer token."
 )
@@ -244,5 +246,35 @@ def create_mcp_server(service: McpService, guard: McpWriteGuard) -> MCPServer:
         """Delete one NoTeachWeek, unblocking its week."""
         require_write(ctx)
         return call(service.delete_no_teach_week, no_teach_week_id)
+
+    # WeekThemes
+
+    @server.tool(annotations=_READ)
+    def get_week_theme(week_theme_id: int) -> WeekThemeDict:
+        """Get one WeekTheme by its id."""
+        return call(service.get_week_theme, week_theme_id)
+
+    @server.tool(annotations=_READ)
+    def list_week_themes(course_realization_id: int) -> list[WeekThemeDict]:
+        """List one CourseRealization's WeekThemes, ordered by week; a week without one carries no theme."""
+        return call(service.list_week_themes, course_realization_id)
+
+    @server.tool(annotations=_WRITE)
+    def create_week_theme(course_realization_id: int, week_start: str, title: str, ctx: Context) -> WeekThemeDict:
+        """Theme one week of a CourseRealization; `week_start` (yyyy-mm-dd) must be that week's Monday, the title non-empty, and the week must not already be themed for this CourseRealization."""
+        require_write(ctx)
+        return call(service.create_week_theme, course_realization_id, week_start, title)
+
+    @server.tool(annotations=_WRITE)
+    def update_week_theme(week_theme_id: int, week_start: str, title: str, ctx: Context) -> WeekThemeDict:
+        """Edit one WeekTheme's week and title; it stays in its CourseRealization, and create_week_theme's checks apply, ignoring the WeekTheme being edited."""
+        require_write(ctx)
+        return call(service.update_week_theme, week_theme_id, week_start, title)
+
+    @server.tool(annotations=_DELETE)
+    def delete_week_theme(week_theme_id: int, ctx: Context) -> DeletedDict:
+        """Delete one WeekTheme, leaving its CourseRealization and its other WeekThemes untouched."""
+        require_write(ctx)
+        return call(service.delete_week_theme, week_theme_id)
 
     return server

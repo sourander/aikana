@@ -31,6 +31,7 @@ _DELETE_BTN_CLS = "bg-red-600 text-white rounded px-3 py-1"
 _CANCEL_BTN_CLS = "border border-gray-300 rounded px-3 py-1"
 
 _LESSON_PATH = "/realizations/lessons"
+_WEEK_THEME_PATH = "/realizations/week-themes"
 
 # The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
 _SHARE_JS = (
@@ -47,6 +48,26 @@ def lesson_path(lesson_id: int) -> str:
 def lesson_delete_path(lesson_id: int) -> str:
     """The path of one Lesson's delete route, per ./realizations.sdd."""
     return f"{lesson_path(lesson_id)}/delete"
+
+
+def week_theme_path(week_theme_id: int) -> str:
+    """The path of one WeekTheme's edit route, per ./realizations.sdd."""
+    return f"{_WEEK_THEME_PATH}/{week_theme_id}"
+
+
+def week_theme_delete_path(week_theme_id: int) -> str:
+    """The path of one WeekTheme's delete route, per ./realizations.sdd."""
+    return f"{week_theme_path(week_theme_id)}/delete"
+
+
+def week_theme_dialog_id(week: WeekRow) -> str:
+    """The id of one week's WeekTheme dialog, which the week's `Week` cell opens, per ./realizations.sdd."""
+    return f"week-theme-dialog-{week.start.isoformat()}"
+
+
+def week_theme_delete_dialog_id(week: WeekRow) -> str:
+    """The id of one week's WeekTheme delete confirmation, per ./realizations.sdd."""
+    return f"week-theme-delete-dialog-{week.start.isoformat()}"
 
 
 def realization_selector(options: list[tuple[int, str]], selected_id: int):
@@ -101,8 +122,8 @@ def realization_view(vm: RealizationViewModel, is_admin: bool = False, share_url
 def week_table(vm: RealizationViewModel, is_admin: bool = False):
     """The bare weekly table, the swap target of the dialog's write responses, per ./realizations.sdd.
 
-    The per-Lesson dialogs live inside it so a swap from ../day_dialog/day_dialog.sdd's dialog, which returns the
-    bare table, keeps every control and its dialog.
+    The per-Lesson and per-week dialogs live inside it so a swap from ../day_dialog/day_dialog.sdd's dialog, which
+    returns the bare table, keeps every control and its dialog.
     """
     lessons = [entry for week in vm.weeks for entry in week.entries if entry.lesson_id] if is_admin else []
     return Div(
@@ -116,6 +137,15 @@ def week_table(vm: RealizationViewModel, is_admin: bool = False):
             for entry in lessons
             for dialog in (_lesson_edit_dialog(entry), _lesson_delete_dialog(entry))
         ],
+        *[
+            dialog
+            for week in vm.weeks
+            if is_admin
+            for dialog in (
+                _week_theme_dialog(week, vm.realization),
+                _week_theme_delete_dialog(week),
+            )
+        ],
         id=day_dialog_view.WEEK_TABLE_ID,
         cls="h-full overflow-y-auto px-4 pb-4",
     )
@@ -125,7 +155,7 @@ def _week_rows(week: WeekRow, realization, is_admin: bool):
     entries: list[WeekEntry | None] = list(week.entries) or [None]
     return [
         Tr(
-            *([_week_cell(week, len(entries))] if i == 0 else []),
+            *([_week_cell(week, is_admin, len(entries))] if i == 0 else []),
             _lessons_cell(entry, is_admin),
             _notes_cell(entry),
             **_week_row_attrs(week, realization, is_admin),
@@ -149,12 +179,30 @@ def _week_row_attrs(week: WeekRow, realization, is_admin: bool):
     }
 
 
-def _week_cell(week: WeekRow, rowspan: int):
+def _week_cell(week: WeekRow, is_admin: bool, rowspan: int):
+    """One week's number and its theme on one line, its date range below, per ./realizations.sdd.
+
+    For the admin the cell is the trigger opening that week's WeekTheme dialog, which sits beside the table, and the
+    click's propagation stops here so the surrounding week row does not open the day dialog behind it.
+    """
     date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
     today_cls = " border-l-4 border-l-green-500" if week.is_current_week else ""
-    return Td(
+    head = Div(
         Div(str(week.week_number), cls="text-2xl font-bold text-gray-900 leading-none"),
-        Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap"),
+        Div(week.theme, cls="text-xl text-gray-800 font-semibold") if week.theme else "",
+        cls="flex items-baseline gap-2",
+    )
+    return Td(
+        Div(
+            head,
+            Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap"),
+            # The week row's own trigger covers this cell too, so the click is stopped here; that week's dialogs sit
+            # beside the table, like the per-Lesson ones, so their clicks never reach the row's trigger either.
+            onclick=_open_dialog(week_theme_dialog_id(week), stop_propagation=True),
+            cls="cursor-pointer",
+        )
+        if is_admin
+        else Div(head, Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap")),
         rowspan=rowspan,
         cls=f"{_CELL_CLS} border-b-gray-200 pr-4{today_cls}",
     )
@@ -286,5 +334,83 @@ def _lesson_delete_dialog(entry: WeekEntry):
             action=lesson_delete_path(entry.lesson_id),
         ),
         id=f"lesson-delete-dialog-{entry.lesson_id}",
+        cls="rounded p-4 w-96",
+    )
+
+
+def _week_theme_dialog(week: WeekRow, realization):
+    """One week's WeekTheme form: the add form when the week has no theme, the edit form when it has one.
+
+    The admin edits the title only: the week is the one whose `Week` cell opened this dialog, so its Monday is a
+    hidden field, and the add form names the shown realization as a hidden field too.
+    """
+    date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
+    return Dialog(
+        Div(f"Theme of week {week.week_number}, {date_range}", cls="font-semibold text-sm mb-2"),
+        Form(
+            Input(name="title", value=week.theme, required=True, cls=_INPUT_CLS),
+            Input(name="week_start", type="hidden", value=week.start.isoformat()),
+            *(
+                [Input(name="realization_id", type="hidden", value=realization.id)]
+                if week.theme_id is None
+                else []
+            ),
+            Div(
+                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button(
+                    "Cancel",
+                    type="button",
+                    onclick="this.closest('dialog').close()",
+                    cls=_CANCEL_BTN_CLS,
+                ),
+                *(
+                    [
+                        A(
+                            "Delete",
+                            href="#",
+                            onclick=_open_dialog(
+                                week_theme_delete_dialog_id(week), stop_propagation=True
+                            ),
+                            cls="text-xs text-red-700 hover:text-red-900 self-center",
+                        )
+                    ]
+                    if week.theme_id is not None
+                    else []
+                ),
+                cls="flex items-center gap-2 mt-3",
+            ),
+            method="post",
+            action=_WEEK_THEME_PATH if week.theme_id is None else week_theme_path(week.theme_id),
+            cls="flex flex-col gap-1",
+        ),
+        id=week_theme_dialog_id(week),
+        cls="rounded p-4 w-96",
+    )
+
+
+def _week_theme_delete_dialog(week: WeekRow):
+    """The confirmation before one week's theme is removed; empty for an unthemed week."""
+    if week.theme_id is None:
+        return ""
+    return Dialog(
+        Div(
+            f"Delete the week {week.week_number} theme {week.theme}?",
+            cls="font-semibold text-sm mb-2",
+        ),
+        Form(
+            Div(
+                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button(
+                    "Cancel",
+                    type="button",
+                    onclick="this.closest('dialog').close()",
+                    cls=_CANCEL_BTN_CLS,
+                ),
+                cls="flex gap-2 justify-end",
+            ),
+            method="post",
+            action=week_theme_delete_path(week.theme_id),
+        ),
+        id=week_theme_delete_dialog_id(week),
         cls="rounded p-4 w-96",
     )

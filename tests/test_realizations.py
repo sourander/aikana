@@ -16,14 +16,12 @@ from conftest import has_checked_calendar_day
 
 @pytest.fixture
 def realization_service(db):
-    """Reads the same temporary database to look up CourseRealizations.
-
-    The listing methods under test never touch the wired `semester_service`, so it stays unset here.
-    """
+    """Reads the same temporary database to look up CourseRealizations."""
     course_service = CourseService(SqliteCourseRepository(db))
     # The realizations table references the semesters table, so it is created first, per ../architecture.sdd.
     SqliteSemesterRepository(db)
-    return RealizationService(SqliteCourseRealizationRepository(db), course_service, None, None, None)
+    # The listing methods under test never read another feature's service, so those dependencies stay unset here.
+    return RealizationService(SqliteCourseRealizationRepository(db), course_service, None, None, None, None)
 
 
 def _create_semester(admin_client, year, term):

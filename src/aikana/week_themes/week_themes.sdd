@@ -1,0 +1,56 @@
+Spec: WeekTheme entity
+
+Purpose:
+  The WeekTheme entity: the theme of one calendar week of one CourseRealization, a single free-text title such as
+  `Introduction to gradient descent`. It is per realization, not per Semester, so two groups of the same Course can
+  theme the same week differently, and it labels the week rather than changing what is taught in it. A view-less,
+  route-less package used by ../realizations/realizations.sdd, whose weekly table owns the affordances that create,
+  edit and remove one.
+
+Owns:
+  ./__init__.py
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Depends on:
+  ../shared/shared.sdd
+  ../realizations/realizations.sdd
+
+Must:
+  A WeekTheme has a reference to exactly one CourseRealization stored as a plain id, the Monday that starts its week
+    and a non-empty free-text title. The Monday identifies the week on its own, so no ISO year or week number is
+    stored and a Semester spanning New Year cannot give two of its weeks the same number.
+  `week_start` is a Monday, since it identifies a week the way /aikana.sdd defines one; any other weekday is rejected.
+  The CourseRealization reference is declared as a foreign key, so the database enforces it and cascades a removed
+    CourseRealization to its WeekThemes; no service hand-deletes WeekThemes.
+  At most one WeekTheme exists per week and CourseRealization; a second theme for the same week is rejected with
+    @DuplicateWeekThemeError, and the same pair carries a unique index on the table as the database-level backstop.
+  @WeekThemeService.add_week_theme validates that the CourseRealization id exists (through
+    ../realizations/realizations.sdd's ports.py, per ../architecture.sdd) and that the title is non-empty, rejecting
+    with @UnknownRealizationError or @InvalidWeekThemeError before storage.
+  @WeekThemeService.update_week_theme applies the same checks, ignoring the WeekTheme being edited when looking for
+    the week it already themes, and keeps the CourseRealization the WeekTheme already belongs to; it rejects an
+    unknown id with @UnknownWeekThemeError.
+  @WeekThemeService.delete_week_theme removes a WeekTheme and leaves the realization's other themes untouched,
+    rejecting an unknown id with @UnknownWeekThemeError.
+  @WeekThemeService.list_week_themes returns one CourseRealization's themes ordered by week, which is what
+    ../realizations/realizations.sdd's weekly view-model reads once for both the title each week renders and the id
+    its dialogs address the stored theme by.
+  @WeekThemeRepository in ./ports.py exposes get, list themes for a CourseRealization, and add, update and delete
+    operations backing ./services.py.
+  The table is created automatically on startup when it does not exist.
+
+Must not:
+  This package must not gain a view.py or routes.py: a WeekTheme is created, edited and removed only through
+    ../realizations/realizations.sdd's weekly table, so the feature's affordances and routes stay owned there.
+
+Tasks:
+  [x] Implement @WeekTheme in ./domain.py, and ./ports.py, ./services.py and ./repository_sqlite.py with
+    @WeekThemeService validating through ../realizations/realizations.sdd's ports.py, per ../architecture.sdd
+  [x] Show the theme in ../realizations/realizations.sdd's Week cell and add its create, edit and delete routes there
+  [x] Expose list, read and token-gated write tools for WeekThemes in ../mcp_server/mcp_server.sdd

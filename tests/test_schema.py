@@ -14,6 +14,7 @@ from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.semester.repository_sqlite import SqliteSemesterRepository
+from aikana.week_themes.repository_sqlite import SqliteWeekThemeRepository
 
 
 def _build(db) -> SimpleNamespace:
@@ -25,6 +26,7 @@ def _build(db) -> SimpleNamespace:
         no_teach_weeks=SqliteNoTeachWeekRepository(db),
         realizations=SqliteCourseRealizationRepository(db),
         lessons=SqliteLessonRepository(db),
+        week_themes=SqliteWeekThemeRepository(db),
     )
 
 
@@ -35,7 +37,15 @@ def test_foreign_keys_are_enforced_on_the_connection(db):
 def test_every_table_is_strict(db):
     _build(db)
 
-    for table in ("courses", "semesters", "course_realizations", "lessons", "holidays", "no_teach_weeks"):
+    for table in (
+        "courses",
+        "semesters",
+        "course_realizations",
+        "lessons",
+        "holidays",
+        "no_teach_weeks",
+        "week_themes",
+    ):
         sql = db.conn.execute("select sql from sqlite_master where name = ?", (table,)).fetchone()[0]
         assert sql.rstrip().endswith("STRICT")
 
@@ -94,6 +104,36 @@ def test_deleting_a_semester_cascades_to_its_realizations_and_no_teach_weeks(db)
     assert repos.realizations.list_for_semester(semester.id) == []
     assert repos.lessons.get(lesson.id) is None
     assert repos.no_teach_weeks.get(week.id) is None
+
+
+def test_deleting_a_realization_cascades_to_its_week_themes(db):
+    repos = _build(db)
+    course = repos.courses.add("Machine Learning", "An introduction.", 5)
+    semester = repos.semesters.add(2026, "fall")
+    realization = repos.realizations.add(course.id, semester.id, "TTV24SP")
+    theme = repos.week_themes.add(realization.id, date(2026, 9, 14), "Gradient descent")
+
+    repos.realizations.delete(realization.id)
+
+    assert repos.week_themes.get(theme.id) is None
+
+
+def test_a_week_theme_needs_an_existing_realization(db):
+    repos = _build(db)
+
+    with pytest.raises(apsw.ConstraintError):
+        repos.week_themes.add(999, date(2026, 9, 14), "Orphan")
+
+
+def test_a_week_has_at_most_one_theme_per_realization(db):
+    repos = _build(db)
+    course = repos.courses.add("Machine Learning", "An introduction.", 5)
+    semester = repos.semesters.add(2026, "fall")
+    realization = repos.realizations.add(course.id, semester.id, "TTV24SP")
+    repos.week_themes.add(realization.id, date(2026, 9, 14), "Gradient descent")
+
+    with pytest.raises(apsw.ConstraintError):
+        repos.week_themes.add(realization.id, date(2026, 9, 14), "Another theme")
 
 
 def test_a_semester_year_and_term_are_unique(db):
