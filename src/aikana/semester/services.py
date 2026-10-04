@@ -33,6 +33,10 @@ class DuplicateSemesterError(Exception):
     pass
 
 
+class UnknownSemesterError(Exception):
+    pass
+
+
 class InvalidTermError(Exception):
     pass
 
@@ -106,6 +110,14 @@ class SemesterService:
         # ../no_teach_weeks/no_teach_weeks.sdd.
         self.no_teach_week_service.create_defaults_for_semester(semester.id)
         return semester
+
+    def delete_semester(self, semester_id: int | None) -> None:
+        """Removes one Semester; the database's foreign keys take its CourseRealizations, their Lessons and
+        its NoTeachWeeks with it, per ./semester.sdd."""
+        existing = self.get_semester(semester_id)
+        if existing is None:
+            raise UnknownSemesterError(f"No Semester with id {semester_id!r}.")
+        self.repo.delete(existing.id)
 
     def semester_bounds(self, semester: Semester) -> tuple[date, date]:
         return domain.semester_bounds(semester)

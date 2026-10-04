@@ -33,7 +33,10 @@ Must:
   the calendar year and `fall` ends it.
   @SemesterService.create_semester rejects any term other than `spring` or `fall` with @InvalidTermError before
   storage, so a crafted request cannot persist a Semester whose period would compute incorrectly.
-  @SemesterRepository in ./ports.py exposes list, get and add operations backing ./services.py.
+  @SemesterService.delete_semester removes one Semester, rejecting an unknown id with @UnknownSemesterError; the
+  database's foreign keys cascade the deletion to the Semester's CourseRealizations, their Lessons and its
+  NoTeachWeeks.
+  @SemesterRepository in ./ports.py exposes list, get, add and delete operations backing ./services.py.
   The admin can create a new Semester by submitting a year and a term through a form; the submission is rejected
   by ../auth/auth.sdd's guard for non-admin sessions, and rejected with a validation message when the year+term
   combination already exists.
@@ -119,4 +122,6 @@ Tasks:
     the admin flag from ./routes.py into ./view.py
   [x] Mark the grid as the tooltip area and each lesson square as a tooltip anchor in ./view.py, so a hovered square's
     tooltip opens below the first rows and inside the left-most column instead of leaving the grid
+  [x] Add @SemesterService.delete_semester with the matching @SemesterRepository delete operation, relying on the
+    database's foreign-key cascade for its CourseRealizations, their Lessons and its NoTeachWeeks
 

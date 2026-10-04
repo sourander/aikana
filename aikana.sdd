@@ -8,10 +8,10 @@ Purpose:
 
 Structure:
   ./src/aikana/: the application package, with its entry point and feature packages for the domain entities,
-    calendar views and auth
+    calendar views, auth and the MCP adapter
   ./tests/: automated tests
   ./data/: local-only directory mounted into the container at `/data`
-  ./README.md: how to launch the app
+  ./README.md: how to launch the app and how to connect an AI agent to its MCP endpoint
   ./CONTRIBUTE.md: how to develop iteratively with SpecDD
   ./Dockerfile: multi-stage image definition shared by local testing and production
   ./compose.yml: local run configuration that builds the `prod` stage and mounts `./data` at `/data`
@@ -34,13 +34,16 @@ References:
 Must:
   The SQLite database file lives at `/data/app.db` so that it can be mounted as a persistent volume.
   The admin password is read from the `AIKANA_PASSWD` environment variable and the listening port from `PORT`.
+  The MCP write token is read from the `AIKANA_MCP_TOKEN` environment variable.
   Unauthenticated visitors can view all data and cannot create, change or delete anything.
-  Only the authenticated admin can write data.
+  Only the authenticated admin (session login) or a caller presenting the `AIKANA_MCP_TOKEN` bearer token
+    (./src/aikana/mcp_server/mcp_server.sdd) can write data.
   All UI text is in English.
   The application is used only in the `Europe/Helsinki` time zone: calendar dates, "today" and week boundaries are
   computed in Europe/Helsinki regardless of the host's time zone.
   Calendar dates are displayed in the European `d.m.yyyy` form (for example `2.10.2026`), never in the ISO
-  `yyyy-mm-dd` or US `mm/dd/yyyy` form.
+  `yyyy-mm-dd` or US `mm/dd/yyyy` form. The rule governs rendered views; the MCP machine interface in
+  ./src/aikana/mcp_server/mcp_server.sdd uses ISO 8601 dates and times on the wire.
   Weeks start on Monday and week numbering follows the ISO 8601 European standard, where week `1` is the week that
   contains the year's first Thursday.
   Tailwind CSS is compiled ahead of time with the standalone Tailwind CLI in `Dockerfile`'s `css` stage (no
@@ -92,6 +95,9 @@ Tasks:
     through a per-Course `<dialog>` posting to `/courses/{course_id}/realizations`
   [x] #11 Pin the Tailwind CLI download in ./Dockerfile to an exact version and verify its SHA-256
     checksum instead of using `releases/latest`
+  [x] #12 Add the MCP server adapter (./src/aikana/mcp_server/mcp_server.sdd): anonymous read tools and
+    `AIKANA_MCP_TOKEN`-gated write tools at `/mcp`, including Holiday edit/delete and Semester delete support in
+    ./src/aikana/holidays/holidays.sdd and ./src/aikana/semester/semester.sdd
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

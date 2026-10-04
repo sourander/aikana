@@ -17,12 +17,66 @@ Views:
 
 ## Configuration
 
-| Variable         | Purpose                                                  |
-|------------------|----------------------------------------------------------|
-| `AIKANA_PASSWD` | Password of the single admin. Login is disabled if unset |
-| `PORT`           | Port the app listens on (set automatically by Dokku)     |
+| Variable            | Purpose                                                                       |
+|---------------------|-------------------------------------------------------------------------------|
+| `AIKANA_PASSWD`     | Password of the single admin. Login is disabled if unset                      |
+| `AIKANA_MCP_TOKEN`  | Bearer token for MCP write tools. MCP writes are disabled if unset            |
+| `PORT`              | Port the app listens on (set automatically by Dokku)                          |
 
 The SQLite database is stored at `/data/app.db`. Mount a volume at `/data` to persist it.
+
+## MCP server (connect an AI agent)
+
+Aikana exposes an [MCP](https://modelcontextprotocol.io) server at `/mcp` (Streamable HTTP transport), so an AI
+agent can read the calendar and, with a token, maintain it. Dates on the wire are ISO `yyyy-mm-dd`, times `HH:MM`.
+
+- **Without credentials** an agent can list and read semesters, courses, course realizations, lessons, holidays
+  and no-teach weeks.
+- **With the `AIKANA_MCP_TOKEN` bearer token** it can also create, update and delete every entity. If the token
+  is not configured on the server, the endpoint is read-only.
+
+### OpenCode
+
+Add the server to `~/.config/opencode/opencode.json` (global) or `opencode.json` in a project:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "aikana": {
+      "type": "remote",
+      "url": "https://aikana.munpaas.com/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+For write access, add the token as a header. Keep the token in your shell environment
+(`export AIKANA_MCP_TOKEN=...`) and reference it with `{env:...}` so it is not written into the config file;
+`oauth: false` stops OpenCode's OAuth discovery so the header is used as-is:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "aikana": {
+      "type": "remote",
+      "url": "https://aikana.munpaas.com/mcp",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {env:AIKANA_MCP_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Other agent tools configure remote MCP servers differently, but the same two ingredients apply everywhere: the
+`/mcp` URL and an optional `Authorization: Bearer <token>` header.
+
+For a locally running container the URL is `http://localhost:8000/mcp`.
 
 ## Run locally with Docker
 
@@ -70,6 +124,10 @@ Production is hosted on the maintainer's Dokku server at `ssh.munpaas.com` as th
 (`dokku storage:ensure-directory aikana --chown root` and
 `dokku storage:mount aikana /var/lib/dokku/data/storage/aikana:/data`). The image definition is named `Dockerfile`, so
 no `dockerfile-path` setting is needed.
+
+The MCP write token is configured the same way, for example
+`dokku config:set aikana AIKANA_MCP_TOKEN=$(openssl rand -hex 32)`. Leave it unset to keep the MCP endpoint
+read-only.
 
 No code has been pushed to Dokku yet. Deployment is currently manual: the maintainer adds the Dokku git remote once,
 then pushes `main`.

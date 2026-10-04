@@ -1,8 +1,10 @@
 import os
+from collections.abc import AsyncIterator
 
 import uvicorn
 from fasthtml.common import FastHTML
 from fastlite import Database
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.datastructures import MutableHeaders
 
 from aikana.auth import routes as auth_routes
@@ -15,6 +17,8 @@ from aikana.holidays.repository_sqlite import SqliteHolidayRepository
 from aikana.holidays.services import HolidayService
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
 from aikana.lessons.services import LessonService
+from aikana.mcp_server.server import create_mcp_server
+from aikana.mcp_server.services import McpService, McpWriteGuard
 from aikana.no_teach_weeks.repository_sqlite import SqliteNoTeachWeekRepository
 from aikana.no_teach_weeks.services import NoTeachWeekService
 from aikana.realizations import routes as realizations_routes
@@ -88,9 +92,37 @@ def create_app(db: Database) -> FastHTML:
     )
     realization_service.semester_service = semester_service
 
+    # The MCP driving adapter, per ./mcp_server/mcp_server.sdd. `streamable_http_app` must be called before the
+    # app is constructed: it creates the SDK's session manager, and the manager's `run` is then entered through
+    # the app's `lifespan`, because a mounted sub-application's own lifespan never runs.
+    mcp_server = create_mcp_server(
+        McpService(
+            course_service,
+            semester_service,
+            realization_service,
+            lesson_service,
+            holiday_service,
+            no_teach_week_service,
+        ),
+        McpWriteGuard(os.environ.get("AIKANA_MCP_TOKEN", "")),
+    )
+    mcp_app = mcp_server.streamable_http_app(
+        json_response=True,
+        # The app serves a public Dokku hostname, which the SDK's default localhost-only DNS-rebinding
+        # allowlist would reject with 421, so the protection is disabled; writes are token-gated regardless.
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
+
+    # FastHTML expects `lifespan` as an async generator function (its Lifespan wrapper does `async for` on it).
+    async def lifespan(app: FastHTML) -> AsyncIterator[None]:
+        async with mcp_server.session_manager.run():
+            yield
+
     # `surreal=False` drops FastHTML's default surreal.js and css-scope-inline scripts, which load from mutable
     # `@main` CDN refs and are unused by the views; `sess_https_only=True` marks the session cookie `Secure`.
-    app = FastHTML(title="Aikana", hdrs=layout.extra_headers(), surreal=False, sess_https_only=True)
+    app = FastHTML(
+        title="Aikana", hdrs=layout.extra_headers(), surreal=False, sess_https_only=True, lifespan=lifespan
+    )
     app.static_route(ext=".css", prefix="/static/", static_path=str(layout.STATIC_DIR))
     app.add_middleware(_SecurityHeadersMiddleware)
 
@@ -111,6 +143,9 @@ def create_app(db: Database) -> FastHTML:
         realization_service,
         auth_service,
     )
+    # Mounted last: Starlette matches routes in order and Mount("/") matches every path, so the feature routes
+    # registered above must come first; the MCP app itself serves only `/mcp`.
+    app.mount("/", app=mcp_app)
     return app
 
 

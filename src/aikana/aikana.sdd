@@ -19,6 +19,7 @@ Structure:
   ./holidays/: the Holiday entity
   ./no_teach_weeks/: the NoTeachWeek entity, a Monday-to-Friday week of a Semester in which nothing is taught
   ./day_dialog/: the admin dialog for adding a Holiday, a NoTeachWeek or a Lesson on a given day
+  ./mcp_server/: the Model Context Protocol driving adapter that exposes every entity to AI agents at `/mcp`
 
 References:
   ./architecture.sdd
@@ -31,6 +32,9 @@ Must:
   `python -m aikana.main` starts the server on the port given by `$PORT`, defaulting to `8000`.
   `main.py` registers the compiled Tailwind stylesheet as a static route (`app.static_route`) at `/static/app.css`,
   using `./shared/layout.py`'s `STATIC_DIR`, per ./shared/shared.sdd.
+  `main.py` builds ./mcp_server/'s MCP server from the shared feature services and mounts its Streamable HTTP app
+  after every feature's routes, so the endpoint lands at `/mcp`; it runs the SDK's session manager through the
+  app's `lifespan`, since a mounted sub-application's own lifespan never runs.
   Every feature package below has a same-basename spec inside it, following ./architecture.sdd.
   Views render for unauthenticated visitors without any editing affordances.
   Every HTTP response carries the baseline security headers `X-Content-Type-Options: nosniff`,

@@ -10,7 +10,7 @@ from aikana.courses.services import (
     InvalidCourseError,
     UnknownCourseError as UnknownCourseIdError,
 )
-from aikana.holidays.services import InvalidHolidayError
+from aikana.holidays.services import InvalidHolidayError, UnknownHolidayError
 from aikana.lessons.services import InvalidLessonError, UnknownLessonError, UnknownRealizationError
 from aikana.no_teach_weeks.services import (
     DuplicateNoTeachWeekError,
@@ -24,6 +24,7 @@ from aikana.realizations.services import (
     UnknownSemesterError,
 )
 from aikana.semester.services import DuplicateSemesterError, InvalidTermError
+from aikana.semester.services import UnknownSemesterError as UnknownSemesterIdError
 
 
 @pytest.fixture
@@ -91,6 +92,17 @@ def test_create_semester_rejects_a_duplicate_year_term_combination(services):
 def test_create_semester_rejects_an_invalid_term(services):
     with pytest.raises(InvalidTermError):
         services.semesters.create_semester(2026, "summer")
+
+
+def test_delete_semester_removes_it(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    services.semesters.delete_semester(semester.id)
+    assert services.semesters.list_semesters() == []
+
+
+def test_delete_semester_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownSemesterIdError):
+        services.semesters.delete_semester("no-such-semester")
 
 
 def test_creating_a_fall_semester_creates_its_default_no_teach_weeks(services):
@@ -270,6 +282,36 @@ def test_add_lesson_accepts_a_saturday_inside_a_no_teach_week(services, realizat
 def test_add_holiday_rejects_an_empty_title(services):
     with pytest.raises(InvalidHolidayError):
         services.holidays.add_holiday(date(2026, 12, 6), "  ")
+
+
+def test_update_holiday_changes_the_stored_values(services):
+    holiday = services.holidays.add_holiday(date(2026, 12, 6), "Independence Day")
+    updated = services.holidays.update_holiday(holiday.id, date(2026, 12, 24), "Christmas Eve")
+    assert (updated.date, updated.title) == (date(2026, 12, 24), "Christmas Eve")
+    assert services.holidays.get_holiday(holiday.id) == updated
+
+
+def test_update_holiday_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownHolidayError):
+        services.holidays.update_holiday("no-such-holiday", date(2026, 12, 6), "Independence Day")
+
+
+def test_update_holiday_rejects_an_empty_title(services):
+    holiday = services.holidays.add_holiday(date(2026, 12, 6), "Independence Day")
+    with pytest.raises(InvalidHolidayError):
+        services.holidays.update_holiday(holiday.id, date(2026, 12, 6), "  ")
+    assert services.holidays.get_holiday(holiday.id).title == "Independence Day"
+
+
+def test_delete_holiday_removes_it(services):
+    holiday = services.holidays.add_holiday(date(2026, 12, 6), "Independence Day")
+    services.holidays.delete_holiday(holiday.id)
+    assert services.holidays.list_holidays_for_range(date(2026, 12, 1), date(2026, 12, 31)) == []
+
+
+def test_delete_holiday_rejects_an_unknown_id(services):
+    with pytest.raises(UnknownHolidayError):
+        services.holidays.delete_holiday("no-such-holiday")
 
 
 # NoTeachWeeks

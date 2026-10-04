@@ -2,7 +2,7 @@ Spec: Holiday entity
 
 Purpose:
   The Holiday entity: a date and a title. A view-less, route-less package used by ../realizations/realizations.sdd,
-  ../semester/semester.sdd and ../day_dialog/day_dialog.sdd.
+  ../semester/semester.sdd, ../day_dialog/day_dialog.sdd and ../mcp_server/mcp_server.sdd.
 
 Owns:
   ./domain.py
@@ -20,11 +20,17 @@ Must:
   A Holiday has a date and a title. Its date is indexed for range listings.
   A Holiday has no foreign key: holidays are global to the calendar, not owned by a Semester or a Course.
   @HolidayService.add_holiday rejects an empty title with @InvalidHolidayError before storage.
-  @HolidayRepository in ./ports.py exposes operations to list holidays for a date range and to add one.
+  @HolidayService.update_holiday applies the same title check as @HolidayService.add_holiday and rejects an
+  unknown id with @UnknownHolidayError.
+  @HolidayService.delete_holiday removes one Holiday, rejecting an unknown id with @UnknownHolidayError.
+  @HolidayRepository in ./ports.py exposes operations to get, list holidays for a date range, and to add, update
+  and delete one.
   The table is created automatically on startup when it does not exist.
 
 Tasks:
-  [?] Decide whether a Holiday can be deleted or edited after creation
+  [x] Decide that a Holiday may be edited and deleted after creation
+  [x] Add @HolidayService.get_holiday, @HolidayService.update_holiday and @HolidayService.delete_holiday with the
+    matching @HolidayRepository operations, rejecting an unknown id with @UnknownHolidayError
   [x] Implement @Holiday in ./domain.py and a hardcoded ./services.py returning one placeholder Holiday within the
     hardcoded Semester's date range, standing in for @HolidayRepository until persistence exists
   [x] Replace the hardcoded ./services.py with a class-based @HolidayRepository-backed `HolidayService`

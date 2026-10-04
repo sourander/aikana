@@ -14,6 +14,8 @@ Structure:
     weekly-table swaps
   ./test_main.py: in-process client tests of the app entry point, the semester routes and the wall planner's
     rendering
+  ./test_mcp_server.py: unit tests for the MCP package's write guard and service mapping, and in-process JSON-RPC
+    tests of the `/mcp` endpoint's anonymous reads and token-gated writes
   ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
   ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs, of
     the weekly view's states, fallbacks, week sub-rows and Share button, and of its per-Lesson edit and delete

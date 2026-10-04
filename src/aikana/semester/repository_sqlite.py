@@ -36,3 +36,8 @@ class SqliteSemesterRepository:
     def add(self, year: int, term: Term) -> Semester:
         row = self._table.insert({"year": year, "term": term})
         return _to_domain(row)
+
+    def delete(self, semester_id: int) -> None:
+        # The `course_realizations` and `no_teach_weeks` foreign keys cascade to the Semester's
+        # realizations (and through them its Lessons) and its NoTeachWeeks.
+        self._table.delete(semester_id)

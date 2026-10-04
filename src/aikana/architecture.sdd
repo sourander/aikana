@@ -26,6 +26,9 @@ Structure:
   view.py: pure rendering functions that turn domain objects or view-models into FastHTML FT components.
   routes.py: the package's inbound adapter; the only module allowed to import both FastHTML and the package's
     services.py, and the place where a feature's routes are registered on the app.
+  server.py: an MCP driving adapter; like routes.py it is the only module in its package allowed to import the
+    MCP SDK (the `mcp` package) together with the features' services.py, and the place where the package's MCP
+    server is built.
   A feature package owns only the files it needs; a view-only feature may have no domain.py, ports.py or
     repository_sqlite.py, and a storage-only feature may have no view.py or routes.py.
 
@@ -73,12 +76,13 @@ Must:
   runtime, avoiding a real circular import.
 
 Must not:
-  domain.py and services.py must not import `fasthtml`, `starlette` or `fastlite`.
+  domain.py and services.py must not import `fasthtml`, `starlette`, `fastlite` or the `mcp` SDK.
   view.py must not import repository_sqlite.py or open a database connection.
-  routes.py must not query the database directly; it must call services.py.
+  routes.py and server.py must not query the database directly; they must call services.py.
 
 Depends on:
   `fastlite`, an explicit `pyproject.toml` dependency, implementing the MiniDataAPI Spec, for all SQLite access.
+  `mcp`, an explicit `pyproject.toml` dependency, the Model Context Protocol SDK, for MCP driving adapters.
 
 Example:
   ports.py: `class CourseRepository(Protocol): def list(self) -> list[Course]: ...`
