@@ -2,6 +2,8 @@
 
 from datetime import date
 
+import holidays as public_holidays
+
 from .domain import Holiday
 from .ports import HolidayRepository
 
@@ -43,6 +45,20 @@ class HolidayService:
         if existing is None:
             raise UnknownHolidayError(f"No Holiday with id {holiday_id!r}.")
         self.repo.delete(existing.id)
+
+    def create_defaults_for_range(self, start: date, end: date) -> list[Holiday]:
+        """The Finnish public holidays inside `start`..`end`, skipping a date that already holds a Holiday.
+
+        The library's language is pinned to `fi` rather than left to the host locale, so the stored titles do not
+        depend on the container's environment, per ./holidays.sdd.
+        """
+        existing = {holiday.date for holiday in self.repo.list_for_range(start, end)}
+        added = []
+        for year in range(start.year, end.year + 1):
+            for holiday_date, title in public_holidays.Finland(years=year, language="fi").items():
+                if start <= holiday_date <= end and holiday_date not in existing:
+                    added.append(self.add_holiday(holiday_date, title))
+        return added
 
     @staticmethod
     def _validated_title(title: str) -> str:

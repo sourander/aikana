@@ -23,7 +23,8 @@ Structure:
   ./test_schema.py: data-integrity tests of the SQLite schema's foreign keys with cascade, unique constraints,
     NOT NULL columns, STRICT types and integer primary keys
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
-  ./test_services.py: service-layer validation tests against temporary databases
+  ./test_services.py: service-layer validation tests against temporary databases, and the default NoTeachWeeks and
+    public holidays a created Semester starts with
   ./test_shared.py: tests of the shared kernel's database factory, page shell and its Monday-first day calendar
 
 Owns:

@@ -41,8 +41,11 @@ Must:
   by ../auth/auth.sdd's guard for non-admin sessions, and rejected with a validation message when the year+term
   combination already exists.
   Creating a Semester also creates that term's default NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd's
-  @NoTeachWeekService, so a new Semester starts with weeks `42` and `51` blocked when its term is `fall`, or weeks
-  `1`, `10` and `22` when its term is `spring`.
+    @NoTeachWeekService, so a new Semester starts with weeks `42` and `51` blocked when its term is `fall`, or weeks
+    `1`, `10` and `22` when its term is `spring`, each carrying its own Finnish break title.
+  Creating a Semester also pre-populates its dates with Finnish public holidays through
+    ../holidays/holidays.sdd's @HolidayService, covering exactly the Semester's period. The two terms of one year
+    cover disjoint periods, so no Semester re-populates a date another one already holds.
   When no Semesters exist, ./routes.py renders the create-Semester form as `/`'s primary content for an admin
   session instead of the wall planner; a visitor instead sees a neutral notice and no form. Once at least one
   Semester exists, a small persistent admin-only "+ New Semester" control sits in the header next to the shared
@@ -124,4 +127,6 @@ Tasks:
     tooltip opens below the first rows and inside the left-most column instead of leaving the grid
   [x] Add @SemesterService.delete_semester with the matching @SemesterRepository delete operation, relying on the
     database's foreign-key cascade for its CourseRealizations, their Lessons and its NoTeachWeeks
+  [x] Pre-populate a new Semester's period with Finnish public holidays from @SemesterService.create_semester through
+    ../holidays/holidays.sdd
 

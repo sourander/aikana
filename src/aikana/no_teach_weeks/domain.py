@@ -6,6 +6,15 @@ DEFAULT_TITLE = "No teaching week"
 # A fall Semester blocks weeks 42 and 51, a spring Semester weeks 1, 10 and 22, per ./no_teach_weeks.sdd.
 DEFAULT_WEEK_NUMBERS: dict[str, tuple[int, ...]] = {"fall": (42, 51), "spring": (1, 10, 22)}
 
+# Each default week carries its own Finnish break title, so the title is derived from the week number alone.
+DEFAULT_WEEK_TITLES: dict[int, str] = {
+    1: "Tammivapaat",
+    10: "Talvivapaat",
+    22: "Kesävapaat",
+    42: "Syysvapaat",
+    51: "Jouluvapaat",
+}
+
 # Monday through Friday; Saturday and Sunday already carry no lessons and are never blocked.
 _TEACHING_WEEKDAY_OFFSETS = range(5)
 
@@ -22,6 +31,11 @@ class NoTeachWeek:
 def default_week_numbers(term: str) -> tuple[int, ...]:
     """The week numbers a term starts with, empty for an unknown term."""
     return DEFAULT_WEEK_NUMBERS.get(term, ())
+
+
+def default_title_for_week(week_number: int) -> str:
+    """The break title a default NoTeachWeek in `week_number` carries, falling back to the generic default title."""
+    return DEFAULT_WEEK_TITLES.get(week_number, DEFAULT_TITLE)
 
 
 def week_monday(year: int, week_number: int) -> date:

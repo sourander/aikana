@@ -29,7 +29,12 @@ Must:
   on the table.
   The blocked weekdays of a NoTeachWeek are that week's Monday through Friday; Saturday and Sunday are never blocked.
   A `fall` Semester defaults to NoTeachWeeks in weeks `42` and `51`; a `spring` Semester defaults to weeks `1`, `10` and
-  `22`. Every default NoTeachWeek is titled `No teaching week`.
+    `22`. Every default NoTeachWeek carries its own Finnish break title, taken from the week number alone: week `1`
+    is `Tammivapaat`, week `10` is `Talvivapaat`, week `22` is `Kesävapaat`, week `42` is `Syysvapaat` and week `51` is
+    `Jouluvapaat`.
+  @NoTeachWeekService.create_defaults_for_semester titles each default from its week number, and @default_title_for_week
+    in ./domain.py returns the same title for one week, so a default's title is computed from the week rather than
+    stored alongside it. A week outside that set falls back to the generic default title.
   @NoTeachWeekService.add_no_teach_week rejects an unknown Semester id with @UnknownSemesterError, a week number that is
   not a week of the Semester's ISO year or an empty title with @InvalidNoTeachWeekError, and a week already blocked in the
   same Semester with @DuplicateNoTeachWeekError, all before storage.
@@ -59,3 +64,5 @@ Tasks:
     ../realizations/realizations.sdd's weekly view, and reject a Lesson inside one in ../lessons/lessons.sdd
   [x] Expose the shared default title through @NoTeachWeekService for ../day_dialog/day_dialog.sdd's form
   [x] Add the admin UI that edits and removes a Semester's NoTeachWeeks in ../day_dialog/day_dialog.sdd
+  [x] Give each default NoTeachWeek its Finnish break title, computed from the week number, and render that title alone
+    in ../realizations/realizations.sdd's weekly view

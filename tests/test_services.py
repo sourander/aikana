@@ -108,13 +108,17 @@ def test_delete_semester_rejects_an_unknown_id(services):
 def test_creating_a_fall_semester_creates_its_default_no_teach_weeks(services):
     semester = services.semesters.create_semester(2026, "fall")
     weeks = services.no_teach_weeks.list_no_teach_weeks(semester.id)
-    assert [week.week_number for week in weeks] == [42, 51]
-    assert {week.title for week in weeks} == {"No teaching week"}
+    assert [(week.week_number, week.title) for week in weeks] == [(42, "Syysvapaat"), (51, "Jouluvapaat")]
 
 
 def test_creating_a_spring_semester_creates_its_default_no_teach_weeks(services):
     semester = services.semesters.create_semester(2026, "spring")
-    assert [week.week_number for week in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [1, 10, 22]
+    weeks = services.no_teach_weeks.list_no_teach_weeks(semester.id)
+    assert [(week.week_number, week.title) for week in weeks] == [
+        (1, "Tammivapaat"),
+        (10, "Talvivapaat"),
+        (22, "Kesävapaat"),
+    ]
 
 
 # CourseRealizations
@@ -334,6 +338,81 @@ def test_delete_holiday_removes_it(services):
 def test_delete_holiday_rejects_an_unknown_id(services):
     with pytest.raises(UnknownHolidayError):
         services.holidays.delete_holiday("no-such-holiday")
+
+
+def test_create_defaults_for_range_stores_the_finnish_public_holidays_of_the_range(services):
+    added = services.holidays.create_defaults_for_range(date(2026, 12, 1), date(2026, 12, 31))
+
+    assert [(holiday.date, holiday.title) for holiday in added] == [
+        (date(2026, 12, 6), "Itsenäisyyspäivä"),
+        (date(2026, 12, 24), "Jouluaatto"),
+        (date(2026, 12, 25), "Joulupäivä"),
+        (date(2026, 12, 26), "Tapaninpäivä"),
+    ]
+
+
+def test_create_defaults_for_range_covers_each_year_the_range_touches(services):
+    services.holidays.create_defaults_for_range(date(2025, 12, 1), date(2026, 1, 31))
+
+    titles = {
+        holiday.date: holiday.title
+        for holiday in services.holidays.list_holidays_for_range(date(2025, 12, 1), date(2026, 1, 31))
+    }
+    assert titles[date(2026, 1, 1)] == "Uudenvuodenpäivä"
+    assert titles[date(2026, 1, 6)] == "Loppiainen"
+
+
+def test_create_defaults_for_range_skips_a_date_that_already_has_a_holiday(services):
+    services.holidays.add_holiday(date(2026, 12, 6), "School closed")
+
+    added = services.holidays.create_defaults_for_range(date(2026, 12, 1), date(2026, 12, 31))
+
+    assert all(holiday.date != date(2026, 12, 6) for holiday in added)
+    stored = services.holidays.list_holidays_for_range(date(2026, 12, 6), date(2026, 12, 6))
+    assert [(holiday.date, holiday.title) for holiday in stored] == [(date(2026, 12, 6), "School closed")]
+
+
+def test_create_defaults_for_range_adds_nothing_when_the_range_already_holds_them(services):
+    services.holidays.create_defaults_for_range(date(2026, 12, 1), date(2026, 12, 31))
+
+    assert services.holidays.create_defaults_for_range(date(2026, 12, 1), date(2026, 12, 31)) == []
+
+
+def test_creating_a_fall_semester_pre_populates_the_public_holidays_of_its_period(services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    titles = {
+        holiday.date: holiday.title
+        for holiday in services.holidays.list_holidays_for_range(date(2026, 8, 1), date(2026, 12, 31))
+    }
+    # A fall Semester never reaches a Semester's January or Easter holidays.
+    assert titles[date(2026, 10, 31)] == "Pyhäinpäivä"
+    assert titles[date(2026, 12, 24)] == "Jouluaatto"
+    assert services.holidays.list_holidays_for_range(date(2026, 1, 1), date(2026, 7, 31)) == []
+
+
+def test_creating_a_spring_semester_pre_populates_the_public_holidays_of_its_period(services):
+    services.semesters.create_semester(2027, "spring")
+
+    titles = {
+        holiday.date: holiday.title
+        for holiday in services.holidays.list_holidays_for_range(date(2027, 1, 1), date(2027, 6, 30))
+    }
+    assert titles[date(2027, 1, 6)] == "Loppiainen"
+    # Juhannusaatto is the Friday within 19 June to 25 June, so it falls on 2027-06-25.
+    assert titles[date(2027, 6, 25)] == "Juhannusaatto"
+    assert titles[date(2027, 6, 26)] == "Juhannuspäivä"
+    assert services.holidays.list_holidays_for_range(date(2027, 7, 1), date(2027, 12, 31)) == []
+
+
+def test_two_semesters_of_one_academic_year_never_compete_for_the_same_holiday(services):
+    fall = services.semesters.create_semester(2026, "fall")
+    spring = services.semesters.create_semester(2027, "spring")
+    assert (fall.year, spring.year) == (2026, 2027)
+
+    # Re-running the pre-population for either period changes nothing.
+    assert services.holidays.create_defaults_for_range(date(2026, 8, 1), date(2026, 12, 31)) == []
+    assert services.holidays.create_defaults_for_range(date(2027, 1, 1), date(2027, 6, 30)) == []
 
 
 # NoTeachWeeks

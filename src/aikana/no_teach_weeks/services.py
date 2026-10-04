@@ -3,7 +3,14 @@
 from datetime import date
 
 from ..semester.ports import SemesterRepository
-from .domain import DEFAULT_TITLE, NoTeachWeek, default_week_numbers, teaching_days, week_monday
+from .domain import (
+    DEFAULT_TITLE,
+    NoTeachWeek,
+    default_title_for_week,
+    default_week_numbers,
+    teaching_days,
+    week_monday,
+)
 from .ports import NoTeachWeekRepository
 
 
@@ -69,11 +76,16 @@ class NoTeachWeekService:
         self.repo.delete(existing.id)
 
     def create_defaults_for_semester(self, semester_id: int) -> list[NoTeachWeek]:
-        """The term's default NoTeachWeeks, skipping a week that is already blocked in that Semester."""
+        """The term's default NoTeachWeeks, each titled by its week, skipping a week already blocked in that Semester."""
         semester = self._semester(semester_id)
         already_blocked = {week.week_number for week in self.repo.list_for_semester(semester.id)}
         return [
-            self.repo.add(semester.id, week_number, week_monday(semester.year, week_number), DEFAULT_TITLE)
+            self.repo.add(
+                semester.id,
+                week_number,
+                week_monday(semester.year, week_number),
+                default_title_for_week(week_number),
+            )
             for week_number in default_week_numbers(semester.term)
             if week_number not in already_blocked
         ]

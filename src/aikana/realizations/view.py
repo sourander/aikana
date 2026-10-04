@@ -20,7 +20,6 @@ from fasthtml.common import (
 )
 
 from ..day_dialog import view as day_dialog_view
-from ..no_teach_weeks.domain import DEFAULT_TITLE
 from ..shared import dates, layout
 from .services import RealizationViewModel, WeekEntry, WeekRow
 
@@ -165,9 +164,8 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
     if entry is None:
         return Td("\u2014", cls=f"{_CELL_CLS} text-gray-300")
     if entry.is_no_teach_week:
-        # A NoTeachWeek's default title is already "No teaching week", so only a custom title is appended.
-        label = entry.title if entry.title == DEFAULT_TITLE else f"No teaching week \u2013 {entry.title}"
-        return Td(label, cls=f"{_CELL_CLS} text-red-600 italic")
+        # A NoTeachWeek's own title already says which break it is, per ../realizations.sdd.
+        return Td(entry.title, cls=f"{_CELL_CLS} text-red-600 italic")
     if entry.is_holiday:
         return Td(f"Holiday \u2013 {entry.title}", cls=f"{_CELL_CLS} text-red-600 italic")
     return Td(

@@ -38,7 +38,8 @@ Must:
   Unauthenticated visitors can view all data and cannot create, change or delete anything.
   Only the authenticated admin (session login) or a caller presenting the `AIKANA_MCP_TOKEN` bearer token
     (./src/aikana/mcp_server/mcp_server.sdd) can write data.
-  All UI text is in English.
+  All UI text is in English. The calendar data itself is not UI text: a Holiday's or a NoTeachWeek's title is content
+    the teacher reads and edits, so the app pre-populates those in Finnish.
   The application is used only in the `Europe/Helsinki` time zone: calendar dates, "today" and week boundaries are
   computed in Europe/Helsinki regardless of the host's time zone.
   Calendar dates are displayed in the European `d.m.yyyy` form (for example `2.10.2026`), never in the ISO
@@ -97,6 +98,9 @@ Tasks:
     checksum instead of using `releases/latest`
   [x] #12 Add the MCP server adapter (./src/aikana/mcp_server/mcp_server.sdd): anonymous read tools and
     `AIKANA_MCP_TOKEN`-gated write tools at `/mcp`, including Holiday edit/delete and Semester delete support in
+    ./src/aikana/holidays/holidays.sdd and ./src/aikana/semester/semester.sdd
+  [x] #13 Give the default NoTeachWeeks their Finnish break titles and pre-populate a new Semester's dates with
+    Finnish public holidays, per ./src/aikana/no_teach_weeks/no_teach_weeks.sdd,
     ./src/aikana/holidays/holidays.sdd and ./src/aikana/semester/semester.sdd
 
 Done when:

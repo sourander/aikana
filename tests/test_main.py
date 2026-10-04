@@ -209,10 +209,17 @@ def _weekend_days(start: date, end: date) -> int:
     )
 
 
+def _clear_holidays(services, semester, start, end):
+    """Removes the Semester's pre-populated public holidays, so a test can assert the wall planner without them."""
+    for holiday in services.holidays.list_holidays_for_range(start, end):
+        services.holidays.delete_holiday(holiday.id)
+
+
 def test_weekend_rows_are_tinted_even_without_holidays(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     for week in services.no_teach_weeks.list_no_teach_weeks(semester.id):
         services.no_teach_weeks.delete_no_teach_week(week.id)
+    _clear_holidays(services, semester, date(2026, 8, 1), date(2026, 12, 31))
 
     response = client.get(f"/?semester_id={semester.id}")
 
@@ -223,6 +230,7 @@ def test_a_holiday_row_is_tinted_and_titled(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     for week in services.no_teach_weeks.list_no_teach_weeks(semester.id):
         services.no_teach_weeks.delete_no_teach_week(week.id)
+    _clear_holidays(services, semester, date(2026, 8, 1), date(2026, 12, 31))
     # 2026-09-07 is a Monday, so the row's tint cannot come from the weekend rule.
     services.holidays.add_holiday(date(2026, 9, 7), "Autumn break")
 
@@ -253,8 +261,10 @@ def test_wall_planner_tints_and_titles_each_weekday_of_a_no_teach_week(client, s
     response = client.get(f"/?semester_id={semester.id}")
 
     assert response.status_code == 200
-    # Week 42 (2026-10-12 to 10-16) and week 51 (2026-12-14 to 12-18) each contribute five titled rows.
-    assert response.text.count("No teaching week") == 10
+    # Week 42 (2026-10-12 to 10-16) and week 51 (2026-12-14 to 12-18) each contribute five titled rows, each row
+    # carrying its own break's title.
+    assert response.text.count("Syysvapaat") == 5
+    assert response.text.count("Jouluvapaat") == 5
 
 
 def test_wall_planner_hides_lesson_squares_on_a_no_teach_week(client, db, services):
@@ -268,7 +278,7 @@ def test_wall_planner_hides_lesson_squares_on_a_no_teach_week(client, db, servic
     response = client.get(f"/?semester_id={semester.id}")
 
     assert "Inside" not in response.text
-    assert "No teaching week" in response.text
+    assert "Syysvapaat" in response.text
 
 
 def test_realizations_view_shows_a_no_teach_week_as_a_single_line(client, services):
@@ -282,12 +292,13 @@ def test_realizations_view_shows_a_no_teach_week_as_a_single_line(client, servic
     response = client.get(f"/realizations?realization_id={realization.id}")
 
     assert response.status_code == 200
-    assert "No teaching week" in response.text
-    assert "No teaching week \u2013" not in response.text
+    assert "Syysvapaat" in response.text
+    # The week's row reads its own title, so no generic label is added in front of it.
+    assert "No teaching week" not in response.text
     assert "Before the week" in response.text
 
 
-def test_realizations_view_appends_a_custom_no_teach_week_title(client, services):
+def test_realizations_view_shows_a_custom_no_teach_week_title_alone(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
@@ -296,7 +307,8 @@ def test_realizations_view_appends_a_custom_no_teach_week_title(client, services
 
     response = client.get(f"/realizations?realization_id={realization.id}")
 
-    assert "No teaching week \u2013 Staff training" in response.text
+    assert response.text.count("Staff training") == 1
+    assert "No teaching week" not in response.text
 
 
 # Current day and current week highlighting

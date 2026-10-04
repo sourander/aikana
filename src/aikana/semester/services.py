@@ -109,6 +109,9 @@ class SemesterService:
         # A new Semester starts with its term's default NoTeachWeeks, per ./semester.sdd and
         # ../no_teach_weeks/no_teach_weeks.sdd.
         self.no_teach_week_service.create_defaults_for_semester(semester.id)
+        # ...and with the Finnish public holidays of its own period, per ../holidays/holidays.sdd. The two terms of a
+        # year cover disjoint periods, so this never competes with another Semester's holidays.
+        self.holiday_service.create_defaults_for_range(*domain.semester_bounds(semester))
         return semester
 
     def delete_semester(self, semester_id: int | None) -> None:

@@ -297,6 +297,8 @@ def test_a_malformed_week_number_is_reported(admin_client, semester, services):
 
 
 def test_a_malformed_day_is_reported(admin_client, semester, services):
+    before = services.holidays.list_holidays_for_range(date(2025, 1, 1), date(2027, 12, 31))
+
     response = admin_client.post(
         "/day/dialog/holiday",
         data={"semester_id": semester.id, "day": "not-a-day", "title": "Autumn break"},
@@ -305,7 +307,9 @@ def test_a_malformed_day_is_reported(admin_client, semester, services):
 
     assert response.status_code == 422
     assert "not a valid date" in response.text
-    assert services.holidays.list_holidays_for_range(date(2025, 1, 1), date(2027, 12, 31)) == []
+    # The Semester's pre-populated public holidays are untouched, and the malformed day added nothing.
+    assert services.holidays.list_holidays_for_range(date(2025, 1, 1), date(2027, 12, 31)) == before
+    assert all(holiday.title != "Autumn break" for holiday in before)
 
 
 def test_a_rejected_form_keeps_what_the_admin_typed(admin_client, semester):
@@ -480,7 +484,8 @@ def test_admin_adds_a_no_teach_week_from_a_week_row(admin_client, semester, serv
 
     assert response.status_code == 200
     _assert_bare_week_table(response)
-    assert "No teaching week \u2013 Staff training" in response.text
+    # The week consumes its whole week row, so its title is read once.
+    assert response.text.count("Staff training") == 1
 
 
 def test_a_rejected_weekly_form_keeps_the_date_and_the_realization(admin_client, semester, services):
@@ -621,7 +626,7 @@ def test_the_no_teach_week_tab_edits_the_week_already_blocking_that_day(admin_cl
 
     assert f'action="/day/dialog/no-teach-weeks/{week.id}"' in response.text
     assert 'name="week_number" type="number" min="1" max="53" value="42"' in response.text
-    assert 'name="title" value="No teaching week"' in response.text
+    assert 'name="title" value="Syysvapaat"' in response.text
     assert 'action="/day/dialog/no-teach-week"' not in response.text
     assert response.text.count(">Save</button>") == 1
     assert response.text.count(">Delete</button>") == 1
@@ -659,7 +664,7 @@ def test_a_rejected_no_teach_week_edit_keeps_the_stored_week_and_what_the_admin_
     assert "already a NoTeachWeek" in response.text
     assert 'value="Later"' in response.text
     stored = services.no_teach_weeks.get_no_teach_week(week.id)
-    assert (stored.week_number, stored.title) == (42, "No teaching week")
+    assert (stored.week_number, stored.title) == (42, "Syysvapaat")
 
 
 def test_the_admin_deletes_a_no_teach_week_through_the_dialog(admin_client, semester, services):
@@ -673,7 +678,7 @@ def test_the_admin_deletes_a_no_teach_week_through_the_dialog(admin_client, seme
 
     assert response.status_code == 200
     # Only the Semester's other default NoTeachWeek is left, so five rows stay tinted.
-    assert response.text.count("No teaching week") == 5
+    assert response.text.count("Jouluvapaat") == 5
     assert [w.week_number for w in services.no_teach_weeks.list_no_teach_weeks(semester.id)] == [51]
 
 

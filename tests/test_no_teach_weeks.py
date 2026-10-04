@@ -6,6 +6,7 @@ import pytest
 
 from aikana.no_teach_weeks.domain import (
     DEFAULT_TITLE,
+    default_title_for_week,
     default_week_numbers,
     teaching_days,
     week_monday,
@@ -24,6 +25,18 @@ def test_default_week_numbers_are_empty_for_an_unknown_term():
 
 def test_the_default_title_is_a_generic_no_teaching_week():
     assert DEFAULT_TITLE == "No teaching week"
+
+
+def test_every_default_week_carries_its_finnish_break_title():
+    assert default_title_for_week(1) == "Tammivapaat"
+    assert default_title_for_week(10) == "Talvivapaat"
+    assert default_title_for_week(22) == "Kesävapaat"
+    assert default_title_for_week(42) == "Syysvapaat"
+    assert default_title_for_week(51) == "Jouluvapaat"
+
+
+def test_a_week_outside_the_defaults_falls_back_to_the_generic_title():
+    assert default_title_for_week(5) == DEFAULT_TITLE
 
 
 def test_week_monday_returns_the_monday_of_that_iso_week():

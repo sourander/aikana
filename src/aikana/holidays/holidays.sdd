@@ -15,6 +15,7 @@ References:
 
 Depends on:
   ../shared/shared.sdd
+  `holidays`, an explicit `pyproject.toml` dependency, for Finnish public holidays
 
 Must:
   A Holiday has a date and a title. Its date is indexed for range listings.
@@ -27,8 +28,12 @@ Must:
   @HolidayService.update_holiday applies the same title check as @HolidayService.add_holiday and rejects an
   unknown id with @UnknownHolidayError.
   @HolidayService.delete_holiday removes one Holiday, rejecting an unknown id with @UnknownHolidayError.
+  @HolidayService.create_defaults_for_range stores every Finnish public holiday whose date falls in the given range
+    and skips a date that already holds a Holiday, so it is safe to call for a range that is partly populated. It
+    asks for Finnish names explicitly rather than letting the host's locale decide them, so the stored titles do not
+    depend on the environment, and it covers only the range it is given rather than whole calendar years.
   @HolidayRepository in ./ports.py exposes operations to get, list holidays for a date range, and to add, update
-  and delete one.
+    and delete one.
   The table is created automatically on startup when it does not exist, and its unique date index replaces an
     earlier non-unique index of the same name instead of leaving the constraint absent.
 
@@ -44,3 +49,5 @@ Tasks:
   [x] Keep at most one Holiday per date: reject a duplicate date in @HolidayService.add_holiday and
     @HolidayService.update_holiday with @DuplicateHolidayError, back it with a unique index on the date, and
     replace an earlier non-unique index of the same name
+  [x] Add @HolidayService.create_defaults_for_range, backed by the `holidays` package, that stores a range's Finnish
+    public holidays and skips dates that already hold one

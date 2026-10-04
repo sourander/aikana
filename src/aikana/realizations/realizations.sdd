@@ -78,9 +78,8 @@ Must:
   empty `Notes` cell. A week with neither shows a single empty sub-row.
   The week row containing today carries a green bar along its left edge; no other week row does.
   A NoTeachWeek of the realization's Semester, read through ../no_teach_weeks/no_teach_weeks.sdd, consumes its whole
-  week: that week shows exactly one sub-row whose `Lessons` cell reads `No teaching week`, followed by
-  `\u2013` and the NoTeachWeek's title when that title is not already `No teaching week`, and an empty `Notes` cell; no
-  Lesson sub-row is shown for it, because no Lesson is ever added inside a NoTeachWeek.
+  week: that week shows exactly one sub-row whose `Lessons` cell reads the NoTeachWeek's title, and an empty `Notes`
+  cell; no Lesson sub-row is shown for it, because no Lesson is ever added inside a NoTeachWeek.
   Clicking a lesson square in ../semester/semester.sdd's wall planner navigates to this view with that lesson's
   `realization_id`.
   ./view.py and ./routes.py depend on ../lessons/lessons.sdd even though ../lessons/lessons.sdd also depends on this
