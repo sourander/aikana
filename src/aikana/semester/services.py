@@ -27,6 +27,10 @@ PALETTE = [
     "#db2777",  # pink
     "#7c3aed",  # violet
     "#0891b2",  # cyan
+    "#65a30d",  # lime
+    "#ea580c",  # orange
+    "#4f46e5",  # indigo
+    "#0d9488",  # teal
 ]
 
 
@@ -67,9 +71,20 @@ class DeadlineCircle:
 
 
 @dataclass(frozen=True)
+class LegendEntry:
+    """One CourseRealization in the wall planner's legend bar, in that realization's own square color."""
+
+    color: str
+    realization_id: int
+    label: str
+
+
+@dataclass(frozen=True)
 class DayCell:
     day: date
     weekday_label: str
+    # The ISO week number, on the Monday that starts the week and `None` on every other row.
+    week_number: int | None
     squares: list[LessonSquare]
     circles: list[DeadlineCircle]
     holiday_title: str | None
@@ -87,6 +102,7 @@ class MonthColumn:
 class SemesterViewModel:
     semester: domain.Semester
     months: list[MonthColumn]
+    legend: list[LegendEntry]
 
 
 class SemesterService:
@@ -159,6 +175,16 @@ class SemesterService:
             r.id: self.realization_service.realization_label(r, courses_by_id[r.course_id], semester)
             for r in realizations
         }
+        # The legend names every realization in the color its squares already use, in the same order, so a row's
+        # marker and its legend entry always read together.
+        legend = [
+            LegendEntry(
+                color=colors[r.id],
+                realization_id=r.id,
+                label=f"{courses_by_id[r.course_id].name} ({r.group})",
+            )
+            for r in realizations
+        ]
 
         squares_by_day: dict[date, list[LessonSquare]] = {}
         for realization in realizations:
@@ -208,6 +234,9 @@ class SemesterService:
                     DayCell(
                         day=day,
                         weekday_label=day.strftime("%a"),
+                        # Only the Monday that starts a week carries that week's number, since a week spanning two
+                        # month columns would otherwise repeat it.
+                        week_number=day.isocalendar().week if day.weekday() == 0 else None,
                         squares=squares_by_day.get(day, []),
                         # A Deadline is an obligation rather than teaching, so its circle stays on a NoTeachWeek's
                         # rows, unlike the Lesson squares.
@@ -219,5 +248,5 @@ class SemesterService:
                 )
             months.append(MonthColumn(label=date(year, month, 1).strftime("%B %Y"), days=days))
 
-        return SemesterViewModel(semester=semester, months=months)
+        return SemesterViewModel(semester=semester, months=months, legend=legend)
 

@@ -3,7 +3,7 @@
 from fasthtml.common import A, Button, Div, Form, Input, Option, P, Select, Span
 
 from ..day_dialog import view as day_dialog_view
-from .services import DayCell, MonthColumn, SemesterViewModel
+from .services import DayCell, LegendEntry, MonthColumn, SemesterViewModel
 
 
 def create_semester_form(error: str = ""):
@@ -57,11 +57,50 @@ def semester_grid(vm: SemesterViewModel, is_admin: bool):
 
 
 def semester_view(vm: SemesterViewModel, is_admin: bool = False):
-    """The wall planner; for the admin each day row also opens ../day_dialog/day_dialog.sdd's dialog."""
-    grid = semester_grid(vm, is_admin)
-    if not is_admin:
-        return grid
-    return Div(grid, day_dialog_view.dialog_container(), cls="h-full min-h-0 flex flex-col")
+    """The wall planner: the grid, the legend bar below it and, for the admin, the day dialog's container.
+
+    The legend bar is a sibling of the grid and not part of @semester_grid, so a ../day_dialog/day_dialog.sdd write
+    swapping `outerHTML` into the grid leaves the bar in place. A day dialog can only add a Lesson, a Holiday or a
+    NoTeachWeek, so the bar's realizations cannot go stale under a swap.
+    """
+    content = [semester_grid(vm, is_admin), legend_bar(vm)]
+    if is_admin:
+        content.append(day_dialog_view.dialog_container())
+    return Div(*content, cls="h-full min-h-0 flex flex-col")
+
+
+def legend_bar(vm: SemesterViewModel):
+    """The bar naming the wall planner's markers: one entry per CourseRealization in its own color, then a square
+    labelled as a Lesson and a circle labelled as a Deadline.
+
+    The realization entries wrap instead of scrolling and the bar keeps its own height, so up to ten of them leave the
+    grid above fully visible.
+    """
+    return Div(
+        Div(
+            *[_legend_chip(entry) for entry in vm.legend],
+            cls="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 min-w-0",
+        ),
+        Div(
+            _marker(Div(cls="w-3 h-3 rounded-sm bg-gray-400 shrink-0"), "Lesson"),
+            _marker(Div(cls="w-3 h-3 rounded-full bg-gray-400 opacity-50 shrink-0"), "Deadline"),
+            cls="flex shrink-0 items-center gap-4 border-l border-gray-200 pl-4 ml-4",
+        ),
+        cls="flex shrink-0 items-start gap-4 border-t border-gray-200 px-4 py-2 text-xs text-gray-600",
+        id="semester-legend",
+    )
+
+
+def _legend_chip(entry: LegendEntry):
+    return Div(
+        Div(cls="w-3 h-3 rounded-sm shrink-0", style=f"background-color:{entry.color};"),
+        Span(entry.label, cls="truncate"),
+        cls="flex min-w-0 items-center gap-1",
+    )
+
+
+def _marker(chip, label: str):
+    return Div(chip, Span(label, cls="whitespace-nowrap"), cls="flex shrink-0 items-center gap-1")
 
 
 def _month_column(month: MonthColumn, semester_id: int, is_admin: bool):
@@ -94,6 +133,12 @@ def _day_row(day: DayCell, semester_id: int, is_admin: bool):
     else:
         row_attrs = {"cls": row_cls}
     return Div(
+        # The week number's gutter is rendered on every row, not only the Mondays that carry one, so the weekday
+        # labels stay aligned down the whole column.
+        Span(
+            str(day.week_number) if day.week_number is not None else "",
+            cls="w-6 text-xs text-gray-300 text-center shrink-0",
+        ),
         Span(day.weekday_label, cls="w-8 text-xs text-gray-500 shrink-0"),
         Span(str(day.day.day), cls="w-5 text-sm shrink-0"),
         Div(

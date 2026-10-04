@@ -37,6 +37,8 @@ def _assert_bare_grid(response):
     """A successful write responds with the bare grid, never a second dialog container."""
     assert response.text.count('id="semester-grid"') == 1
     assert 'id="day-dialog"' not in response.text
+    # ../semester/semester.sdd's legend bar is a sibling of the grid, so the swap leaves the bar in the page.
+    assert 'id="semester-legend"' not in response.text
 
 
 def test_admin_sees_a_day_dialog_trigger_on_every_day_row(admin_client, semester):

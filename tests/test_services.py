@@ -23,7 +23,7 @@ from aikana.realizations.services import (
     UnknownCourseError,
     UnknownSemesterError,
 )
-from aikana.semester.services import DuplicateSemesterError, InvalidTermError
+from aikana.semester.services import PALETTE, DuplicateSemesterError, InvalidTermError
 from aikana.semester.services import UnknownSemesterError as UnknownSemesterIdError
 
 
@@ -523,6 +523,56 @@ def test_semester_view_model_marks_no_day_when_today_is_outside_the_semester(ser
     view_model = services.semesters.build_semester_view_model(semester, today=date(2027, 1, 15))
 
     assert not any(day.is_today for month in view_model.months for day in month.days)
+
+
+# Semester view model: week numbers, colors and legend
+
+
+def test_semester_view_model_numbers_only_the_mondays_of_the_semester(services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    view_model = services.semesters.build_semester_view_model(semester, today=date(2026, 10, 20))
+
+    numbered = {
+        day.day: day.week_number for month in view_model.months for day in month.days if day.week_number is not None
+    }
+    # The fall Semester starts on a Saturday, so 2026-08-03 is its own first Monday and starts week 32.
+    assert numbered[date(2026, 8, 3)] == 32
+    assert numbered[date(2026, 10, 19)] == 43
+    assert all(monday.weekday() == 0 and week == monday.isocalendar().week for monday, week in numbered.items())
+    # A week whose Monday lies outside the Semester's period leaves the Semester's opening days unnumbered.
+    assert date(2026, 8, 1) not in numbered
+
+
+def test_ten_realizations_get_ten_distinct_wall_planner_colors(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    for index in range(10):
+        course = services.courses.add_course(f"Course {index}", "", 5)
+        services.realizations.add_realization(course.id, semester.id, f"TTV{index}")
+
+    view_model = services.semesters.build_semester_view_model(semester, today=date(2026, 10, 20))
+
+    assert len({entry.color for entry in view_model.legend}) == 10
+
+
+def test_semester_view_model_legend_names_every_realization_in_its_own_color(services):
+    semester = services.semesters.create_semester(2026, "fall")
+    machine_learning = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    services.realizations.add_realization(machine_learning.id, semester.id, "TTV24SP")
+
+    view_model = services.semesters.build_semester_view_model(semester, today=date(2026, 10, 20))
+
+    assert [(entry.label, entry.color) for entry in view_model.legend] == [
+        ("Machine Learning (TTV24SP)", PALETTE[0])
+    ]
+
+
+def test_semester_view_model_legend_is_empty_without_realizations(services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    view_model = services.semesters.build_semester_view_model(semester, today=date(2026, 10, 20))
+
+    assert view_model.legend == []
 
 
 def test_realization_view_model_marks_the_week_containing_today(services):

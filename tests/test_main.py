@@ -1,8 +1,10 @@
 """In-process client tests of the app entry point, the semester routes and the wall planner, per ./tests.sdd."""
 
+import re
 from datetime import date, time, timedelta
 
 from aikana.lessons.repository_sqlite import SqliteLessonRepository
+from aikana.semester.services import PALETTE
 from aikana.shared import dates
 from conftest import AIKANA_PASSWD
 
@@ -250,6 +252,105 @@ def test_a_lesson_square_is_a_tooltip_anchor_and_the_grid_its_area(client, servi
 
     assert 'data-tip-area=""' in response.text
     assert 'data-tip=""' in response.text
+
+
+# Week numbers
+
+
+def _week_gutter_numbers(html: str) -> list[str]:
+    """The content of every day row's week-number gutter, in render order: a number on a Monday, empty elsewhere."""
+    return re.findall(r'<span class="w-6 text-xs text-gray-300 text-center shrink-0">(\d*)</span>', html)
+
+
+def test_wall_planner_numbers_each_monday_of_the_semester(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    numbers = _week_gutter_numbers(response.text)
+    # The fall Semester starts on a Saturday, so its own first Monday is 2026-08-03 and its last one 2026-12-28.
+    mondays = [date(2026, 8, 3) + timedelta(days=7 * offset) for offset in range(22)]
+    assert [int(number) for number in numbers if number] == [
+        monday.isocalendar().week for monday in mondays
+    ]
+
+
+def test_wall_planner_reserves_the_week_number_gutter_on_every_row(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    # Every one of the Semester's 153 days carries the gutter, so the weekday labels stay aligned down a column.
+    assert len(_week_gutter_numbers(response.text)) == 153
+
+
+# Legend bar
+
+
+def _legend_html(html: str) -> str:
+    """The legend bar's markup, from its own opening element to the end of the page."""
+    return html[html.index('id="semester-legend"') :]
+
+
+def test_wall_planner_legend_sits_below_the_grid(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert response.text.index('id="semester-grid"') < response.text.index('id="semester-legend"')
+
+
+def test_wall_planner_legend_names_every_realization_in_its_own_color(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    machine_learning = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    databases = services.courses.add_course("Databases", "Relational modelling.", 5)
+    services.realizations.add_realization(machine_learning.id, semester.id, "TTV24SP")
+    services.realizations.add_realization(databases.id, semester.id, "TTV24SP2")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    legend = _legend_html(response.text)
+    assert "Machine Learning (TTV24SP)" in legend
+    assert "Databases (TTV24SP2)" in legend
+    # The first realization of the Semester takes the palette's first color, the second one its second color.
+    assert _legend_chip(PALETTE[0]) in legend
+    assert _legend_chip(PALETTE[1]) in legend
+
+
+def _legend_chip(color: str) -> str:
+    return f'<div class="w-3 h-3 rounded-sm shrink-0" style="background-color:{color};"></div>'
+
+
+def test_wall_planner_legend_marks_a_square_a_lesson_and_a_circle_a_deadline(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    legend = _legend_html(response.text)
+    assert '<div class="w-3 h-3 rounded-sm bg-gray-400 shrink-0"></div>' in legend
+    assert '<div class="w-3 h-3 rounded-full bg-gray-400 opacity-50 shrink-0"></div>' in legend
+    assert ">Lesson</span>" in legend
+    assert ">Deadline</span>" in legend
+
+
+def test_wall_planner_shows_the_two_markers_when_the_semester_has_no_realization(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    legend = _legend_html(response.text)
+    assert ">Lesson</span>" in legend
+    assert ">Deadline</span>" in legend
+
+
+def test_wall_planner_shows_the_legend_to_a_visitor(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    response = client.get(f"/?semester_id={semester.id}")
+
+    assert "Machine Learning (TTV24SP)" in _legend_html(response.text)
 
 
 # NoTeachWeeks

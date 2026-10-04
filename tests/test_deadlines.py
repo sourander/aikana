@@ -367,9 +367,17 @@ def test_a_deadline_circle_is_drawn_after_the_squares_of_the_same_day(
 
     html = admin_client.get(f"/?semester_id={semester_id}").text
 
-    # The single lesson square and the single deadline circle of that day both carry the realization's color.
-    assert html.count(f"background-color:{PALETTE_BLUE};") == 2
-    assert html.index("rounded-sm") < html.index("opacity:0.5")
+    # The single lesson square and the single deadline circle of that day both carry the realization's color, as does
+    # ../semester/semester.sdd's legend chip for that realization, so the two day markers are told apart by the square
+    # and circle classes that only they carry.
+    square = (
+        f'<a href="/realizations?realization_id={realization_id}" data-tip="" hx-on:click='
+        f'"event.stopPropagation()" class="group relative inline-block w-3 h-3 rounded-sm" '
+        f'style="background-color:{PALETTE_BLUE};">'
+    )
+    assert html.count(square) == 1
+    assert html.count(f"background-color:{PALETTE_BLUE}; opacity:0.5;") == 1
+    assert html.index(square) < html.index("opacity:0.5")
 
 
 def test_an_admins_deadline_circle_does_not_also_open_the_day_dialog(

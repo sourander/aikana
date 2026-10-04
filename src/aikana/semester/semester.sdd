@@ -56,15 +56,21 @@ Must:
   `<year>-01-01` to `<year>-06-30`.
   The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
   semester, `, 1fr)`, and `gap: 10px`. A semester of five months renders five columns.
-  The container height is `100vh` minus the header height, so a 1080p screen shows the whole semester without
-  vertical or horizontal scrolling.
+  The container height is `100vh` minus the header height and the legend bar's height, so a 1080p screen shows the
+  whole semester without vertical or horizontal scrolling.
   The view is desktop-only and has no mobile responsiveness.
   Each month is a flex column (`display: flex; flex-direction: column`) with the month name as header at its top.
   Each month contains one row per day of that month, and each row has `flex: 1` so all rows share height equally.
   A day row shows the weekday abbreviation, the date number and a wider space for lesson indicators.
+  A Monday row shows that Monday's ISO week number in a fixed-width light-grey gutter left of the weekday
+  abbreviation, so the number sits in the middle of the Monday that starts the week. No other row shows a number, and
+  every row reserves the same gutter, so the weekday labels of a column stay aligned. A week whose Monday falls
+  outside the Semester's period has no rendered Monday, so the days before the Semester's own first Monday carry no
+  number.
   The day row for today carries a green bar along its left edge; no other day row does.
   Lessons appear as inline-block squares of `12px` by `12px`. The view assigns each CourseRealization a color from a
-    fixed palette at render time; no color is stored in the database.
+  fixed palette of ten distinct colors at render time, so a Semester with up to ten CourseRealizations gives each one
+  its own color; no color is stored in the database.
   A ../deadlines/deadlines.sdd Deadline appears on its day row as a circle of the same `12px` by `12px`, drawn in the
     color of the CourseRealization it belongs to, the color its Lesson squares share, and at `50%` opacity. Clicking
     a circle navigates to ../realizations/realizations.sdd's weekly view for that Deadline's CourseRealization, the
@@ -73,6 +79,12 @@ Must:
   A day row draws its Lesson squares first and its Deadline circles after them, so a Deadline dated on a day with a
     Lesson overlaps that square instead of pushing it away. A NoTeachWeek's rows suppress the Lesson squares but
     keep the Deadline circles, since a deadline is an obligation rather than teaching.
+  A legend bar below the grid names the markers the rows use, for the admin and for a visitor alike: one entry per
+  CourseRealization of the shown Semester, in the order the view assigns their colors, each a square in that
+  realization's color beside its course name and group, followed by a square labelled as a Lesson and a circle
+  labelled as a Deadline. The entries wrap onto further lines instead of scrolling and the bar takes only the height
+  it needs, so up to ten CourseRealizations leave the grid fully visible; a Semester with no CourseRealization shows
+  the two markers alone.
   Hovering a square shows lesson details through a tooltip that does not change the row height. The tooltip always
   fits the grid area: ../shared/shared.sdd's script opens it above the square when there is room and below it
   otherwise, and keeps it clear of the left-most and right-most month columns, so the first days of a month are
@@ -141,4 +153,11 @@ Tasks:
   [x] Render each ../deadlines/deadlines.sdd Deadline as a half-transparent circle in its realization's own color,
     after that day's lesson squares, in ./view.py, read through @SemesterService in ./services.py
   [x] Link each deadline circle to its realization's weekly view, like that realization's lesson squares
+  [x] Extend @PALETTE to ten distinct colors, so a Semester with up to ten CourseRealizations colors each one
+    uniquely in ./services.py
+  [x] Render each Monday row's ISO week number in a light-grey gutter in ./view.py, read from @DayCell's
+    `week_number` built in ./services.py
+  [x] Render the legend bar below the grid in ./view.py, listing one entry per CourseRealization in its own color with
+    its course name and group plus the Lesson square and Deadline circle markers, and wrap its entries so the bar grows
+    downward instead of clipping the grid
 
