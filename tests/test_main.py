@@ -435,6 +435,57 @@ def test_realizations_view_shows_a_custom_no_teach_week_title_alone(client, serv
     assert "No teaching week" not in response.text
 
 
+# The NoTeachWeek week row's background tint
+
+
+def _tinted_week_rows(html: str) -> list[str]:
+    """The `class` of every rendered week row that carries the tint, so a test asserts on the rows themselves and on
+    no other week's row."""
+    return [c for c in re.findall(r'<tr [^>]*class="([^"]*)"', html) if "bg-red-50" in c]
+
+
+def test_a_no_teach_week_row_is_tinted_to_a_visitor(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    response = client.get(f"/realizations?realization_id={realization.id}")
+
+    # The fall-2026 Semester's two NoTeachWeeks, weeks 42 and 51, are the only tinted rows, and a visitor's row
+    # carries nothing but the tint.
+    assert response.status_code == 200
+    assert _tinted_week_rows(response.text) == ["bg-red-50", "bg-red-50"]
+
+
+def test_a_no_teach_week_row_is_tinted_to_the_admin(admin_client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    response = admin_client.get(f"/realizations?realization_id={realization.id}")
+
+    # The admin's own week-row trigger stays on the tinted row, and its hover deepens the red instead of turning gray.
+    assert response.status_code == 200
+    assert _tinted_week_rows(response.text) == [
+        "bg-red-50 cursor-pointer hover:bg-red-100",
+        "bg-red-50 cursor-pointer hover:bg-red-100",
+    ]
+    assert "Syysvapaat" in response.text
+
+
+def test_an_ordinary_week_row_carries_no_tint(admin_client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = admin_client.get(f"/realizations?realization_id={realization.id}").text
+
+    # Every week row is a trigger for the admin, so the untinted rows are exactly the tinted ones' complement.
+    row_classes = re.findall(r'<tr [^>]*class="([^"]*)"', html)
+    assert "cursor-pointer hover:bg-gray-100" in row_classes
+    assert not [c for c in row_classes if "bg-red-50" in c and "hover:bg-gray-100" in c]
+
+
 # Current day and current week highlighting
 
 

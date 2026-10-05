@@ -199,9 +199,15 @@ def _week_rows(week: WeekRow, realization, is_admin: bool):
 
 
 def _week_row_attrs(week: WeekRow, realization, is_admin: bool):
-    """Clicking a week row opens the dialog for that week's Monday, per ./realizations.sdd."""
+    """Clicking a week row opens the dialog for that week's Monday, per ./realizations.sdd.
+
+    A NoTeachWeek consumes its whole week, so the row is tinted the mild red of ../semester/semester.sdd's wall
+    planner's blocked day rows for a visitor and the admin alike; its hover deepens that red instead of turning gray,
+    so the week stays visibly blocked while the pointer is on it.
+    """
+    is_no_teach_week = any(entry.is_no_teach_week for entry in week.entries)
     if not is_admin:
-        return {}
+        return {"cls": "bg-red-50"} if is_no_teach_week else {}
     return {
         "hx_get": (
             f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
@@ -209,7 +215,11 @@ def _week_row_attrs(week: WeekRow, realization, is_admin: bool):
         ),
         "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
         "hx_swap": "innerHTML",
-        "cls": "cursor-pointer hover:bg-gray-100",
+        "cls": (
+            "bg-red-50 cursor-pointer hover:bg-red-100"
+            if is_no_teach_week
+            else "cursor-pointer hover:bg-gray-100"
+        ),
     }
 
 

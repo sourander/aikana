@@ -89,6 +89,10 @@ Must:
   A NoTeachWeek of the realization's Semester, read through ../no_teach_weeks/no_teach_weeks.sdd, consumes its whole
   week: that week shows exactly one sub-row whose `Lessons` cell reads the NoTeachWeek's title, and an empty `Notes`
   cell; no Lesson sub-row is shown for it, because no Lesson is ever added inside a NoTeachWeek.
+  Every sub-row of such a week carries the mild red background tint that ../semester/semester.sdd's wall planner gives
+    a blocked day row, so the week reads as blocked without reading its title; the tint is shown to visitors and the
+    admin alike and no other week row carries it. Hovering a tinted admin week row deepens the red instead of turning
+    gray, so the week stays visibly blocked while the pointer is on it.
   Clicking a lesson square in ../semester/semester.sdd's wall planner navigates to this view with that lesson's
     `realization_id`.
   ./view.py and ./routes.py depend on ../lessons/lessons.sdd even though ../lessons/lessons.sdd also depends on this
@@ -221,3 +225,5 @@ Tasks:
     ../deadlines/deadlines.sdd's @DeadlineService
   [x] Show each Holiday sub-row's title over its own weekday and `d.m.` day in red italics, like a Lesson's two
     lines, instead of a one-line `Holiday \u2013 title`, carrying that day on @WeekEntry's `entry_date`
+  [x] Give every sub-row of a NoTeachWeek's week the wall planner's mild red background tint in ./view.py, for
+    visitors and the admin alike
