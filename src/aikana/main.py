@@ -151,7 +151,9 @@ def create_app(db: Database) -> FastHTML:
     app = FastHTML(
         title="Aikana", hdrs=layout.extra_headers(), surreal=False, sess_https_only=True, lifespan=lifespan
     )
+    # `static_route` takes a single extension, so each served asset type needs its own route.
     app.static_route(ext=".css", prefix="/static/", static_path=str(layout.STATIC_DIR))
+    app.static_route(ext=".svg", prefix="/static/", static_path=str(layout.STATIC_DIR))
     app.add_middleware(_SecurityHeadersMiddleware)
 
     auth_routes.register_routes(app, auth_service)

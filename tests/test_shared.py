@@ -27,3 +27,13 @@ def test_pages_link_the_compiled_stylesheet_and_never_the_play_cdn(client):
         assert 'href="/static/app.css"' in response.text
         assert "cdn.tailwindcss.com" not in response.text
         assert "htmx" in response.text
+
+
+def test_pages_link_the_favicon_and_it_is_served(client):
+    for path in ("/", "/courses", "/realizations"):
+        assert 'href="/static/favicon.svg"' in client.get(path).text
+
+    # The icon link would 404 without a static route for `.svg`, which the stylesheet's `.css` route does not serve.
+    response = client.get("/static/favicon.svg")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")

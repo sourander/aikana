@@ -11,6 +11,7 @@ Owns:
   ./dates.py
   ./static/input.css
   ./static/app.css
+  ./static/favicon.svg
 
 References:
   ../architecture.sdd
@@ -36,7 +37,10 @@ Must:
   ./static/app.css is the compiled, minified stylesheet produced from ./static/input.css by the standalone
   Tailwind CLI in the `css` stage of /Dockerfile; it is a build artifact and is `.gitignore`d, not hand edited.
   `main.py` serves ./static/app.css at `/static/app.css` via `app.static_route`, using `layout.STATIC_DIR` so the
-  path resolves regardless of the process's working directory.
+    path resolves regardless of the process's working directory.
+  ./static/favicon.svg is the site's icon: `main.py` serves it at `/static/favicon.svg` and ./layout.py links it as
+    `rel="icon"` with type `image/svg+xml`, since `app.static_route` serves a single extension per call and the
+    stylesheet's `.css` route does not cover it.
   ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`), the Courses view
   (`/courses`) and the Realization view (`/realizations`) in that order, highlighting whichever one the calling
   route registers as active, a persistent Semester selector, and a slot for that page's own selector control (for
@@ -87,3 +91,4 @@ Tasks:
     Monday and a form can pick a day without a browser date picker
   [x] Let ./layout.py's header wrap its groups onto further lines and keep the title and nav labels unwrapped, so the
     shared shell stays readable on a phone-sized screen
+  [x] Add ./static/favicon.svg and link it from ./layout.py, served by a second `app.static_route` in `main.py`

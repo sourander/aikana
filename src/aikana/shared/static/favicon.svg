@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Rounded background (Dark Blue for a modern tech/AI feel) -->
+  <rect width="100" height="100" rx="22" fill="#2C3E50" />
+  
+  <!-- Red Comb (Top of head) -->
+  <circle cx="30" cy="35" r="12" fill="#E74C3C" />
+  <circle cx="45" cy="28" r="16" fill="#E74C3C" />
+  <circle cx="60" cy="35" r="10" fill="#E74C3C" />
+  
+  <!-- Red Wattle (Under beak) -->
+  <circle cx="68" cy="70" r="10" fill="#E74C3C" />
+  
+  <!-- Main Head & Neck (White) -->
+  <circle cx="45" cy="60" r="30" fill="#ECF0F1" />
+  <rect x="15" y="60" width="60" height="40" fill="#ECF0F1" />
+  
+  <!-- Yellow Beak -->
+  <polygon points="70,45 96,55 70,65" fill="#F1C40F" />
+  
+  <!-- Eye -->
+  <circle cx="56" cy="48" r="5" fill="#2C3E50" />
+</svg>

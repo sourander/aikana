@@ -11,6 +11,8 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 _TAILWIND_CSS_HREF = "/static/app.css"
 
+_FAVICON_HREF = "/static/favicon.svg"
+
 _NAV_LINKS = (
     ("semester", "Semester", "/"),
     ("courses", "Courses", "/courses"),
@@ -79,7 +81,11 @@ _TOOLTIP_JS = """
 
 def extra_headers() -> tuple:
     """Extra <head> tags to pass into FastHTML(hdrs=...); HTMX is already added by FastHTML itself."""
-    return (Link(rel="stylesheet", href=_TAILWIND_CSS_HREF), Script(_TOOLTIP_JS))
+    return (
+        Link(rel="stylesheet", href=_TAILWIND_CSS_HREF),
+        Link(rel="icon", type="image/svg+xml", href=_FAVICON_HREF),
+        Script(_TOOLTIP_JS),
+    )
 
 
 def dropdown(
