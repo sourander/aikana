@@ -41,10 +41,15 @@ _DEADLINE_PATH = "/realizations/deadlines"
 _VIEW_ID = "realization-view"
 _HIDE_HOLIDAYS_CLS = "hide-holidays"
 _HIDE_CONFERENCES_CLS = "hide-conferences"
-# A hidden kind is hidden through its cell, not its whole row: the Week and Deadline cells span a week's sub-rows
-# with `rowspan`, so removing a row would take those cells with it.
+# A hidden kind's content is wrapped in a Div carrying one of these classes. The cell itself never carries the hiding
+# class: `display: none` on a table cell removes it from the table grid, which would shift the cells after it into
+# other columns whenever the hidden entry is a week's first sub-row.
 _HOLIDAY_ENTRY_CLS = "group-[.hide-holidays]:hidden"
 _CONFERENCE_ENTRY_CLS = "group-[.hide-conferences]:hidden"
+# A hidden entry's cell keeps its place in the grid but drops its padding, so its row collapses to the row border
+# instead of leaving a blank band where the entry was.
+_HOLIDAY_CELL_CLS = "group-[.hide-holidays]:py-0"
+_CONFERENCE_CELL_CLS = "group-[.hide-conferences]:py-0"
 
 # The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
 _SHARE_JS = (
@@ -295,21 +300,28 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
         # A NoTeachWeek's own title already says which break it is, per ../realizations.sdd.
         return Td(entry.title, cls=f"{_CELL_CLS} text-red-600 italic")
     if entry.is_holiday:
-        # A Holiday is laid out like a Lesson, in red: its title over the day it falls on and no time range. Its cell
-        # carries the visitor's Holiday toggle class, so hiding the kind leaves the week's other rows and spans intact.
+        # A Holiday is laid out like a Lesson, in red: its title over the day it falls on and no time range. The
+        # wrapper carries the visitor's Holiday toggle class; the cell itself never does, so hiding the kind cannot
+        # remove the cell from the table grid and shift a later sub-row's Lesson into the `Deadline` column.
         return Td(
-            Div(entry.title, cls="text-red-600 italic"),
-            Div(_entry_day(entry), cls="text-xs text-red-400 italic"),
-            cls=f"{_CELL_CLS} {_HOLIDAY_ENTRY_CLS}",
+            Div(
+                Div(entry.title, cls="text-red-600 italic"),
+                Div(_entry_day(entry), cls="text-xs text-red-400 italic"),
+                cls=_HOLIDAY_ENTRY_CLS,
+            ),
+            cls=f"{_CELL_CLS} {_HOLIDAY_CELL_CLS}",
         )
     if entry.is_conference:
         # A ../conferences/conferences.sdd Conference is laid out the same way, in purple: it is the one dated entry
-        # that does not block teaching, so it never reads as the red of a blocked day. Its cell carries the visitor's
-        # Conference toggle class like a Holiday's.
+        # that does not block teaching, so it never reads as the red of a blocked day. Its wrapper carries the
+        # visitor's Conference toggle class like a Holiday's.
         return Td(
-            Div(entry.title, cls="text-purple-600 italic"),
-            Div(_entry_day(entry), cls="text-xs text-purple-400 italic"),
-            cls=f"{_CELL_CLS} {_CONFERENCE_ENTRY_CLS}",
+            Div(
+                Div(entry.title, cls="text-purple-600 italic"),
+                Div(_entry_day(entry), cls="text-xs text-purple-400 italic"),
+                cls=_CONFERENCE_ENTRY_CLS,
+            ),
+            cls=f"{_CELL_CLS} {_CONFERENCE_CELL_CLS}",
         )
     # A Lesson sub-row is the admin's edit trigger, and its free-text note reads under its day and time line, per
     # ./realizations.sdd.

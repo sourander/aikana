@@ -147,8 +147,9 @@ Must:
     Only a Conference and a single-day Holiday are affected: a NoTeachWeek, a Lesson and a Deadline stay visible
     whichever way the toggles are set.
   The toggles and the hidden state sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
-    which swaps only the weekly table, leaves them in place. The hidden kind is hidden through its `Lessons` cell, not
-    its whole row, so a week's `Week` and `Deadline` cells keep spanning every sub-row of that week.
+    which swaps only the weekly table, leaves them in place. A hidden kind is hidden through the content inside its
+    `Lessons` cell, never by removing the cell from the table grid, so a hidden entry never shifts a later sub-row's
+    Lesson into the `Deadline` column; the cell drops its padding instead, so its row collapses to the row border.
   The Share button's URL and label sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
     which swaps only the weekly table, leaves the button in place.
   The rightmost column is `Deadline` and carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline

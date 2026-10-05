@@ -217,9 +217,15 @@ def test_share_button_completes_a_url_missing_the_semester(admin_client, course_
 
 
 def _cell_before(html: str, text: str) -> str:
-    """The opening cell tag immediately before `text`, so a class check cannot leak from another cell."""
+    """The cell markup immediately before `text`, so a class check cannot leak from another cell."""
     anchor = html.index(text)
     return html[html.rindex("<td", 0, anchor) : anchor]
+
+
+def _cell_open_tag(html: str, text: str) -> str:
+    """The opening `<td>` tag of the cell immediately before `text`."""
+    cell = _cell_before(html, text)
+    return cell[: cell.index(">") + 1]
 
 
 def test_admin_weekly_view_starts_with_conferences_and_holidays_shown(
@@ -257,7 +263,7 @@ def test_visitor_weekly_view_starts_with_conferences_and_holidays_hidden(client,
     assert 'class="group flex flex-col h-full min-h-0 hide-holidays hide-conferences"' in response.text
 
 
-def test_a_holiday_and_a_conference_cell_carry_their_own_toggle_class(client, services):
+def test_a_holiday_and_a_conference_hide_their_content_not_their_cell(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
@@ -267,8 +273,15 @@ def test_a_holiday_and_a_conference_cell_carry_their_own_toggle_class(client, se
 
     html = client.get(f"/realizations?realization_id={realization.id}").text
 
+    # The hiding class is on the content wrapper inside the cell...
     assert "group-[.hide-holidays]:hidden" in _cell_before(html, "Autumn break")
     assert "group-[.hide-conferences]:hidden" in _cell_before(html, "Educa")
+    # ...never on the cell itself: a hidden cell drops out of the table grid and shifts a later sub-row's Lesson into
+    # the `Deadline` column, so the cell only collapses its padding while hidden.
+    assert "group-[.hide-holidays]:hidden" not in _cell_open_tag(html, "Autumn break")
+    assert "group-[.hide-conferences]:hidden" not in _cell_open_tag(html, "Educa")
+    assert "group-[.hide-holidays]:py-0" in _cell_open_tag(html, "Autumn break")
+    assert "group-[.hide-conferences]:py-0" in _cell_open_tag(html, "Educa")
 
 
 def test_a_no_teach_week_cell_carries_no_toggle_class(client, services):
