@@ -191,7 +191,7 @@ class RealizationService:
                                 start_time=lesson.start_time.strftime("%H:%M"),
                                 end_time=lesson.end_time.strftime("%H:%M"),
                                 lesson_id=lesson.id,
-                                lesson_date=lesson.date,
+                                entry_date=lesson.date,
                             )
                         )
                     holiday_title = holiday_titles_by_day.get(day)
@@ -202,6 +202,7 @@ class RealizationService:
                                 is_no_teach_week=False,
                                 title=holiday_title,
                                 notes="",
+                                entry_date=day,
                             )
                         )
                     day += timedelta(days=1)
@@ -235,9 +236,10 @@ class RealizationService:
 class WeekEntry:
     """One Lesson or Holiday shown in a WeekRow's Lessons/Notes sub-rows.
 
-    `lesson_id` and `lesson_date` are set only for a Lesson, and they are what ../realizations.sdd's admin
-    controls address it by; `start_time` and `end_time` are the formatted `HH:MM` values of a Lesson and are
-    empty for a Holiday or NoTeachWeek, whose cell shows no time.
+    `lesson_id` is set only for a Lesson and is what ../realizations.sdd's admin controls address it by;
+    `entry_date` is the day a Lesson or a Holiday falls on, which its cell's own day line shows, and is
+    `None` for a NoTeachWeek, which consumes a whole week. `start_time` and `end_time` are the formatted
+    `HH:MM` values of a Lesson and are empty for a Holiday or NoTeachWeek, whose cell shows no time.
     """
 
     is_holiday: bool
@@ -247,7 +249,7 @@ class WeekEntry:
     start_time: str = ""
     end_time: str = ""
     lesson_id: int | None = None
-    lesson_date: date | None = None
+    entry_date: date | None = None
 
 
 @dataclass(frozen=True)

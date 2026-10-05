@@ -78,8 +78,10 @@ Must:
   (`rowspan`) so it still reads as one row. A Lesson sub-row shows its topic and, under it, one line reading the
   Lesson's abbreviated weekday, its `d.m.` day and its time range, such as `Mon 21.9. 08:00\u201310:00`; the day
   omits the year because the row's `Week` cell already carries the week's full date range. Its free-text notes go in
-  the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in the `Lessons` column with an
-  empty `Notes` cell. A week with neither shows a single empty sub-row.
+    the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in the `Lessons` column
+    over a second line carrying that Holiday's own abbreviated weekday and `d.m.` day, such as `Wed 21.10.`, in
+    red italics instead of the black of a Lesson, with no time range and an empty `Notes` cell. A week with
+    neither shows a single empty sub-row.
   A week's `Week` cell shows that week's ../week_themes/week_themes.sdd WeekTheme, when one exists, on the same line
   as the week number, with the date range on the line below; the theme is shown to visitors and the admin alike, and
   a week without one shows no placeholder.
@@ -217,3 +219,5 @@ Tasks:
   [x] Add the rightmost `Deadline` column with each week's add dialog and the per-Deadline edit and delete
     dialogs in ./view.py, and the guarded `/realizations/deadlines` routes in ./routes.py writing through
     ../deadlines/deadlines.sdd's @DeadlineService
+  [x] Show each Holiday sub-row's title over its own weekday and `d.m.` day in red italics, like a Lesson's two
+    lines, instead of a one-line `Holiday \u2013 title`, carrying that day on @WeekEntry's `entry_date`

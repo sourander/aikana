@@ -249,7 +249,12 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
         # A NoTeachWeek's own title already says which break it is, per ../realizations.sdd.
         return Td(entry.title, cls=f"{_CELL_CLS} text-red-600 italic")
     if entry.is_holiday:
-        return Td(f"Holiday \u2013 {entry.title}", cls=f"{_CELL_CLS} text-red-600 italic")
+        # A Holiday is laid out like a Lesson, in red: its title over the day it falls on and no time range.
+        return Td(
+            Div(entry.title, cls="text-red-600 italic"),
+            Div(_entry_day(entry), cls="text-xs text-red-400 italic"),
+            cls=_CELL_CLS,
+        )
     return Td(
         Div(entry.title, cls="text-gray-900"),
         Div(_lesson_when(entry), cls="text-xs text-gray-500"),
@@ -258,14 +263,19 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
     )
 
 
-def _lesson_when(entry: WeekEntry) -> str:
-    """One Lesson's weekday, day and time range, per ./realizations.sdd.
+def _entry_day(entry: WeekEntry) -> str:
+    """One Lesson's or Holiday's weekday and `d.m.` day, per ./realizations.sdd.
 
     The week row's `Week` cell already carries the week's full date range, so the sub-row repeats only the
     weekday and the `d.m.` day.
     """
-    day = entry.lesson_date
-    return f"{day.strftime('%a')} {day.day}.{day.month}. {entry.start_time}\u2013{entry.end_time}"
+    day = entry.entry_date
+    return f"{day.strftime('%a')} {day.day}.{day.month}."
+
+
+def _lesson_when(entry: WeekEntry) -> str:
+    """One Lesson's day over its time range, per ./realizations.sdd."""
+    return f"{_entry_day(entry)} {entry.start_time}\u2013{entry.end_time}"
 
 
 def _notes_cell(entry: WeekEntry | None):
@@ -355,7 +365,7 @@ def _lesson_edit_dialog(entry: WeekEntry):
     return Dialog(
         Form(
             Span("Date", cls="text-xs font-semibold text-gray-500"),
-            layout.day_calendar(entry.lesson_date),
+            layout.day_calendar(entry.entry_date),
             Div(
                 Div(
                     Span("Start time", cls="text-xs font-semibold text-gray-500"),
@@ -398,7 +408,7 @@ def _lesson_delete_dialog(entry: WeekEntry):
     """The confirmation before one Lesson is removed, naming the Lesson and its date."""
     return Dialog(
         Div(
-            f"Delete the Lesson {entry.title} on {dates.format_date(entry.lesson_date)}?",
+            f"Delete the Lesson {entry.title} on {dates.format_date(entry.entry_date)}?",
             cls="font-semibold text-sm mb-2",
         ),
         Form(

@@ -154,7 +154,11 @@ def test_a_week_with_a_lesson_and_a_holiday_spans_two_sub_rows(client, services)
     assert response.status_code == 200
     # One sub-row per entry under the single Week cell, per realizations.sdd.
     assert 'rowspan="2"' in response.text
-    assert "Holiday \u2013 Autumn break" in response.text
+    assert "Autumn break" in response.text
+    assert "Holiday \u2013" not in response.text
+    # The Holiday shows its own weekday and d.m. day under its title, in red instead of the black of a Lesson.
+    assert "Wed 21.10." in response.text
+    assert 'class="text-red-600 italic">Autumn break' in response.text
     assert "Intro" in response.text
     # The sub-row states the weekday, day and time range; the year stays in the Week cell.
     assert "Tue 20.10. 08:00\u201310:00" in response.text
@@ -500,7 +504,7 @@ def test_only_a_lesson_sub_row_carries_the_lesson_controls(admin_client, lesson_
 
     assert response.text.count("lesson-edit-dialog") == 2
     assert response.text.count(f'id="lesson-edit-dialog-{lesson}"') == 1
-    assert "Holiday \u2013 Autumn break" in response.text
+    assert "Autumn break" in response.text
 
 
 def test_admin_edits_a_lesson_from_the_weekly_view(admin_client, lesson_id, services):
