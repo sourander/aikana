@@ -177,7 +177,7 @@ def week_table(vm: RealizationViewModel, is_admin: bool = False):
             for dialog in (_deadline_edit_dialog(entry), _deadline_delete_dialog(entry))
         ],
         id=day_dialog_view.WEEK_TABLE_ID,
-        cls="h-full overflow-y-auto px-4 pb-4",
+        cls="h-full w-full overflow-y-auto px-4 pb-4 max-w-5xl mx-auto",
     )
 
 
