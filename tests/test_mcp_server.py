@@ -34,6 +34,7 @@ def mcp(services):
         no_teach_week_service=services.no_teach_weeks,
         week_theme_service=services.week_themes,
         deadline_service=services.deadlines,
+        conference_service=services.conferences,
     )
 
 
@@ -176,6 +177,25 @@ def test_an_unknown_deadline_is_an_mcp_error(mcp):
         mcp.get_deadline(123)
 
 
+def test_a_conference_dict_carries_its_date_and_title(mcp):
+    conference = mcp.create_conference("2026-11-12", "Nordic Conference")
+
+    assert conference == {"id": conference["id"], "date": "2026-11-12", "title": "Nordic Conference"}
+    assert mcp.list_conferences("2026-11-01", "2026-11-30") == [conference]
+
+
+def test_a_second_conference_on_the_same_date_is_rejected_over_the_wire(mcp):
+    mcp.create_conference("2026-11-12", "Nordic Conference")
+
+    with pytest.raises(McpError, match="already has a Conference"):
+        mcp.create_conference("2026-11-12", "Second Conference")
+
+
+def test_an_empty_conference_title_is_rejected_over_the_wire(mcp):
+    with pytest.raises(McpError, match="non-empty title"):
+        mcp.create_conference("2026-11-12", "   ")
+
+
 # The mounted `/mcp` endpoint
 
 
@@ -195,6 +215,7 @@ def test_tools_list_exposes_every_tool_anonymously(mcp_client):
         "get_week_theme", "list_week_themes", "create_week_theme", "update_week_theme", "delete_week_theme",
         "get_deadline", "list_deadlines", "list_deadlines_for_range", "create_deadline",
         "update_deadline", "delete_deadline",
+        "list_conferences", "create_conference", "update_conference", "delete_conference",
     }
 
 
@@ -328,6 +349,47 @@ def test_a_deadline_write_is_rejected_without_a_token(mcp_client, services):
 
     assert result["isError"] is True
     assert services.deadlines.list_deadlines_for_realization(realization.id) == []
+
+
+def test_the_conference_tools_are_token_gated(mcp_client):
+    client, session_id = mcp_client
+
+    created = _call_tool(
+        client, session_id, "create_conference",
+        {"conference_date": "2026-11-12", "title": "Nordic Conference"},
+        token=MCP_TOKEN,
+    )
+    listed = _call_tool(client, session_id, "list_conferences", {"start": "2026-11-01", "end": "2026-11-30"})
+    updated = _call_tool(
+        client, session_id, "update_conference",
+        {"conference_id": created["structuredContent"]["id"], "conference_date": "2026-11-13",
+         "title": "Retitled"},
+        token=MCP_TOKEN,
+    )
+    deleted = _call_tool(
+        client, session_id, "delete_conference", {"conference_id": created["structuredContent"]["id"]},
+        token=MCP_TOKEN,
+    )
+
+    assert created["isError"] is False
+    assert [c["title"] for c in listed["structuredContent"]["result"]] == ["Nordic Conference"]
+    assert updated["structuredContent"] == {
+        "id": created["structuredContent"]["id"], "date": "2026-11-13", "title": "Retitled",
+    }
+    assert deleted["structuredContent"] == {"deleted": created["structuredContent"]["id"]}
+
+
+def test_a_conference_write_is_rejected_without_a_token(mcp_client):
+    client, session_id = mcp_client
+
+    result = _call_tool(
+        client, session_id, "create_conference",
+        {"conference_date": "2026-11-12", "title": "Nordic Conference"},
+    )
+
+    assert result["isError"] is True
+    listed = _call_tool(client, session_id, "list_conferences", {"start": "2026-11-01", "end": "2026-11-30"})
+    assert listed["structuredContent"]["result"] == []
 
 
 def test_the_html_routes_are_not_shadowed_by_the_mcp_mount(mcp_client):

@@ -31,8 +31,8 @@ The SQLite database is stored at `/data/app.db`. Mount a volume at `/data` to pe
 Aikana exposes an [MCP](https://modelcontextprotocol.io) server at `/mcp` (Streamable HTTP transport), so an AI
 agent can read the calendar and, with a token, maintain it. Dates on the wire are ISO `yyyy-mm-dd`, times `HH:MM`.
 
-- **Without credentials** an agent can list and read semesters, courses, course realizations, lessons, holidays
-  and no-teach weeks.
+- **Without credentials** an agent can list and read semesters, courses, course realizations, lessons, holidays,
+  no-teach weeks and conferences.
 - **With the `AIKANA_MCP_TOKEN` bearer token** it can also create, update and delete every entity. If the token
   is not configured on the server, the endpoint is read-only.
 

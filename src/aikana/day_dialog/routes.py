@@ -5,6 +5,12 @@ from datetime import date, time, timedelta
 from fasthtml.common import FtResponse, RedirectResponse
 
 from ..auth.services import AuthService
+from ..conferences.services import (
+    ConferenceService,
+    DuplicateConferenceError,
+    InvalidConferenceError,
+    UnknownConferenceError,
+)
 from ..holidays.services import DuplicateHolidayError, HolidayService, InvalidHolidayError, UnknownHolidayError
 from ..lessons.services import InvalidLessonError, LessonService, UnknownRealizationError
 from ..no_teach_weeks.services import (
@@ -33,6 +39,7 @@ def register_routes(
     lesson_service: LessonService,
     realization_service: RealizationService,
     auth_service: AuthService,
+    conference_service: ConferenceService,
 ) -> None:
     def grid(semester_id: int | None):
         """The bare wall planner grid that a successful write swaps in, never the dialog container."""
@@ -54,6 +61,12 @@ def register_routes(
         """The Holiday already stored on that date, if any; a date carries at most one, per
         ../holidays/holidays.sdd."""
         found = holiday_service.list_holidays_for_range(day, day)
+        return found[0] if found else None
+
+    def conference_on(day: date):
+        """The ../conferences/conferences.sdd Conference already stored on that date, if any; a date carries at most
+        one, per ../conferences/conferences.sdd."""
+        found = conference_service.list_conferences_for_range(day, day)
         return found[0] if found else None
 
     def no_teach_week_on(semester_id: int | None, day: date):
@@ -89,6 +102,7 @@ def register_routes(
             realization_id=realization_id,
             holiday=holiday_on(day),
             no_teach_week=no_teach_week_on(semester_id, day),
+            conference=conference_on(day),
         )
 
     def parsed_day(day_str: str) -> date:
@@ -210,6 +224,25 @@ def register_routes(
             return reject(day, semester_id_value, "lesson", values, str(exc), realization_id_value)
         return write_response(semester_id_value, realization_id_value)
 
+    @app.post(f"{view.DIALOG_PATH}/conference")
+    def add_conference(
+        session,
+        semester_id: str = "",
+        day: str = "",
+        title: str = "",
+        realization_id: str = "",
+    ):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        values = {"title": title}
+        try:
+            conference_service.add_conference(parsed_day(day), title)
+        except (_Rejected, InvalidConferenceError, DuplicateConferenceError) as exc:
+            return reject(day, semester_id_value, "conference", values, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
     @app.post(f"{view.HOLIDAY_PATH}/{{holiday_id}}")
     def update_holiday(
         session,
@@ -248,6 +281,51 @@ def register_routes(
             holiday_service.delete_holiday(parse_id(holiday_id))
         except UnknownHolidayError as exc:
             return reject(day, semester_id_value, "holiday", {}, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
+    @app.post(f"{view.CONFERENCE_PATH}/{{conference_id}}")
+    def update_conference(
+        session,
+        conference_id: str,
+        semester_id: str = "",
+        day: str = "",
+        title: str = "",
+        realization_id: str = "",
+    ):
+        """Edits the Conference already stored on the clicked date, per ./day_dialog.sdd."""
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        conference_id_value = parse_id(conference_id)
+        values = {"conference_id": conference_id_value, "day": day, "title": title}
+        try:
+            conference_service.update_conference(conference_id_value, parsed_day(day), title)
+        except (
+            _Rejected,
+            UnknownConferenceError,
+            InvalidConferenceError,
+            DuplicateConferenceError,
+        ) as exc:
+            return reject(day, semester_id_value, "conference", values, str(exc), realization_id_value)
+        return write_response(semester_id_value, realization_id_value)
+
+    @app.post(f"{view.CONFERENCE_PATH}/{{conference_id}}/delete")
+    def delete_conference(
+        session,
+        conference_id: str,
+        semester_id: str = "",
+        day: str = "",
+        realization_id: str = "",
+    ):
+        if not auth_service.is_admin(session):
+            return RedirectResponse("/login", status_code=303)
+        semester_id_value = parse_id(semester_id)
+        realization_id_value = parse_id(realization_id)
+        try:
+            conference_service.delete_conference(parse_id(conference_id))
+        except UnknownConferenceError as exc:
+            return reject(day, semester_id_value, "conference", {}, str(exc), realization_id_value)
         return write_response(semester_id_value, realization_id_value)
 
     @app.post(f"{view.NO_TEACH_WEEK_PATH}/{{no_teach_week_id}}")

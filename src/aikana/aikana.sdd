@@ -20,7 +20,8 @@ Structure:
   ./no_teach_weeks/: the NoTeachWeek entity, a Monday-to-Friday week of a Semester in which nothing is taught
   ./week_themes/: the WeekTheme entity, the theme of one week of one CourseRealization
   ./deadlines/: the Deadline entity, a dated obligation of one CourseRealization
-  ./day_dialog/: the admin dialog for adding a Holiday, a NoTeachWeek or a Lesson on a given day
+  ./conferences/: the Conference entity, a one-day dated event that does not block teaching
+  ./day_dialog/: the admin dialog for adding a Holiday, a NoTeachWeek, a Conference or a Lesson on a given day
   ./mcp_server/: the Model Context Protocol driving adapter that exposes every entity to AI agents at `/mcp`
 
 References:
@@ -73,3 +74,5 @@ Tasks:
     ./mcp_server/'s tools, per ./week_themes/week_themes.sdd
   [x] Add the ./deadlines/ package and wire it into ./main.py, the `Deadline` column of ./realizations/'s weekly
     table, ./semester/'s circles and ./mcp_server/'s tools, per ./deadlines/deadlines.sdd
+  [x] Add the ./conferences/ package and wire it into ./main.py, the day dialog's Conference tab, ./semester/'s and
+    ./realizations/'s purple titles and ./mcp_server/'s tools, per ./conferences/conferences.sdd

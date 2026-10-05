@@ -5,6 +5,8 @@ from types import SimpleNamespace
 import pytest
 from starlette.testclient import TestClient
 
+from aikana.conferences.repository_sqlite import SqliteConferenceRepository
+from aikana.conferences.services import ConferenceService
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
 from aikana.deadlines.repository_sqlite import SqliteDeadlineRepository
@@ -64,6 +66,7 @@ def services(db):
     """Every feature's service, wired on a temporary database the way main.py's composition root does it."""
     course_service = CourseService(SqliteCourseRepository(db))
     holiday_service = HolidayService(SqliteHolidayRepository(db))
+    conference_service = ConferenceService(SqliteConferenceRepository(db))
     semester_repo = SqliteSemesterRepository(db)
     no_teach_week_service = NoTeachWeekService(SqliteNoTeachWeekRepository(db), semester_repo)
     realization_repo = SqliteCourseRealizationRepository(db)
@@ -72,14 +75,15 @@ def services(db):
     deadline_service = DeadlineService(SqliteDeadlineRepository(db), realization_repo)
     realization_service = RealizationService(
         realization_repo, course_service, lesson_service, holiday_service, no_teach_week_service,
-        week_theme_service, deadline_service,
+        week_theme_service, deadline_service, conference_service,
     )
     semester_service = SemesterService(
         semester_repo, course_service, holiday_service, lesson_service, realization_service, no_teach_week_service,
-        deadline_service,
+        deadline_service, conference_service,
     )
     realization_service.semester_service = semester_service
     return SimpleNamespace(
+        conferences=conference_service,
         courses=course_service,
         holidays=holiday_service,
         lessons=lesson_service,

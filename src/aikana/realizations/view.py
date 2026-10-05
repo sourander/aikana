@@ -265,6 +265,14 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
             Div(_entry_day(entry), cls="text-xs text-red-400 italic"),
             cls=_CELL_CLS,
         )
+    if entry.is_conference:
+        # A ../conferences/conferences.sdd Conference is laid out the same way, in purple: it is the one dated entry
+        # that does not block teaching, so it never reads as the red of a blocked day.
+        return Td(
+            Div(entry.title, cls="text-purple-600 italic"),
+            Div(_entry_day(entry), cls="text-xs text-purple-400 italic"),
+            cls=_CELL_CLS,
+        )
     return Td(
         Div(entry.title, cls="text-gray-900"),
         Div(_lesson_when(entry), cls="text-xs text-gray-500"),
@@ -289,7 +297,11 @@ def _lesson_when(entry: WeekEntry) -> str:
 
 
 def _notes_cell(entry: WeekEntry | None):
-    text = entry.notes if entry and not (entry.is_holiday or entry.is_no_teach_week) else ""
+    text = (
+        entry.notes
+        if entry and not (entry.is_holiday or entry.is_conference or entry.is_no_teach_week)
+        else ""
+    )
     return Td(text, cls=f"{_CELL_CLS} text-gray-600 text-sm")
 
 

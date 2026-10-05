@@ -1,0 +1,64 @@
+Spec: Conference entity
+
+Purpose:
+  The Conference entity: a date and a title, marking a one-day event such as a conference, a workshop or a seminar
+  that the teacher attends or presents at. It carries no Semester or Course reference, so one entry speaks for the
+  whole calendar, and it never blocks teaching: it coexists with a Holiday and with the Lessons of that day, since
+  the teacher may still teach on it. A conference spanning several days is stored as one Conference per day. A
+  view-less, route-less package used by ../semester/semester.sdd, ../realizations/realizations.sdd,
+  ../day_dialog/day_dialog.sdd and ../mcp_server/mcp_server.sdd.
+
+Owns:
+  ./__init__.py
+  ./domain.py
+  ./ports.py
+  ./services.py
+  ./repository_sqlite.py
+
+References:
+  ../architecture.sdd
+
+Must:
+  A Conference has a date and a title. Its date is indexed for range listings.
+  A date carries at most one Conference, held the same way as ../holidays/holidays.sdd holds its one Holiday per date:
+    @ConferenceService.add_conference rejects a date that already holds one with @DuplicateConferenceError,
+    @ConferenceService.update_conference re-checks it while ignoring the Conference being edited, and a unique index
+    on the table's date enforces it for a write that bypasses the service. A Conference therefore spans exactly one
+    day, per ./conferences.sdd's Purpose.
+  A Conference has no foreign key: it is global to the calendar, like a Holiday, and not owned by a Semester or a
+    Course.
+  A Conference never blocks teaching: no use case checks its date against a Semester's NoTeachWeeks or a day's
+    Lessons, so storing one leaves that day's Lessons in place.
+  @ConferenceService.add_conference rejects an empty title with @InvalidConferenceError before storage.
+  @ConferenceService.update_conference applies the same title check as @ConferenceService.add_conference and
+    rejects an unknown id with @UnknownConferenceError.
+  @ConferenceService.delete_conference removes one Conference, rejecting an unknown id with @UnknownConferenceError.
+  @ConferenceRepository in ./ports.py exposes operations to get, list Conferences for a date range, and to add,
+    update and delete one.
+  The table is created automatically on startup when it does not exist, and its unique date index replaces an earlier
+    non-unique index of the same name instead of leaving the constraint absent.
+  A Conference's title is content the teacher reads and edits rather than UI text, so it is stored as entered; the
+    English sentence the views show about a Conference is UI text and lives in their view.py, per /aikana.sdd.
+
+Must not:
+  This package must not gain a view.py or routes.py: a Conference is created, edited and removed through
+    ../day_dialog/day_dialog.sdd's Conference tab, so those affordances and routes stay owned there.
+
+Scenario: A Conference leaves the day's Lessons in place
+  Given a day holds a Lesson of some CourseRealization
+  When the admin adds a Conference on that day
+  Then the day's row shows both the Lesson square and the Conference's title
+
+Scenario: The admin edits the Conference already on the clicked date
+  Given a Conference is stored on a date the admin clicks in ../semester/semester.sdd's wall planner
+  When the admin opens the dialog's Conference tab and changes the title or the date
+  Then the new date shows the new title and the previous one no longer shows it
+
+Scenario: Two Conferences on one date are rejected
+  Given a Conference is stored on a date
+  When the admin adds another Conference on that same date
+  Then the stored one is left as it was and the dialog reports the rejection
+
+Tasks:
+  [x] Implement @Conference in ./domain.py and the @ConferenceRepository-backed ./ports.py, ./services.py and
+    ./repository_sqlite.py, holding the one-Conference-per-date rule with a unique index, per ../architecture.sdd

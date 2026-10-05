@@ -8,6 +8,9 @@ Structure:
     plus the shared assertion that a page's day calendar has a given day checked
   ./test_auth.py: in-process client tests of the admin login and logout, the shell's login/logout link and the
     password's secrecy
+  ./test_conferences.py: service-layer validation tests for the Conference package, in-process client tests of the
+    day dialog's Conference tab with its admin guard, and of the wall planner's and the weekly view's purple
+    Conference titles
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit and delete dialogs
   ./test_dates.py: unit tests for the shared Europe/Helsinki date policy
   ./test_deadlines.py: service-layer validation tests for the Deadline package, in-process client tests of the

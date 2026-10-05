@@ -30,18 +30,21 @@ Depends on:
   ../no_teach_weeks/no_teach_weeks.sdd
   ../week_themes/week_themes.sdd
   ../deadlines/deadlines.sdd
+  ../conferences/conferences.sdd
 
 Exposes:
   @create_mcp_server in ./server.py, building the MCP server from @McpService and @McpWriteGuard for
     ../main.py to mount.
   Anonymous read tools: `list_semesters`, `list_courses`, `get_course`, `get_realization`, `list_realizations`,
     `get_lesson`, `list_lessons`, `list_lessons_for_range`, `list_holidays`, `list_no_teach_weeks`,
-    `get_week_theme`, `list_week_themes`, `get_deadline`, `list_deadlines`, `list_deadlines_for_range`.
+    `get_week_theme`, `list_week_themes`, `get_deadline`, `list_deadlines`, `list_deadlines_for_range`,
+    `list_conferences`.
   Token-gated write tools: `create_semester`, `delete_semester`, `create_course`, `update_course`,
     `delete_course`, `create_realization`, `update_realization`, `delete_realization`, `create_lesson`,
     `update_lesson`, `delete_lesson`, `create_holiday`, `update_holiday`, `delete_holiday`,
     `create_no_teach_week`, `update_no_teach_week`, `delete_no_teach_week`, `create_week_theme`,
-    `update_week_theme`, `delete_week_theme`, `create_deadline`, `update_deadline`, `delete_deadline`.
+    `update_week_theme`, `delete_week_theme`, `create_deadline`, `update_deadline`, `delete_deadline`,
+    `create_conference`, `update_conference`, `delete_conference`.
 
 Must:
   The endpoint is served at `/mcp` through the `mcp` SDK's Streamable HTTP transport with JSON responses.
@@ -74,3 +77,5 @@ Tasks:
     as the ISO `yyyy-mm-dd` Monday of the themed week
   [x] Add the Deadline read and write tools for ../deadlines/deadlines.sdd, whose `date` goes on the wire as an ISO
     `yyyy-mm-dd` date
+  [x] Add the Conference read and write tools for ../conferences/conferences.sdd, whose `date` goes on the wire as an
+    ISO `yyyy-mm-dd` date

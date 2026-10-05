@@ -22,7 +22,7 @@ def realization_service(db):
     SqliteSemesterRepository(db)
     # The listing methods under test never read another feature's service, so those dependencies stay unset here.
     return RealizationService(
-        SqliteCourseRealizationRepository(db), course_service, None, None, None, None, None
+        SqliteCourseRealizationRepository(db), course_service, None, None, None, None, None, None
     )
 
 

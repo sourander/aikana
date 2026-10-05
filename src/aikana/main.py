@@ -9,6 +9,8 @@ from starlette.datastructures import MutableHeaders
 
 from aikana.auth import routes as auth_routes
 from aikana.auth.services import AuthService
+from aikana.conferences.repository_sqlite import SqliteConferenceRepository
+from aikana.conferences.services import ConferenceService
 from aikana.courses import routes as courses_routes
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.courses.services import CourseService
@@ -69,6 +71,9 @@ def create_app(db: Database) -> FastHTML:
     """
     course_service = CourseService(SqliteCourseRepository(db))
     holiday_service = HolidayService(SqliteHolidayRepository(db))
+    # A Conference has no reference to validate, so it needs nothing but its own repository, per
+    # ./conferences/conferences.sdd.
+    conference_service = ConferenceService(SqliteConferenceRepository(db))
     auth_service = AuthService(os.environ.get("AIKANA_PASSWD", ""))
 
     # NoTeachWeekService validates Semester ids through the semesters port and creates a new Semester's default
@@ -98,6 +103,7 @@ def create_app(db: Database) -> FastHTML:
         no_teach_week_service,
         week_theme_service,
         deadline_service,
+        conference_service,
     )
     semester_service = SemesterService(
         semester_repo,
@@ -107,6 +113,7 @@ def create_app(db: Database) -> FastHTML:
         realization_service,
         no_teach_week_service,
         deadline_service,
+        conference_service,
     )
     realization_service.semester_service = semester_service
 
@@ -123,6 +130,7 @@ def create_app(db: Database) -> FastHTML:
             no_teach_week_service,
             week_theme_service,
             deadline_service,
+            conference_service,
         ),
         McpWriteGuard(os.environ.get("AIKANA_MCP_TOKEN", "")),
     )
@@ -168,6 +176,7 @@ def create_app(db: Database) -> FastHTML:
         lesson_service,
         realization_service,
         auth_service,
+        conference_service,
     )
     # Mounted last: Starlette matches routes in order and Mount("/") matches every path, so the feature routes
     # registered above must come first; the MCP app itself serves only `/mcp`.

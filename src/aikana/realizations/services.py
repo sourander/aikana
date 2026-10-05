@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..courses.domain import Course
 from ..courses.services import CourseService
+from ..conferences.services import ConferenceService
 from ..deadlines.services import DeadlineService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
@@ -46,6 +47,7 @@ class RealizationService:
         no_teach_week_service: NoTeachWeekService,
         week_theme_service: WeekThemeService,
         deadline_service: DeadlineService,
+        conference_service: ConferenceService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
@@ -56,6 +58,9 @@ class RealizationService:
         # ../deadlines/deadlines.sdd's service, used only to list the realization's Deadlines for the `Deadline`
         # column of the weekly view.
         self.deadline_service = deadline_service
+        # ../conferences/conferences.sdd's service, used only to list the Semesters Conferences for the week rows'
+        # `Lessons` column, like its Holidays.
+        self.conference_service = conference_service
         # Set by main.py once ../semester/semester.sdd's SemesterService is constructed (mutual pair, wired in
         # two phases per ../architecture.sdd).
         self.semester_service: "SemesterService | None" = None
@@ -142,6 +147,12 @@ class RealizationService:
             holiday.date: holiday.title
             for holiday in self.holiday_service.list_holidays_for_range(start, end)
         }
+        # A ../conferences/conferences.sdd Conference is laid out like a Holiday here, only in purple, since it does
+        # not block teaching and the whole calendar shares it rather than the one realization.
+        conference_titles_by_day = {
+            conference.date: conference.title
+            for conference in self.conference_service.list_conferences_for_range(start, end)
+        }
         no_teach_titles_by_week = {
             week.week_number: week.title
             for week in self.no_teach_week_service.list_no_teach_weeks(realization.semester_id)
@@ -174,6 +185,7 @@ class RealizationService:
                 entries.append(
                     WeekEntry(
                         is_holiday=False,
+                        is_conference=False,
                         is_no_teach_week=True,
                         title=no_teach_title,
                         notes="",
@@ -185,6 +197,7 @@ class RealizationService:
                         entries.append(
                             WeekEntry(
                                 is_holiday=False,
+                                is_conference=False,
                                 is_no_teach_week=False,
                                 title=lesson.topic,
                                 notes=lesson.notes,
@@ -199,8 +212,21 @@ class RealizationService:
                         entries.append(
                             WeekEntry(
                                 is_holiday=True,
+                                is_conference=False,
                                 is_no_teach_week=False,
                                 title=holiday_title,
+                                notes="",
+                                entry_date=day,
+                            )
+                        )
+                    conference_title = conference_titles_by_day.get(day)
+                    if conference_title:
+                        entries.append(
+                            WeekEntry(
+                                is_holiday=False,
+                                is_conference=True,
+                                is_no_teach_week=False,
+                                title=conference_title,
                                 notes="",
                                 entry_date=day,
                             )
@@ -234,15 +260,16 @@ class RealizationService:
 
 @dataclass(frozen=True)
 class WeekEntry:
-    """One Lesson or Holiday shown in a WeekRow's Lessons/Notes sub-rows.
+    """One Lesson, Holiday or ../conferences/conferences.sdd Conference shown in a WeekRow's Lessons/Notes sub-rows.
 
     `lesson_id` is set only for a Lesson and is what ../realizations.sdd's admin controls address it by;
-    `entry_date` is the day a Lesson or a Holiday falls on, which its cell's own day line shows, and is
+    `entry_date` is the day a Lesson, a Holiday or a Conference falls on, which its cell's own day line shows, and is
     `None` for a NoTeachWeek, which consumes a whole week. `start_time` and `end_time` are the formatted
-    `HH:MM` values of a Lesson and are empty for a Holiday or NoTeachWeek, whose cell shows no time.
+    `HH:MM` values of a Lesson and are empty for a Holiday, a Conference or a NoTeachWeek, whose cell shows no time.
     """
 
     is_holiday: bool
+    is_conference: bool
     is_no_teach_week: bool
     title: str
     notes: str

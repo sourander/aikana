@@ -1,4 +1,5 @@
-"""Pure rendering of the admin day dialog and its Holiday, NoTeachWeek and Lesson forms, per ./day_dialog.sdd."""
+"""Pure rendering of the admin day dialog and its Holiday, NoTeachWeek, Conference and Lesson forms, per
+./day_dialog.sdd."""
 
 from datetime import date, time
 from urllib.parse import urlencode
@@ -17,6 +18,7 @@ WEEK_TABLE_ID = "realization-week-table"
 DIALOG_PATH = "/day/dialog"
 HOLIDAY_PATH = f"{DIALOG_PATH}/holidays"
 NO_TEACH_WEEK_PATH = f"{DIALOG_PATH}/no-teach-weeks"
+CONFERENCE_PATH = f"{DIALOG_PATH}/conferences"
 
 # showModal() throws on an already-open dialog, so the reopen is a no-op once the swap has opened it.
 _REOPEN_JS = "if (!this.querySelector('dialog[open]')) this.querySelector('dialog').showModal()"
@@ -38,6 +40,7 @@ _TABS = (
     ("lesson", "Lesson"),
     ("holiday", "Holiday"),
     ("no_teach_week", "NoTeachWeek"),
+    ("conference", "Conference"),
 )
 
 
@@ -52,12 +55,14 @@ def day_dialog(
     realization_id: int | None = None,
     holiday=None,
     no_teach_week=None,
+    conference=None,
 ):
     """The dialog for one day, with a tab per kind of entry the admin can add on that day.
 
     A `realization_id` marks the dialog as opened from that realization's weekly table: the date is editable and a
     successful write re-renders the weekly table instead of the wall planner grid. A Holiday already stored on
-    that date and a NoTeachWeek already blocking it replace their tab's add form with a prefilled edit form.
+    that date, a NoTeachWeek already blocking it and a ../conferences/conferences.sdd Conference already on it replace
+    their tab's add form with a prefilled edit form.
     """
     values = values or {}
     return Dialog(
@@ -73,6 +78,7 @@ def day_dialog(
             realization_id,
             holiday,
             no_teach_week,
+            conference,
         ),
         P(error, cls="text-red-600 text-sm mt-2") if error else "",
         Button(
@@ -109,6 +115,16 @@ def no_teach_week_path(no_teach_week_id: int) -> str:
 def no_teach_week_delete_path(no_teach_week_id: int) -> str:
     """The path of one NoTeachWeek's delete route, per ./day_dialog.sdd."""
     return f"{no_teach_week_path(no_teach_week_id)}/delete"
+
+
+def conference_path(conference_id: int) -> str:
+    """The path of one ../conferences/conferences.sdd Conference's edit route, per ./day_dialog.sdd."""
+    return f"{CONFERENCE_PATH}/{conference_id}"
+
+
+def conference_delete_path(conference_id: int) -> str:
+    """The path of one Conference's delete route, per ./day_dialog.sdd."""
+    return f"{conference_path(conference_id)}/delete"
 
 
 def holiday_form(day: date, semester_id: int | None, values: dict, realization_id: int | None = None):
@@ -149,6 +165,23 @@ def no_teach_week_form(day: date, semester_id: int | None, default_no_teach_titl
             required=True,
             cls=_INPUT_CLS,
         ),
+    )
+
+
+def conference_form(day: date, semester_id: int | None, values: dict, realization_id: int | None = None):
+    return _form(
+        f"{DIALOG_PATH}/conference",
+        day,
+        semester_id,
+        P(
+            "A conference or event that does not necessarily block teaching; "
+            "store one per day of a conference that spans several.",
+            cls="text-xs text-gray-500",
+        ),
+        Span("Title", cls=_LABEL_CLS),
+        Input(name="title", value=values.get("title", ""), required=True, cls=_INPUT_CLS),
+        realization_id=realization_id,
+        editable_day=realization_id is not None,
     )
 
 
@@ -320,6 +353,7 @@ def _body(
     realization_id: int | None = None,
     holiday=None,
     no_teach_week=None,
+    conference=None,
 ):
     if kind == "no_teach_week":
         if no_teach_week is not None:
@@ -329,6 +363,10 @@ def _body(
         if holiday is not None:
             return _holiday_edit_form(holiday, day, semester_id, values, realization_id)
         return holiday_form(day, semester_id, values, realization_id)
+    if kind == "conference":
+        if conference is not None:
+            return _conference_edit_form(conference, day, semester_id, values, realization_id)
+        return conference_form(day, semester_id, values, realization_id)
     return lesson_form(day, semester_id, realization_options, values, realization_id)
 
 
@@ -400,6 +438,36 @@ def _no_teach_week_edit_form(no_teach_week, day, semester_id, values, realizatio
             delete=(
                 no_teach_week_delete_path(no_teach_week.id),
                 f"Delete the NoTeachWeek in week {no_teach_week.week_number}?",
+                realization_id,
+            ),
+        ),
+    )
+
+
+def _conference_edit_form(conference, day, semester_id, values, realization_id: int | None):
+    """The ../conferences/conferences.sdd Conference already on that date, prefilled and deletable, instead of the
+    add form.
+
+    A rejected submission carries its own `conference_id`, so the block the admin edited is prefilled with what was
+    typed and the stored Conference stays untouched.
+    """
+    edited = values.get("conference_id") == conference.id
+    conference_day = _submitted_day(values, conference.date) if edited else conference.date
+    title = values.get("title", "") if edited else conference.title
+    return Div(
+        P("This day already has a Conference. Edit it or remove it.", cls="text-xs text-gray-500"),
+        _form(
+            conference_path(conference.id),
+            conference_day,
+            semester_id,
+            Span("Title", cls=_LABEL_CLS),
+            Input(name="title", value=title, required=True, cls=_INPUT_CLS),
+            Input(name="conference_id", type="hidden", value=conference.id),
+            realization_id=realization_id,
+            editable_day=True,
+            delete=(
+                conference_delete_path(conference.id),
+                f"Delete the Conference {conference.title} on {dates.format_date(conference.date)}?",
                 realization_id,
             ),
         ),

@@ -11,6 +11,9 @@ from contextlib import contextmanager
 from datetime import date, time
 from typing import TypedDict
 
+from ..conferences import services as conference_services
+from ..conferences.domain import Conference
+from ..conferences.services import ConferenceService
 from ..courses import services as course_services
 from ..courses.domain import Course
 from ..courses.services import CourseService
@@ -97,6 +100,12 @@ class DeadlineDict(TypedDict):
     title: str
 
 
+class ConferenceDict(TypedDict):
+    id: int
+    date: str
+    title: str
+
+
 class DeletedDict(TypedDict):
     deleted: int
 
@@ -125,6 +134,9 @@ _DOMAIN_ERRORS: tuple[type[Exception], ...] = (
     course_services.InvalidCourseError,
     course_services.DuplicateCourseError,
     course_services.UnknownCourseError,
+    conference_services.DuplicateConferenceError,
+    conference_services.InvalidConferenceError,
+    conference_services.UnknownConferenceError,
     deadline_services.InvalidDeadlineError,
     deadline_services.UnknownDeadlineError,
     deadline_services.UnknownRealizationError,
@@ -239,6 +251,10 @@ def _deadline_dict(deadline: Deadline) -> DeadlineDict:
     }
 
 
+def _conference_dict(conference: Conference) -> ConferenceDict:
+    return {"id": conference.id, "date": conference.date.isoformat(), "title": conference.title}
+
+
 class McpService:
     """The eight feature services adapted to the plain-dict, ISO-string interface the MCP tools expose."""
 
@@ -252,6 +268,7 @@ class McpService:
         no_teach_week_service: NoTeachWeekService,
         week_theme_service: WeekThemeService,
         deadline_service: DeadlineService,
+        conference_service: ConferenceService,
     ) -> None:
         self.courses = course_service
         self.semesters = semester_service
@@ -261,6 +278,7 @@ class McpService:
         self.no_teach_weeks = no_teach_week_service
         self.week_themes = week_theme_service
         self.deadlines = deadline_service
+        self.conferences = conference_service
 
     def _semester_dict(self, semester: Semester) -> SemesterDict:
         start, end = self.semesters.semester_bounds(semester)
@@ -506,3 +524,28 @@ class McpService:
         with _translated():
             self.deadlines.delete_deadline(deadline_id)
         return {"deleted": deadline_id}
+
+    # Conferences
+
+    def list_conferences(self, start: str, end: str) -> list[ConferenceDict]:
+        return [
+            _conference_dict(c)
+            for c in self.conferences.list_conferences_for_range(_parse_date(start), _parse_date(end))
+        ]
+
+    def create_conference(self, conference_date: str, title: str) -> ConferenceDict:
+        with _translated():
+            conference = self.conferences.add_conference(_parse_date(conference_date), title)
+        return _conference_dict(conference)
+
+    def update_conference(self, conference_id: int, conference_date: str, title: str) -> ConferenceDict:
+        with _translated():
+            conference = self.conferences.update_conference(
+                conference_id, _parse_date(conference_date), title
+            )
+        return _conference_dict(conference)
+
+    def delete_conference(self, conference_id: int) -> DeletedDict:
+        with _translated():
+            self.conferences.delete_conference(conference_id)
+        return {"deleted": conference_id}

@@ -8,6 +8,7 @@ from datetime import date, time
 from typing import TYPE_CHECKING
 
 from ..courses.services import CourseService
+from ..conferences.services import ConferenceService
 from ..deadlines.services import DeadlineService
 from ..holidays.services import HolidayService
 from ..lessons.services import LessonService
@@ -89,6 +90,9 @@ class DayCell:
     circles: list[DeadlineCircle]
     holiday_title: str | None
     no_teach_title: str | None
+    # The ../conferences/conferences.sdd title of the one Conference on that day, when there is one. A Conference
+    # coexists with a Holiday and a NoTeachWeek title, since it does not block teaching.
+    conference_title: str | None = None
     is_today: bool = False
 
 
@@ -115,6 +119,7 @@ class SemesterService:
         realization_service: "RealizationService",
         no_teach_week_service: NoTeachWeekService,
         deadline_service: DeadlineService,
+        conference_service: ConferenceService,
     ) -> None:
         self.repo = repo
         self.course_service = course_service
@@ -125,6 +130,9 @@ class SemesterService:
         # ../deadlines/deadlines.sdd's service, used only to read the Semesters Deadlines for the wall planner's
         # circles.
         self.deadline_service = deadline_service
+        # ../conferences/conferences.sdd's service, used only to read the Semesters Conferences for the wall
+        # planner's purple titles.
+        self.conference_service = conference_service
 
     def list_semesters(self) -> list[Semester]:
         return self.repo.list()
@@ -207,6 +215,10 @@ class SemesterService:
             for holiday in self.holiday_service.list_holidays_for_range(start, end)
         }
         no_teach_titles_by_day = self.no_teach_week_service.titles_by_teaching_day(semester.id)
+        conference_titles_by_day = {
+            conference.date: conference.title
+            for conference in self.conference_service.list_conferences_for_range(start, end)
+        }
 
         # Every Deadline of the Semester's own realizations, colored with the color its Lesson squares share, so a
         # deadline circle reads as that realization's marker.
@@ -243,6 +255,7 @@ class SemesterService:
                         circles=circles_by_day.get(day, []),
                         holiday_title=holiday_titles_by_day.get(day),
                         no_teach_title=no_teach_titles_by_day.get(day),
+                        conference_title=conference_titles_by_day.get(day),
                         is_today=day == today,
                     )
                 )

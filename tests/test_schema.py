@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import apsw
 import pytest
 
+from aikana.conferences.repository_sqlite import SqliteConferenceRepository
 from aikana.courses.repository_sqlite import SqliteCourseRepository
 from aikana.deadlines.repository_sqlite import SqliteDeadlineRepository
 from aikana.holidays.repository_sqlite import SqliteHolidayRepository
@@ -21,6 +22,7 @@ from aikana.week_themes.repository_sqlite import SqliteWeekThemeRepository
 def _build(db) -> SimpleNamespace:
     """Every repository, constructed in foreign-key dependency order the way main.py does it."""
     return SimpleNamespace(
+        conferences=SqliteConferenceRepository(db),
         courses=SqliteCourseRepository(db),
         holidays=SqliteHolidayRepository(db),
         semesters=SqliteSemesterRepository(db),
@@ -48,6 +50,7 @@ def test_every_table_is_strict(db):
         "no_teach_weeks",
         "week_themes",
         "deadlines",
+        "conferences",
     ):
         sql = db.conn.execute("select sql from sqlite_master where name = ?", (table,)).fetchone()[0]
         assert sql.rstrip().endswith("STRICT")
@@ -185,6 +188,14 @@ def test_a_date_has_at_most_one_holiday(db):
         holidays.add(date(2026, 12, 6), "Second Holiday")
 
 
+def test_a_date_has_at_most_one_conference(db):
+    conferences = SqliteConferenceRepository(db)
+    conferences.add(date(2026, 11, 12), "Nordic Conference")
+
+    with pytest.raises(apsw.ConstraintError):
+        conferences.add(date(2026, 11, 12), "Second Conference")
+
+
 def test_a_non_unique_holiday_date_index_is_replaced_on_startup(db):
     # An earlier database already holds a non-unique index of the same name, which the unique index must replace.
     db.t.holidays.create(
@@ -200,6 +211,24 @@ def test_a_non_unique_holiday_date_index_is_replaced_on_startup(db):
 
     assert db.conn.execute(
         "select sql from sqlite_master where name = 'idx_holidays_date'"
+    ).fetchone()[0].upper().startswith("CREATE UNIQUE INDEX")
+
+
+def test_a_non_unique_conference_date_index_is_replaced_on_startup(db):
+    # An earlier database already holds a non-unique index of the same name, which the unique index must replace.
+    db.t.conferences.create(
+        columns={"id": int, "date": str, "title": str},
+        pk="id",
+        if_not_exists=True,
+        not_null=["date", "title"],
+        strict=True,
+    )
+    db.t.conferences.create_index(["date"], if_not_exists=True)
+
+    SqliteConferenceRepository(db)
+
+    assert db.conn.execute(
+        "select sql from sqlite_master where name = 'idx_conferences_date'"
     ).fetchone()[0].upper().startswith("CREATE UNIQUE INDEX")
 
 

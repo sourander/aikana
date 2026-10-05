@@ -114,6 +114,12 @@ Tasks:
     that column, drawn as a half-transparent circle in the realization's own color in
     ./src/aikana/semester/semester.sdd, with read and token-gated write tools in
     ./src/aikana/mcp_server/mcp_server.sdd
+  [ ] #16 Add the Conference entity (./src/aikana/conferences/conferences.sdd): a one-day dated event that does not
+    block teaching and coexists with a Holiday and that day's Lessons, drawn as purple text with a hover tooltip in
+    ./src/aikana/semester/semester.sdd, laid out like a Holiday in purple in
+    ./src/aikana/realizations/realizations.sdd's weekly view, and created, edited and removed through a Conference
+    tab in ./src/aikana/day_dialog/day_dialog.sdd, with read and token-gated write tools in
+    ./src/aikana/mcp_server/mcp_server.sdd
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

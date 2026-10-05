@@ -32,6 +32,7 @@ Depends on:
   ../no_teach_weeks/no_teach_weeks.sdd
   ../week_themes/week_themes.sdd
   ../deadlines/deadlines.sdd
+  ../conferences/conferences.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
@@ -80,8 +81,10 @@ Must:
   omits the year because the row's `Week` cell already carries the week's full date range. Its free-text notes go in
     the `Notes` column; a Holiday, read through ../holidays/holidays.sdd, shows its title in the `Lessons` column
     over a second line carrying that Holiday's own abbreviated weekday and `d.m.` day, such as `Wed 21.10.`, in
-    red italics instead of the black of a Lesson, with no time range and an empty `Notes` cell. A week with
-    neither shows a single empty sub-row.
+    red italics instead of the black of a Lesson, with no time range and an empty `Notes` cell. A
+    ../conferences/conferences.sdd Conference, read through that package, is laid out the same way as a Holiday and in
+    the same place, only in purple instead of red, since it blocks no teaching; a day carrying both shows one sub-row
+    for each. A week with neither shows a single empty sub-row.
   A week's `Week` cell shows that week's ../week_themes/week_themes.sdd WeekTheme, when one exists, on the same line
   as the week number, with the date range on the line below; the theme is shown to visitors and the admin alike, and
   a week without one shows no placeholder.
@@ -100,8 +103,8 @@ Must:
     mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
     the boundary.
   For the admin, clicking a week row outside its `Week` cell opens the dialog specified in
-    ../day_dialog/day_dialog.sdd to add a Holiday, a NoTeachWeek or a Lesson for that week; a visitor is shown no
-    week-row trigger.
+    ../day_dialog/day_dialog.sdd to add a Holiday, a NoTeachWeek, a Conference or a Lesson for that week; a visitor is
+    shown no week-row trigger.
   Clicking a week row's `Week` cell is the admin's affordance for that week's ../week_themes/week_themes.sdd
     WeekTheme instead of the day dialog: it opens that week's own `<dialog>`, which offers the add form when the week
     has no theme and the edit form prefilled with the stored title when it has one, and it stops the click's
@@ -118,8 +121,8 @@ Must:
     for a non-admin session and leaves the WeekTheme unstored.
   A successful write re-renders the weekly table in place: the table carries the id
     ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
-  Each Lesson sub-row carries an `Edit` and a `Delete` control for the admin, and no Holiday or NoTeachWeek
-    sub-row carries either, since ../lessons/lessons.sdd owns only Lesson writes.
+  Each Lesson sub-row carries an `Edit` and a `Delete` control for the admin, and no Holiday, Conference or
+    NoTeachWeek sub-row carries either, since ../lessons/lessons.sdd owns only Lesson writes.
   `Edit` opens a `<dialog>` whose date field is ../shared/shared.sdd's @day_calendar, a Monday-first month grid with
     that Lesson's date checked, whose start time and end time are prefilled ../day_dialog/day_dialog.sdd's
     @time_select dropdowns side by side on one row, and whose topic and notes fields are prefilled, posting to
@@ -227,3 +230,5 @@ Tasks:
     lines, instead of a one-line `Holiday \u2013 title`, carrying that day on @WeekEntry's `entry_date`
   [x] Give every sub-row of a NoTeachWeek's week the wall planner's mild red background tint in ./view.py, for
     visitors and the admin alike
+  [x] Show each ../conferences/conferences.sdd Conference as a purple sub-row in the `Lessons` column, laid out like a
+    Holiday's, read through @ConferenceService in ./services.py

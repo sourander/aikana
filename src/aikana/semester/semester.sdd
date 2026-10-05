@@ -25,6 +25,7 @@ Depends on:
   ../holidays/holidays.sdd
   ../no_teach_weeks/no_teach_weeks.sdd
   ../deadlines/deadlines.sdd
+  ../conferences/conferences.sdd
   ../day_dialog/day_dialog.sdd
 
 Must:
@@ -97,6 +98,15 @@ Must:
   otherwise, and keeps it clear of the left-most and right-most month columns, so the first days of a month are
   never cut off by the screen edge or hidden behind the top bar.
   Holidays are visibly distinguished on their day row and show their title.
+  A ../conferences/conferences.sdd Conference shows on its day row as purple text beside that day's Holiday or
+    NoTeachWeek title, since the two coexist: a date carrying both shows both titles, in their own colors. A day
+    holding only a Conference is not tinted, because a Conference blocks nothing, so a tinted row keeps meaning that
+    nothing is taught that day.
+  Hovering a Conference's purple title shows a tooltip through ../shared/shared.sdd's `data-tip` anchor, as a Lesson
+    square does, without changing the row height. The tooltip carries the Conference's own title over the fixed
+    sentence `This conference or event might affect teaching schedule or availability of the teacher`.
+  A day row holding a Conference opens ../day_dialog/day_dialog.sdd's Conference tab for the admin, since that is the
+    entry the day already has; every other row opens the Lesson tab as before.
   The Monday-to-Friday rows of a NoTeachWeek are distinguished like a Holiday row, with the same tint and the same
   per-row title, and the row shows no lesson squares, since nothing is taught during the week. A Saturday or Sunday
   row keeps the plain weekend tint.
@@ -173,4 +183,6 @@ Tasks:
     downward instead of clipping the grid
   [x] Give every day row and its month column the `8rem` minimum width in ./view.py and let the grid scroll in both
     directions instead of clipping, so the wall planner stays readable on a narrow viewport
+  [x] Render each ../conferences/conferences.sdd Conference as purple text with a hover tooltip on its day row, read
+    through @ConferenceService in ./services.py, and open the day dialog's Conference tab from a row that holds one
 

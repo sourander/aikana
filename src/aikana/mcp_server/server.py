@@ -14,6 +14,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .services import (
+    ConferenceDict,
     CourseDict,
     DeadlineDict,
     DeletedDict,
@@ -40,6 +41,8 @@ _INSTRUCTIONS = (
     "assignment due date). Holidays block single days and NoTeachWeeks block Monday-to-Friday weeks; a Lesson "
     "cannot be dated inside a NoTeachWeek, and at most one Lesson exists per day and CourseRealization, while a "
     "CourseRealization may have many Deadlines on the same date. "
+    "A Conference marks one dated event that does not block teaching and coexists with that day's Lessons and "
+    "Holidays; a conference spanning several days is stored as one Conference per day, and a date carries at most one. "
     "Dates are ISO yyyy-mm-dd and times HH:MM. Reads need no credentials; writes require the AIKANA_MCP_TOKEN "
     "bearer token."
 )
@@ -313,5 +316,30 @@ def create_mcp_server(service: McpService, guard: McpWriteGuard) -> MCPServer:
         """Delete one Deadline, leaving its CourseRealization and its other Deadlines untouched."""
         require_write(ctx)
         return call(service.delete_deadline, deadline_id)
+
+    # Conferences
+
+    @server.tool(annotations=_READ)
+    def list_conferences(start: str, end: str) -> list[ConferenceDict]:
+        """List every Conference dated between `start` and `end` (ISO yyyy-mm-dd, inclusive), ordered by date; a Conference does not block teaching and a date carries at most one."""
+        return call(service.list_conferences, start, end)
+
+    @server.tool(annotations=_WRITE)
+    def create_conference(conference_date: str, title: str, ctx: Context) -> ConferenceDict:
+        """Create a Conference on `conference_date` (yyyy-mm-dd) with a non-empty title; the date must carry no Conference yet, and a multi-day conference is one entry per day. Conferences are global to the calendar, not owned by a Semester."""
+        require_write(ctx)
+        return call(service.create_conference, conference_date, title)
+
+    @server.tool(annotations=_WRITE)
+    def update_conference(conference_id: int, conference_date: str, title: str, ctx: Context) -> ConferenceDict:
+        """Edit one Conference's date and title; create_conference's checks apply, ignoring the Conference being edited."""
+        require_write(ctx)
+        return call(service.update_conference, conference_id, conference_date, title)
+
+    @server.tool(annotations=_DELETE)
+    def delete_conference(conference_id: int, ctx: Context) -> DeletedDict:
+        """Delete one Conference; that day's Lessons and Holidays are untouched."""
+        require_write(ctx)
+        return call(service.delete_conference, conference_id)
 
     return server

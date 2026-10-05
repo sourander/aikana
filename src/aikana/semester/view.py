@@ -10,6 +10,24 @@ from .services import DayCell, LegendEntry, MonthColumn, SemesterViewModel
 # the labels out of sight, per ./semester.sdd.
 _DAY_MIN_WIDTH = "8rem"
 
+# The tooltip body every hover anchor carries, positioned above its anchor by these classes;
+# ../shared/shared.sdd's script moves it inside the grid when it would not fit there.
+_TOOLTIP_CLS = (
+    "pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden w-56 "
+    "flex-col gap-0.5 whitespace-normal break-words rounded-lg border border-gray-200 bg-white "
+    "p-3 text-xs leading-snug shadow-lg group-hover:flex z-20"
+)
+
+# The state a Conference's tooltip states under its title, per ../conferences/conferences.sdd.
+_CONFERENCE_STATE = (
+    "This conference or event might affect teaching schedule or availability of the teacher"
+)
+
+
+def _tooltip_body(*lines):
+    """The `data-tip-body` child of a hover anchor, per ../shared/shared.sdd."""
+    return Div(*lines, **{"data-tip-body": ""}, cls=_TOOLTIP_CLS)
+
 
 def create_semester_form(error: str = ""):
     return Div(
@@ -67,8 +85,8 @@ def semester_view(vm: SemesterViewModel, is_admin: bool = False):
     """The wall planner: the grid, the legend bar below it and, for the admin, the day dialog's container.
 
     The legend bar is a sibling of the grid and not part of @semester_grid, so a ../day_dialog/day_dialog.sdd write
-    swapping `outerHTML` into the grid leaves the bar in place. A day dialog can only add a Lesson, a Holiday or a
-    NoTeachWeek, so the bar's realizations cannot go stale under a swap.
+    swapping `outerHTML` into the grid leaves the bar in place. A day dialog can only add a Lesson, a Holiday, a
+    NoTeachWeek or a Conference, so the bar's realizations cannot go stale under a swap.
     """
     content = [semester_grid(vm, is_admin), legend_bar(vm)]
     if is_admin:
@@ -121,6 +139,7 @@ def _month_column(month: MonthColumn, semester_id: int, is_admin: bool):
 
 
 def _day_row(day: DayCell, semester_id: int, is_admin: bool):
+    # A Conference does not block teaching, so its day carries no tint and keeps its lesson squares.
     is_blocked = bool(day.holiday_title or day.no_teach_title)
     tint_cls = "bg-red-50" if is_blocked or day.day.weekday() >= 5 else ""
     today_cls = "border-l-4 border-l-green-500" if day.is_today else ""
@@ -129,11 +148,13 @@ def _day_row(day: DayCell, semester_id: int, is_admin: bool):
     title = day.holiday_title or day.no_teach_title
     row_cls = f"flex items-center gap-1 border-b border-gray-100 {tint_cls} {today_cls}"
     if is_admin:
-        # Clicking the row opens the day dialog for this date, per ../day_dialog/day_dialog.sdd.
+        # Clicking the row opens the day dialog for this date, per ../day_dialog/day_dialog.sdd. A day that already
+        # holds a Conference opens on that tab, since its add form is the one the admin most likely wants there.
+        kind = "conference" if day.conference_title else "lesson"
         row_attrs = {
             "hx_get": (
                 f"{day_dialog_view.DIALOG_PATH}"
-                f"?semester_id={semester_id}&day={day.day.isoformat()}&kind=lesson"
+                f"?semester_id={semester_id}&day={day.day.isoformat()}&kind={kind}"
             ),
             "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
             "hx_swap": "innerHTML",
@@ -158,6 +179,7 @@ def _day_row(day: DayCell, semester_id: int, is_admin: bool):
             cls="flex-1 flex items-center gap-1 flex-wrap",
         ),
         Span(title, cls="text-xs text-red-600 truncate pr-2") if title else "",
+        _conference_title(day.conference_title) if day.conference_title else "",
         style=f"flex:1; min-width:{_DAY_MIN_WIDTH};",
         **row_attrs,
     )
@@ -168,17 +190,11 @@ def _lesson_square(square, is_admin: bool):
     # A square is a link to the weekly view, so it must not also open the day dialog of the row around it.
     square_attrs = {"hx-on:click": "event.stopPropagation()"} if is_admin else {}
     return A(
-        Div(
+        _tooltip_body(
             Div(square.realization_label, cls="font-semibold text-gray-900"),
             Div(time_range, cls="text-gray-500"),
             Div(square.topic, cls="text-gray-800"),
             Div(square.notes, cls="text-gray-400 italic mt-1") if square.notes else "",
-            **{"data-tip-body": ""},
-            # The classes position the tooltip centred above the square; ../shared/shared.sdd's script moves it
-            # inside the grid when that would not fit.
-            cls="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden w-56 "
-            "flex-col gap-0.5 whitespace-normal break-words rounded-lg border border-gray-200 bg-white "
-            "p-3 text-xs leading-snug shadow-lg group-hover:flex z-20",
         ),
         href=f"/realizations?realization_id={square.realization_id}",
         cls="group relative inline-block w-3 h-3 rounded-sm",
@@ -186,6 +202,23 @@ def _lesson_square(square, is_admin: bool):
         # The square is the tooltip's anchor; the script follows this marker on hover.
         **{"data-tip": ""},
         **square_attrs,
+    )
+
+
+def _conference_title(conference_title: str):
+    """One ../conferences/conferences.sdd Conference as purple text on its day row.
+
+    The text is the tooltip's anchor and carries the title over the state a Conference states, so the row height
+    does not change on hover. Clicking it is left to the row around it, which opens the day dialog.
+    """
+    return Span(
+        _tooltip_body(
+            Div(conference_title, cls="font-semibold text-gray-900"),
+            Div(_CONFERENCE_STATE, cls="text-gray-500"),
+        ),
+        conference_title,
+        cls="group relative inline-block text-xs text-purple-600 truncate pr-2",
+        **{"data-tip": ""},
     )
 
 
