@@ -179,7 +179,7 @@ def test_a_deadline_shows_in_the_row_of_the_week_it_falls_in(
 def test_a_week_without_a_deadline_shows_the_column_empty(admin_client, realization_id, semester_id):
     row = _week_row(_weekly_view(admin_client, realization_id, semester_id).text, WEEK_START.isocalendar()[1])
 
-    assert "—" in row
+    assert "\u2014" not in row
     assert "Assignment 1" not in row
 
 

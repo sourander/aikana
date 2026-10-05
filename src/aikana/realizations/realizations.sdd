@@ -145,8 +145,8 @@ Must:
     which swaps only the weekly table, leaves the button in place.
   The rightmost column is `Deadline` and carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline
     shows in the `Deadline` cell of the row of the week it falls in, with its title over its `d.m.yyyy` date, and a
-    week with none shows a dash. The cell spans that week's sub-rows (`rowspan`) like the `Week` cell, and both are
-    shown to visitors and the admin alike.
+    week with none leaves the cell blank. The cell spans that week's sub-rows (`rowspan`) like the `Week` cell, and
+    both are shown to visitors and the admin alike.
   For the admin, the `Deadline` cell is also the trigger adding a Deadline to that week: it opens that week row's own
     `<dialog>`, whose date field is ../shared/shared.sdd's @day_calendar over that week's Monday and whose title
     field is empty. Each listed Deadline carries its own `Edit` and `Delete` controls, which stop the click's

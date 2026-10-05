@@ -323,17 +323,16 @@ def _lesson_when(entry: WeekEntry) -> str:
 def _deadlines_cell(week: WeekRow, realization, is_admin: bool, rowspan: int):
     """One week's `Deadline` cell, per ./realizations.sdd.
 
-    The cell lists the week's ../deadlines/deadlines.sdd Deadlines by title over their `d.m.yyyy` date. For the admin
-    it is also the trigger opening that week's add dialog; the per-Deadline controls inside it stop their own clicks
-    so they do not open that add dialog behind their own.
+    The cell lists the week's ../deadlines/deadlines.sdd Deadlines by title over their `d.m.yyyy` date and stays
+    blank when the week has none. For the admin the cell itself is the trigger opening that week's add dialog; the
+    per-Deadline controls inside it stop their own clicks so they do not open that add dialog behind their own.
     """
-    content = Div(
-        *[_deadline_entry(entry, is_admin) for entry in week.deadlines],
-        "—" if not week.deadlines else "",
+    return Td(
+        Div(*[_deadline_entry(entry, is_admin) for entry in week.deadlines]),
+        rowspan=rowspan,
         onclick=_open_dialog(deadline_dialog_id(week)) if is_admin else "",
-        cls="cursor-pointer" if is_admin else "",
+        cls=f"{_CELL_CLS} w-48" + (" cursor-pointer" if is_admin else ""),
     )
-    return Td(content, rowspan=rowspan, cls=f"{_CELL_CLS} w-48")
 
 
 def _deadline_entry(entry: DeadlineEntry, is_admin: bool):
