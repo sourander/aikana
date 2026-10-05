@@ -1,4 +1,4 @@
-"""The shared page shell: header plus the compiled Tailwind stylesheet and HTMX headers."""
+"""The shared page shell: header plus the hand-written stylesheet and HTMX headers."""
 
 from datetime import date
 from pathlib import Path
@@ -9,7 +9,7 @@ from . import dates
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-_TAILWIND_CSS_HREF = "/static/app.css"
+_CSS_HREF = "/static/app.css"
 
 _FAVICON_HREF = "/static/favicon.svg"
 
@@ -20,8 +20,6 @@ _NAV_LINKS = (
 )
 
 _NAV_HREFS = {key: href for key, _, href in _NAV_LINKS}
-
-_SELECT_CLS = "border border-gray-300 rounded text-sm px-2 py-1"
 
 SEMESTER_SELECT_ID = "semester-select"
 
@@ -65,7 +63,7 @@ _TOOLTIP_JS = """
     tip.style.left = left - targetBox.left + "px";
     tip.style.top = clamp(top, limits.top + GAP, limits.bottom - GAP - box.height) - targetBox.top + "px";
     tip.style.bottom = "auto";
-    // Tailwind 4 centres a tooltip through the `translate` property, not `transform`, so cancel both.
+    // The stylesheet centres the tooltip through `transform`, so cancel it once the script positions explicitly.
     tip.style.transform = "none";
     tip.style.translate = "none";
     tip.style.margin = "0";
@@ -82,7 +80,7 @@ _TOOLTIP_JS = """
 def extra_headers() -> tuple:
     """Extra <head> tags to pass into FastHTML(hdrs=...); HTMX is already added by FastHTML itself."""
     return (
-        Link(rel="stylesheet", href=_TAILWIND_CSS_HREF),
+        Link(rel="stylesheet", href=_CSS_HREF),
         Link(rel="icon", type="image/svg+xml", href=_FAVICON_HREF),
         Script(_TOOLTIP_JS),
     )
@@ -96,7 +94,7 @@ def dropdown(
     hx_include: str = "",
     select_id: str = "",
 ):
-    """A header select that re-renders `hx_get` with its own value when changed."""
+    """A select that re-renders `hx_get` with its own value when changed."""
     return Select(
         *[Option(label, value=option_id, selected=(option_id == selected_id)) for option_id, label in options],
         name=name,
@@ -106,7 +104,7 @@ def dropdown(
         hx_target="body",
         hx_push_url="true",
         hx_include=hx_include or None,
-        cls=_SELECT_CLS,
+        cls="input",
     )
 
 
@@ -118,53 +116,46 @@ def day_calendar(selected: date, name: str = "day"):
     """
     return Div(
         Div(
-            *[
-                Span(weekday, cls="flex h-7 w-8 items-center justify-center text-xs text-gray-500")
-                for weekday in dates.MONDAY_FIRST_WEEKDAYS
-            ],
-            cls="grid grid-cols-7 gap-1",
+            *[Span(weekday, cls="day-calendar-weekday") for weekday in dates.MONDAY_FIRST_WEEKDAYS],
+            cls="day-calendar-weekdays",
         ),
         *[
             Div(
                 *[_calendar_day(day, selected, name) for day in week],
-                cls="grid grid-cols-7 gap-1",
+                cls="day-calendar-week",
             )
             for week in dates.month_grid(selected)
         ],
-        cls="w-max",
+        cls="day-calendar",
     )
 
 
 def _calendar_day(day: date | None, selected: date, name: str):
     if day is None:
-        return Span("", cls="h-8 w-8")
+        return Span("", cls="day-calendar-spacer")
     return Label(
         Input(
             type="radio",
             name=name,
             value=day.isoformat(),
             checked=(day == selected),
-            cls="peer sr-only",
         ),
         Span(
             str(day.day),
-            cls="flex h-8 w-8 items-center justify-center rounded text-sm hover:bg-gray-100"
-            " peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:ring-2",
+            cls="day-calendar-day",
         ),
-        cls="contents",
     )
 
 
 def _nav(active: str, selected_semester_id: int | None):
     def link(key: str, label: str, href: str):
-        cls = "font-semibold text-blue-700" if key == active else "text-gray-600 hover:text-gray-900"
         if selected_semester_id is not None:
             href = f"{href}?semester_id={selected_semester_id}"
         # The label stays on one line, so a narrow viewport wraps the nav onto a further header line instead of
         # breaking a label across two.
-        return A(label, href=href, cls=f"text-sm whitespace-nowrap {cls}")
+        return A(label, href=href, cls="active" if key == active else None)
 
-    return Div(*[link(*entry) for entry in _NAV_LINKS], cls="flex flex-row gap-4")
+    return Div(*[link(*entry) for entry in _NAV_LINKS], cls="nav")
 
 
 def page(
@@ -172,7 +163,7 @@ def page(
     active_nav: str,
     semester_options: list[tuple[int, str]] = (),
     selected_semester_id: int | None = None,
-    selector=None,
+    is_admin: bool = False,
     admin_link=None,
 ):
     semester_selector = None
@@ -185,16 +176,17 @@ def page(
             select_id=SEMESTER_SELECT_ID,
         )
 
-    trailing = [item for item in (semester_selector, selector, admin_link) if item is not None]
+    new_semester = A("+ New Semester", href="/semesters/new", cls="link") if is_admin else None
+    trailing = [item for item in (semester_selector, new_semester, admin_link) if item is not None]
     return Div(
         Header(
             # The header's groups wrap onto further lines when the viewport is too narrow for one, so nothing is
             # squeezed or broken mid-label on a phone-sized screen.
-            H1("Aikana", cls="text-xl font-bold whitespace-nowrap"),
+            H1("Aikana", cls="brand"),
             _nav(active_nav, selected_semester_id),
-            Div(*trailing, cls="ml-auto flex items-center gap-3") if trailing else "",
-            cls="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 border-b border-gray-200",
+            Div(*trailing, cls="top-bar-right") if trailing else "",
+            cls="top-bar",
         ),
-        Div(*content, cls="flex-1 min-h-0"),
-        cls="h-screen flex flex-col",
+        Div(*content, cls="content"),
+        cls="page",
     )

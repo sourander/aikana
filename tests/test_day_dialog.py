@@ -147,7 +147,7 @@ def test_lesson_form_places_the_two_time_dropdowns_on_one_row(admin_client, seme
 
     response = _open_dialog(admin_client, semester, kind="lesson")
 
-    row = response.text.split('<div class="flex gap-2">', 1)[1]
+    row = response.text.split('<div class="form-row">', 1)[1]
     assert row.index('name="start_time"') < row.index('name="end_time"')
 
 
@@ -352,7 +352,7 @@ def test_a_visitor_can_neither_open_the_dialog_nor_add_through_it(client, semest
     assert len(services.no_teach_weeks.list_no_teach_weeks(semester.id)) == 2
 
 
-# The Realizations weekly view's lesson add slot and its lesson-only dialog, per
+# The Realizations weekly view's lesson add trigger and its lesson-only dialog, per
 # ./src/aikana/realizations/realizations.sdd.
 
 # Monday of FREE_DAY's week, outside the fall 2026 Semester's default NoTeachWeeks.
@@ -470,8 +470,8 @@ def test_admin_adds_a_lesson_from_the_add_slot(admin_client, semester, services)
 
 
 def _assert_bare_week_table(response):
-    """A successful weekly-view write responds with the bare weekly table, never a second dialog container or a
-    second toggle-state container, so the page's own toggles and their state stay in place."""
+    """A successful weekly-view write responds with the bare week cards, never a second dialog container or the
+    view's own bar, so the page's selector and Share button stay in place."""
     assert response.text.count('id="realization-week-table"') == 1
     assert 'id="day-dialog"' not in response.text
     assert 'id="realization-view"' not in response.text

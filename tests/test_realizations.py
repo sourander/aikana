@@ -1,5 +1,5 @@
 """In-process client tests of the courses page's realization dialogs, of their edits and deletions, of the weekly
-view and of its click-to-edit Lesson dialogs and per-week empty Lesson add slot, per ./tests.sdd.
+view and of its click-to-edit Lesson dialogs and per-week Lesson add trigger, per ./tests.sdd.
 """
 
 from datetime import date, time
@@ -11,7 +11,7 @@ from aikana.courses.services import CourseService
 from aikana.realizations.repository_sqlite import SqliteCourseRealizationRepository
 from aikana.realizations.services import RealizationService
 from aikana.semester.repository_sqlite import SqliteSemesterRepository
-from conftest import has_checked_calendar_day
+from conftest import has_checked_calendar_day, week_card_html
 
 
 @pytest.fixture
@@ -141,7 +141,7 @@ def test_weekly_view_falls_back_when_the_realization_belongs_to_another_semester
     assert "TTV24SP" not in response.text
 
 
-def test_a_week_with_a_lesson_and_a_holiday_spans_two_sub_rows(client, services):
+def test_a_week_with_a_lesson_and_a_holiday_shows_both(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
@@ -149,32 +149,33 @@ def test_a_week_with_a_lesson_and_a_holiday_spans_two_sub_rows(client, services)
     services.lessons.add_lesson(realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B")
     services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
 
-    response = client.get(f"/realizations?realization_id={realization.id}")
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+    card = week_card_html(html, 43)
 
-    assert response.status_code == 200
-    # One sub-row per entry under the single Week cell, per realizations.sdd.
-    assert 'rowspan="2"' in response.text
-    assert "Autumn break" in response.text
-    assert "Holiday \u2013" not in response.text
-    # The Holiday shows its own weekday and d.m. day under its title, in red instead of the black of a Lesson.
-    assert "Wed 21.10." in response.text
-    assert 'class="text-red-600 italic">Autumn break' in response.text
-    assert "Intro" in response.text
-    # The sub-row states the weekday, day and time range; the year stays in the Week cell.
-    assert "Tue 20.10. 08:00\u201310:00" in response.text
-    assert "Room B" in response.text
+    # The Lesson sits in the card's Lessons section, stating the weekday, day and time range with its note under it.
+    assert 'class="week-lessons"' in card
+    assert "Intro" in card
+    assert "Tue 20.10. 08:00\u201310:00" in card
+    assert "Room B" in card
+    # The Holiday is a red flag in the week head whose tooltip names it and its own weekday and d.m. day.
+    assert card.index('class="week-head"') < card.index('class="flag flag--holiday"') < card.index(
+        'class="week-lessons"'
+    )
+    assert "Autumn break" in card
+    assert "Wed 21.10." in card
+    assert "Holiday \u2013" not in html
 
 
-def test_the_weekly_table_has_no_notes_column(client, services):
+def test_the_week_card_has_no_notes_section(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
     html = client.get(f"/realizations?realization_id={realization.id}").text
 
-    assert ">Week<" in html
-    assert ">Lessons<" in html
-    assert ">Deadline<" in html
+    assert 'class="week-head"' in html
+    assert "week-lessons" in html
+    assert "week-deadlines" in html
     assert ">Notes<" not in html
 
 
@@ -186,7 +187,7 @@ def test_a_lesson_note_reads_under_its_day_and_time_line(client, services):
 
     html = client.get(f"/realizations?realization_id={realization.id}").text
 
-    note = '<div class="text-sm text-gray-600">Room B</div>'
+    note = '<div class="lesson-notes">Room B</div>'
     assert note in html
     assert html.index("Tue 20.10. 08:00\u201310:00") < html.index(note)
 
@@ -216,94 +217,57 @@ def test_share_button_completes_a_url_missing_the_semester(admin_client, course_
         assert f"realization_id={realization.id}&amp;semester_id={semester_id}" in response.text
 
 
-def _cell_before(html: str, text: str) -> str:
-    """The cell markup immediately before `text`, so a class check cannot leak from another cell."""
-    anchor = html.index(text)
-    return html[html.rindex("<td", 0, anchor) : anchor]
-
-
-def _cell_open_tag(html: str, text: str) -> str:
-    """The opening `<td>` tag of the cell immediately before `text`."""
-    cell = _cell_before(html, text)
-    return cell[: cell.index(">") + 1]
-
-
-def test_admin_weekly_view_starts_with_conferences_and_holidays_shown(
-    admin_client, course_id, semester_id, realization_service
-):
+def test_the_view_bar_holds_the_realization_selector_and_the_share_button(admin_client, course_id, semester_id, realization_service):
     _add_realization(admin_client, course_id, semester_id)
     realization = realization_service.list_realizations_for_course(course_id)[0]
 
-    response = admin_client.get(f"/realizations?semester_id={semester_id}&realization_id={realization.id}")
+    html = admin_client.get(f"/realizations?realization_id={realization.id}").text
 
-    assert "Hide Conferences" in response.text
-    assert "Hide Holidays" in response.text
-    assert "Show Conferences" not in response.text
-    assert "Show Holidays" not in response.text
-    # The admin starts with both kinds shown, so the view carries neither hidden state class...
-    assert "hide-holidays hide-conferences" not in response.text
-    # ...and the two toggles read left of the Share button.
-    assert response.text.index("Hide Conferences") < response.text.index("Share")
-    assert response.text.index("Hide Holidays") < response.text.index("Share")
+    # The weekly view's own bar carries the realization dropdown and the Share button, above the week cards.
+    bar = html[html.index('class="view-bar"') : html.index('id="realization-week-table"')]
+    assert 'name="realization_id"' in bar
+    assert "data-share-url" in bar
 
 
-def test_visitor_weekly_view_starts_with_conferences_and_holidays_hidden(client, services):
+def test_there_are_no_hide_show_toggles(client, admin_client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
-    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
-    response = client.get(f"/realizations?semester_id={semester.id}&realization_id={realization.id}")
-
-    assert "Show Conferences" in response.text
-    assert "Show Holidays" in response.text
-    assert "Hide Conferences" not in response.text
-    assert "Hide Holidays" not in response.text
-    # The visitor starts with both kinds hidden, so the stable view container carries both state classes.
-    assert 'id="realization-view"' in response.text
-    assert 'class="group flex flex-col h-full min-h-0 hide-holidays hide-conferences"' in response.text
+    # Holidays and Conferences are always shown as week-head flags; no toggle exists for anyone, per
+    # realizations.sdd.
+    for response in (client.get("/realizations"), admin_client.get("/realizations")):
+        for label in ("Hide Conferences", "Hide Holidays", "Show Conferences", "Show Holidays"):
+            assert label not in response.text
 
 
-def test_a_holiday_and_a_conference_hide_their_content_not_their_cell(client, services):
+def test_a_holiday_shows_as_a_red_flag_in_the_week_head_to_a_visitor(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
     # Week 43 (2026-10-19 to 10-25) is outside the Semester's default NoTeachWeeks.
     services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
-    services.conferences.add_conference(date(2026, 10, 22), "Educa")
 
     html = client.get(f"/realizations?realization_id={realization.id}").text
+    card = week_card_html(html, 43)
 
-    # The hiding class is on the content wrapper inside the cell...
-    assert "group-[.hide-holidays]:hidden" in _cell_before(html, "Autumn break")
-    assert "group-[.hide-conferences]:hidden" in _cell_before(html, "Educa")
-    # ...never on the cell itself: a hidden cell drops out of the table grid and shifts a later sub-row's Lesson into
-    # the `Deadline` column, so the cell only collapses its padding while hidden.
-    assert "group-[.hide-holidays]:hidden" not in _cell_open_tag(html, "Autumn break")
-    assert "group-[.hide-conferences]:hidden" not in _cell_open_tag(html, "Educa")
-    assert "group-[.hide-holidays]:py-0" in _cell_open_tag(html, "Autumn break")
-    assert "group-[.hide-conferences]:py-0" in _cell_open_tag(html, "Educa")
+    assert 'class="flag flag--holiday"' in card
+    assert 'data-tip=""' in card
+    assert "Autumn break" in card
 
 
-def test_a_no_teach_week_cell_carries_no_toggle_class(client, services):
+def test_the_week_cards_are_their_flags_tooltip_area(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
     html = client.get(f"/realizations?realization_id={realization.id}").text
 
-    # The default fall 2026 NoTeachWeek cannot be hidden, whichever way the toggles are set.
-    assert "group-[.hide" not in _cell_before(html, "Syysvapaat")
-
-
-def test_the_entry_toggles_target_the_realization_view_container(client, services):
-    semester = services.semesters.create_semester(2026, "fall")
-    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
-    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
-
-    html = client.get(f"/realizations?realization_id={realization.id}").text
-
-    assert "document.getElementById('realization-view').classList.toggle('hide-conferences')" in html
-    assert "document.getElementById('realization-view').classList.toggle('hide-holidays')" in html
+    # The container scrolls, so it would clip a flag's tooltip at its edge; as the tooltip area, the page's script
+    # clamps the tooltip inside it instead, per realizations.sdd.
+    tag_end = html.index(">", html.index('id="realization-week-table"'))
+    tag_start = html.rindex("<div", 0, tag_end)
+    assert 'data-tip-area=""' in html[tag_start:tag_end]
 
 
 def test_realizations_of_every_semester_are_listed(admin_client, course_id, semester_id, realization_service):
@@ -627,15 +591,15 @@ def test_the_lesson_edit_dialog_carries_a_delete_control(admin_client, lesson_id
     assert f'id="lesson-delete-dialog-{lesson}"' in response.text
 
 
-def test_only_a_lesson_sub_row_opens_the_lesson_edit_dialog(admin_client, lesson_id, services):
+def test_only_a_lesson_item_opens_the_lesson_edit_dialog(admin_client, lesson_id, services):
     lesson, realization, semester = lesson_id
     # A Holiday shares the week with the Lesson, so a second dialog reference would mean both kinds were addressed.
     services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
 
     response = admin_client.get(f"/realizations?semester_id={semester}")
 
-    # The one Lesson's dialog is referenced by its cell, its dialog id and its Delete control, so a second Lesson
-    # dialog or a Holiday sub-row trigger would raise the count.
+    # The one Lesson's dialog is referenced by its item, its dialog id and its Delete control, so a second Lesson
+    # dialog or a Holiday flag trigger would raise the count.
     assert response.text.count("lesson-edit-dialog") == 3
     assert response.text.count(f'id="lesson-edit-dialog-{lesson}"') == 1
     assert "Autumn break" in response.text
@@ -646,22 +610,11 @@ def test_every_admin_week_has_an_empty_lesson_add_slot(admin_client, lesson_id):
 
     html = admin_client.get(f"/realizations?semester_id={semester}").text
 
-    # Week 43 (Monday 2026-10-19) holds the fixture's Lesson and still offers the add slot under it.
+    # Week 43 (Monday 2026-10-19) holds the fixture's Lesson and its Lessons section still offers the add trigger.
     assert (
         f'hx-get="/day/dialog?semester_id={semester}&amp;day=2026-10-19&amp;kind=lesson'
         f'&amp;realization_id={realization}"' in html
     )
-
-
-def test_the_admin_add_slot_is_spanned_by_the_week_cell(admin_client, lesson_id):
-    _, _, semester = lesson_id
-
-    html = admin_client.get(f"/realizations?semester_id={semester}").text
-
-    # Week 43 holds the fixture's Lesson plus the admin's add slot, so its Week and Deadline cells span two sub-rows.
-    anchor = html.index(">43<")
-    week_cell = html[html.rindex("<td", 0, anchor) : html.index("</td>", anchor)]
-    assert 'rowspan="2"' in week_cell
 
 
 def test_a_no_teach_week_has_no_lesson_add_slot(admin_client, lesson_id):

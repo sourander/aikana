@@ -34,6 +34,17 @@ def has_checked_calendar_day(html: str, selected_day: str) -> bool:
     return f'type="radio" name="day" value="{selected_day}" checked' in html
 
 
+def week_card_html(html: str, week_number: int) -> str:
+    """One week card's markup, from its opening element to the next card's, so a test asserts on that week only."""
+    anchor = html.index(f">{week_number}<")
+    start = html.rindex('class="week-card', 0, anchor)
+    try:
+        end = html.index('class="week-card', anchor)
+    except ValueError:
+        end = html.index("<dialog", anchor) if "<dialog" in html[anchor:] else len(html)
+    return html[start:end]
+
+
 @pytest.fixture
 def db(tmp_path):
     return create_database(tmp_path / "app.db")

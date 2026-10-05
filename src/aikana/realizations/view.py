@@ -1,7 +1,10 @@
-"""Pure rendering of the per-CourseRealization weekly table, its realization selector, its Hide/Show Conferences and
-Holidays toggles and, for the admin, the clickable Lesson sub-rows with their edit and delete dialogs, the empty
-Lesson add slot of every week, the per-week deadline controls and the per-week theme dialogs with their dialogs, per
-./realizations.sdd.
+"""Pure rendering of the per-CourseRealization weekly view: the view's own bar (the realization selector and the
+Share button) above one stacked card per calendar week, per ./realizations.sdd.
+
+Each week card has three sections: the week head on the left (week number, optional theme, date range and the week's
+Holiday and Conference flags), the Lessons in the middle and the Deadlines on the right. For the admin, clicking the
+week head opens the WeekTheme dialog, clicking empty space in the Lessons section opens the add-Lesson dialog, clicking
+a Lesson opens its edit dialog, and the Deadlines section behaves the same way for Deadlines.
 """
 
 from fasthtml.common import (
@@ -13,43 +16,17 @@ from fasthtml.common import (
     Input,
     P,
     Span,
-    Table,
-    Tbody,
-    Td,
-    Th,
-    Thead,
-    Tr,
 )
 
 from ..day_dialog import view as day_dialog_view
 from ..shared import dates, layout
 from .services import DeadlineEntry, RealizationViewModel, WeekEntry, WeekRow
 
-_HEADER_CLS = "text-left text-xs font-semibold text-gray-500 px-2 py-1 border-b border-gray-200"
-_CELL_CLS = "px-2 py-2 border-b border-gray-100 align-top"
-_SHARE_CLS = "border border-gray-300 rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-50"
-_INPUT_CLS = "border border-gray-300 rounded px-2 py-1"
-_DELETE_BTN_CLS = "bg-red-600 text-white rounded px-3 py-1"
-_CANCEL_BTN_CLS = "border border-gray-300 rounded px-3 py-1"
-
 _LESSON_PATH = "/realizations/lessons"
 _WEEK_THEME_PATH = "/realizations/week-themes"
 _DEADLINE_PATH = "/realizations/deadlines"
 
-# The toggles mark the hidden kinds as classes on this stable ancestor, outside the weekly table's swap target, so a
-# dialog write, which swaps only the table, keeps the state, per ./realizations.sdd.
 _VIEW_ID = "realization-view"
-_HIDE_HOLIDAYS_CLS = "hide-holidays"
-_HIDE_CONFERENCES_CLS = "hide-conferences"
-# A hidden kind's content is wrapped in a Div carrying one of these classes. The cell itself never carries the hiding
-# class: `display: none` on a table cell removes it from the table grid, which would shift the cells after it into
-# other columns whenever the hidden entry is a week's first sub-row.
-_HOLIDAY_ENTRY_CLS = "group-[.hide-holidays]:hidden"
-_CONFERENCE_ENTRY_CLS = "group-[.hide-conferences]:hidden"
-# A hidden entry's cell keeps its place in the grid but drops its padding, so its row collapses to the row border
-# instead of leaving a blank band where the entry was.
-_HOLIDAY_CELL_CLS = "group-[.hide-holidays]:py-0"
-_CONFERENCE_CELL_CLS = "group-[.hide-conferences]:py-0"
 
 # The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
 _SHARE_JS = (
@@ -79,7 +56,7 @@ def week_theme_delete_path(week_theme_id: int) -> str:
 
 
 def week_theme_dialog_id(week: WeekRow) -> str:
-    """The id of one week's WeekTheme dialog, which the week's `Week` cell opens, per ./realizations.sdd."""
+    """The id of one week's WeekTheme dialog, which the week's head opens, per ./realizations.sdd."""
     return f"week-theme-dialog-{week.start.isoformat()}"
 
 
@@ -99,7 +76,7 @@ def deadline_delete_path(deadline_id: int) -> str:
 
 
 def deadline_dialog_id(week: WeekRow) -> str:
-    """The id of one week's Deadline add dialog, which that week's `Deadline` cell opens, per ./realizations.sdd."""
+    """The id of one week's Deadline add dialog, which that week's Deadlines section opens, per ./realizations.sdd."""
     return f"deadline-dialog-{week.start.isoformat()}"
 
 
@@ -114,11 +91,11 @@ def realization_selector(options: list[tuple[int, str]], selected_id: int):
 
 
 def no_semester_state():
-    return P("No Semester has been created yet.", cls="p-4 text-sm text-gray-500")
+    return P("No Semester has been created yet.", cls="notice")
 
 
 def empty_state():
-    return P("No CourseRealizations in the active Semester yet.", cls="p-4 text-sm text-gray-500")
+    return P("No CourseRealizations in the active Semester yet.", cls="notice")
 
 
 def share_button(share_url: str):
@@ -128,74 +105,45 @@ def share_button(share_url: str):
         type="button",
         onclick=_SHARE_JS,
         **{"data-share-url": share_url},
-        cls=_SHARE_CLS,
+        cls="btn btn--plain",
     )
 
 
-def entry_toggle_button(label: str, state_class: str, shown: bool):
-    """A header button toggling one dated entry kind's visibility, per ./realizations.sdd.
+def realization_view(
+    vm: RealizationViewModel,
+    options: list[tuple[int, str]] = (),
+    selected_id: int | None = None,
+    is_admin: bool = False,
+    share_url: str = "",
+    error: str = "",
+):
+    """The view's own bar (the realization selector and the Share button), a validation message and the week cards.
 
-    Its label names the state it would switch to: `Hide` while the kind is shown, `Show` while it is hidden. The
-    state is a class on the view container, so a dialog write, which swaps only the weekly table, keeps it.
+    The bar sits outside the week cards' swap target, so a dialog write, which swaps only #realization-week-table,
+    leaves it in place.
     """
-    return Button(
-        f"{'Hide' if shown else 'Show'} {label}",
-        type="button",
-        onclick=(
-            f"var hidden = document.getElementById('{_VIEW_ID}').classList.toggle('{state_class}');"
-            f"this.textContent = (hidden ? 'Show' : 'Hide') + ' {label}';"
-        ),
-        cls=_SHARE_CLS,
+    bar = Div(
+        realization_selector(options, selected_id) if options else "",
+        share_button(share_url) if share_url else "",
+        cls="view-bar",
     )
-
-
-def realization_view(vm: RealizationViewModel, is_admin: bool = False, share_url: str = "", error: str = ""):
-    """The realization's label, its entry toggles and Share button, a validation message and the weekly table.
-
-    The label, the toggles and the Share button sit outside the weekly table so a dialog write, which swaps only
-    #realization-week-table, leaves them and the toggle state in place.
-    """
-    header = Div(
-        Div(vm.label, cls="font-semibold text-lg"),
-        Div(
-            entry_toggle_button("Conferences", _HIDE_CONFERENCES_CLS, is_admin),
-            entry_toggle_button("Holidays", _HIDE_HOLIDAYS_CLS, is_admin),
-            share_button(share_url) if share_url else "",
-            cls="flex items-center gap-2",
-        ),
-        cls="flex items-center justify-between gap-4 px-4 pt-3 pb-2",
-    )
-    message = P(error, cls="px-4 pb-1 text-red-600 text-sm") if error else ""
-    table = week_table(vm, is_admin)
-    # A visitor starts with Conferences and Holidays hidden and the admin with them shown; the state classes sit on
-    # this stable container, outside the table's swap target, so a dialog write leaves the state in place.
-    state_cls = "" if is_admin else f" {_HIDE_HOLIDAYS_CLS} {_HIDE_CONFERENCES_CLS}"
-    container_cls = f"group flex flex-col h-full min-h-0{state_cls}"
+    message = P(error, cls="error") if error else ""
+    cards = week_cards(vm, is_admin)
     if not is_admin:
-        return Div(header, message, table, id=_VIEW_ID, cls=container_cls)
-    return Div(header, message, table, day_dialog_view.dialog_container(), id=_VIEW_ID, cls=container_cls)
+        return Div(bar, message, cards, id=_VIEW_ID, cls="realization-view")
+    return Div(bar, message, cards, day_dialog_view.dialog_container(), id=_VIEW_ID, cls="realization-view")
 
 
-def week_table(vm: RealizationViewModel, is_admin: bool = False):
-    """The bare weekly table, the swap target of the dialog's write responses, per ./realizations.sdd.
+def week_cards(vm: RealizationViewModel, is_admin: bool = False):
+    """The bare stack of week cards, the swap target of the dialog's write responses, per ./realizations.sdd.
 
     The per-Lesson, per-week theme and per-Deadline dialogs live inside it so a swap from
-    ../day_dialog/day_dialog.sdd's dialog, which returns the bare table, keeps every control and its dialog.
+    ../day_dialog/day_dialog.sdd's dialog, which returns the bare cards, keeps every control and its dialog.
     """
     lessons = [entry for week in vm.weeks for entry in week.entries if entry.lesson_id] if is_admin else []
     deadlines = [entry for week in vm.weeks for entry in week.deadlines] if is_admin else []
     return Div(
-        Table(
-            Thead(
-                Tr(
-                    Th("Week", cls=_HEADER_CLS),
-                    Th("Lessons", cls=_HEADER_CLS),
-                    Th("Deadline", cls=_HEADER_CLS),
-                )
-            ),
-            Tbody(*[row for week in vm.weeks for row in _week_rows(week, vm.realization, is_admin)]),
-            cls="w-full border-collapse",
-        ),
+        *[_week_card(week, vm.realization, is_admin) for week in vm.weeks],
         *[
             dialog
             for entry in lessons
@@ -217,148 +165,144 @@ def week_table(vm: RealizationViewModel, is_admin: bool = False):
             for dialog in (_deadline_edit_dialog(entry), _deadline_delete_dialog(entry))
         ],
         id=day_dialog_view.WEEK_TABLE_ID,
-        cls="h-full w-full overflow-y-auto px-4 pb-4 max-w-5xl mx-auto",
+        cls="weeks",
+        # The container scrolls, so it clips any tooltip that overflows its edge; marking it the tooltip area makes
+        # ../shared/layout.py's script clamp a week head's Holiday or Conference flag tooltip inside it instead.
+        **{"data-tip-area": ""},
     )
 
 
-def _week_rows(week: WeekRow, realization, is_admin: bool):
-    """One sub-row per entry, plus, for the admin, the week's empty Lesson add slot, per ./realizations.sdd.
+def _week_card(week: WeekRow, realization, is_admin: bool):
+    """One week's card: the week head, the Lessons section and the Deadlines section side by side.
 
-    The `Week` and `Deadline` cells span every sub-row of their week (`rowspan`), including the add slot, so the
-    week still reads as one row. A NoTeachWeek consumes its whole week and takes no add slot, since no Lesson is ever
-    added inside it, and a visitor's empty week keeps its placeholder sub-row.
+    A NoTeachWeek consumes its whole week, so the card carries the blocked tint and its Lessons section reads the
+    NoTeachWeek's title instead of offering Lessons, per ./realizations.sdd; the week can still carry a theme and
+    Deadlines, since a deadline is an obligation rather than teaching.
     """
-    entries: list[WeekEntry | None] = list(week.entries)
-    is_no_teach_week = any(entry.is_no_teach_week for entry in entries)
-    show_add_slot = is_admin and not is_no_teach_week
-    if not entries and not show_add_slot:
-        entries = [None]
-    rows: list[WeekEntry | None] = entries + ([None] if show_add_slot else [])
-    rowspan = len(rows)
-    return [
-        Tr(
-            *([_week_cell(week, is_admin, rowspan)] if i == 0 else []),
-            (
-                _add_lesson_cell(week, realization)
-                if show_add_slot and i == len(entries)
-                else _lessons_cell(entry, is_admin)
-            ),
-            # The Deadline cell spans the whole week, so it is rendered on the first sub-row only and spans the rest,
-            # like the Week cell.
-            *([_deadlines_cell(week, realization, is_admin, rowspan)] if i == 0 else []),
-            **_week_row_attrs(week, is_admin),
-        )
-        for i, entry in enumerate(rows)
-    ]
+    entries = week.entries
+    no_teach = next((entry for entry in entries if entry.is_no_teach_week), None)
+    lessons = [entry for entry in entries if entry.lesson_id]
+    holidays = [entry for entry in entries if entry.is_holiday]
+    conferences = [entry for entry in entries if entry.is_conference]
+    cls = "week-card"
+    if no_teach is not None:
+        cls += " week-card--blocked"
+    if week.is_current_week:
+        cls += " week-card--current"
+    return Div(
+        _week_head(week, holidays, conferences, is_admin),
+        _week_lessons(week, lessons, no_teach, realization, is_admin),
+        _week_deadlines(week, realization, is_admin),
+        cls=cls,
+    )
 
 
-def _week_row_attrs(week: WeekRow, is_admin: bool):
-    """The tint of a week blocked by a NoTeachWeek, per ./realizations.sdd.
+def _week_head(week: WeekRow, holidays: list[WeekEntry], conferences: list[WeekEntry], is_admin: bool):
+    """The week's number and its theme on one line, its date range below, then the week's Holiday and Conference
+    flags, per ./realizations.sdd.
 
-    A NoTeachWeek consumes its whole week, so the row is tinted the mild red of ../semester/semester.sdd's wall
-    planner's blocked day rows for a visitor and the admin alike; the admin's hover deepens that red instead of
-    turning gray, so the week stays visibly blocked while the pointer is on it. The week row itself carries no
-    trigger: the admin's affordances are the `Week` cell, the `Lessons` add slot and the `Deadline` cell.
-    """
-    is_no_teach_week = any(entry.is_no_teach_week for entry in week.entries)
-    if not is_admin:
-        return {"cls": "bg-red-50"} if is_no_teach_week else {}
-    return {"cls": "bg-red-50 hover:bg-red-100"} if is_no_teach_week else {}
-
-
-def _week_cell(week: WeekRow, is_admin: bool, rowspan: int):
-    """One week's number and its theme on one line, its date range below, per ./realizations.sdd.
-
-    For the admin the cell is the trigger opening that week's WeekTheme dialog, which sits beside the table.
+    For the admin the head is the trigger opening that week's WeekTheme dialog, which sits beside the cards.
     """
     date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
-    today_cls = " border-l-4 border-l-green-500" if week.is_current_week else ""
-    head = Div(
-        Div(str(week.week_number), cls="text-2xl font-bold text-gray-900 leading-none"),
-        Div(week.theme, cls="text-xl text-gray-800 font-semibold") if week.theme else "",
-        cls="flex items-baseline gap-2",
-    )
-    return Td(
+    return Div(
         Div(
-            head,
-            Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap"),
-            # That week's theme dialogs sit beside the table, so their clicks never reach this cell's trigger.
-            onclick=_open_dialog(week_theme_dialog_id(week)),
-            cls="cursor-pointer",
-        )
-        if is_admin
-        else Div(head, Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap")),
-        rowspan=rowspan,
-        cls=f"{_CELL_CLS} border-b-gray-200 pr-4{today_cls}",
-    )
-
-
-def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
-    if entry is None:
-        return Td("\u2014", cls=f"{_CELL_CLS} text-gray-300")
-    if entry.is_no_teach_week:
-        # A NoTeachWeek's own title already says which break it is, per ../realizations.sdd.
-        return Td(entry.title, cls=f"{_CELL_CLS} text-red-600 italic")
-    if entry.is_holiday:
-        # A Holiday is laid out like a Lesson, in red: its title over the day it falls on and no time range. The
-        # wrapper carries the visitor's Holiday toggle class; the cell itself never does, so hiding the kind cannot
-        # remove the cell from the table grid and shift a later sub-row's Lesson into the `Deadline` column.
-        return Td(
-            Div(
-                Div(entry.title, cls="text-red-600 italic"),
-                Div(_entry_day(entry), cls="text-xs text-red-400 italic"),
-                cls=_HOLIDAY_ENTRY_CLS,
-            ),
-            cls=f"{_CELL_CLS} {_HOLIDAY_CELL_CLS}",
-        )
-    if entry.is_conference:
-        # A ../conferences/conferences.sdd Conference is laid out the same way, in purple: it is the one dated entry
-        # that does not block teaching, so it never reads as the red of a blocked day. Its wrapper carries the
-        # visitor's Conference toggle class like a Holiday's.
-        return Td(
-            Div(
-                Div(entry.title, cls="text-purple-600 italic"),
-                Div(_entry_day(entry), cls="text-xs text-purple-400 italic"),
-                cls=_CONFERENCE_ENTRY_CLS,
-            ),
-            cls=f"{_CELL_CLS} {_CONFERENCE_CELL_CLS}",
-        )
-    # A Lesson sub-row is the admin's edit trigger, and its free-text note reads under its day and time line, per
-    # ./realizations.sdd.
-    return Td(
-        Div(
-            Div(entry.title, cls="text-gray-900"),
-            Div(_lesson_when(entry), cls="text-xs text-gray-500"),
-            Div(entry.notes, cls="text-sm text-gray-600") if entry.notes else "",
-            onclick=_open_dialog(f"lesson-edit-dialog-{entry.lesson_id}") if is_admin else "",
-            cls="cursor-pointer" if is_admin else "",
+            Span(str(week.week_number), cls="week-num"),
+            Span(week.theme, cls="week-theme") if week.theme else "",
+            cls="week-headline",
         ),
-        cls=_CELL_CLS,
+        Div(date_range, cls="week-dates"),
+        Div(
+            *[_flag(entry, "flag--holiday") for entry in holidays],
+            *[_flag(entry, "flag--conference") for entry in conferences],
+            cls="week-flags",
+        )
+        if holidays or conferences
+        else "",
+        onclick=_open_dialog(week_theme_dialog_id(week)) if is_admin else None,
+        cls="week-head week-head--clickable" if is_admin else "week-head",
     )
 
 
-def _add_lesson_cell(week: WeekRow, realization):
-    """The admin's empty add slot at the bottom of a week's `Lessons` column, per ./realizations.sdd.
+def _flag(entry: WeekEntry, modifier: str):
+    """One Holiday or Conference as a small colored square whose hover tooltip names it and its day."""
+    return Span(
+        Div(
+            Div(entry.title, cls="tip-title"),
+            Div(_entry_day(entry), cls="tip-sub"),
+            **{"data-tip-body": ""},
+        ),
+        cls=f"flag {modifier}",
+        **{"data-tip": ""},
+    )
 
-    Clicking it opens ../day_dialog/day_dialog.sdd's add-Lesson form for that week, defaulting to the week's Monday
-    and to the shown realization; the form's day calendar lets the admin pick the actual day.
+
+def _week_lessons(week: WeekRow, lessons: list[WeekEntry], no_teach: WeekEntry | None, realization, is_admin: bool):
+    """The card's middle section: the week's Lessons stacked, or the NoTeachWeek's title in red.
+
+    For the admin the section itself is the add trigger: clicking empty space opens
+    ../day_dialog/day_dialog.sdd's add-Lesson form for that week, defaulting to the week's Monday and to the shown
+    realization; a Lesson's own click stops propagation first and opens its edit dialog instead. A NoTeachWeek takes
+    no add trigger, since no Lesson is ever added inside it.
     """
-    return Td(
-        hx_get=(
-            f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
-            f"&day={week.start.isoformat()}&kind=lesson&realization_id={realization.id}"
-        ),
-        hx_target=f"#{day_dialog_view.CONTAINER_ID}",
-        hx_swap="innerHTML",
-        cls=f"{_CELL_CLS} cursor-pointer hover:bg-gray-100",
+    cls = "week-lessons"
+    attrs = {}
+    if is_admin and no_teach is None:
+        cls += " week-lessons--clickable"
+        attrs = {
+            "hx_get": (
+                f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
+                f"&day={week.start.isoformat()}&kind=lesson&realization_id={realization.id}"
+            ),
+            "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
+            "hx_swap": "innerHTML",
+        }
+    return Div(
+        *[_lesson_item(entry, is_admin) for entry in lessons],
+        P(no_teach.title, cls="week-note") if no_teach is not None else "",
+        cls=cls,
+        **attrs,
+    )
+
+
+def _lesson_item(entry: WeekEntry, is_admin: bool):
+    """One Lesson: its topic, under it one line with the day and time range, and its note under that, per
+    ./realizations.sdd. For the admin the item is the trigger opening the Lesson's edit dialog."""
+    return Div(
+        Div(entry.title, cls="lesson-topic"),
+        Div(_lesson_when(entry), cls="lesson-when"),
+        Div(entry.notes, cls="lesson-notes") if entry.notes else "",
+        onclick=_open_dialog(f"lesson-edit-dialog-{entry.lesson_id}", stop_propagation=True) if is_admin else None,
+        cls="lesson lesson--clickable" if is_admin else "lesson",
+    )
+
+
+def _week_deadlines(week: WeekRow, realization, is_admin: bool):
+    """The card's right section: the week's Deadlines stacked, by title over their `d.m.yyyy` date.
+
+    For the admin the section itself is the add trigger opening that week's Deadline dialog, and a Deadline's own
+    click stops propagation first and opens its edit dialog instead.
+    """
+    return Div(
+        *[_deadline_item(entry, is_admin) for entry in week.deadlines],
+        onclick=_open_dialog(deadline_dialog_id(week)) if is_admin else None,
+        cls="week-deadlines week-deadlines--clickable" if is_admin else "week-deadlines",
+    )
+
+
+def _deadline_item(entry: DeadlineEntry, is_admin: bool):
+    return Div(
+        Div(entry.title, cls="deadline-title"),
+        Div(dates.format_date(entry.date), cls="deadline-date"),
+        onclick=_open_dialog(f"deadline-edit-dialog-{entry.id}", stop_propagation=True) if is_admin else None,
+        cls="deadline deadline--clickable" if is_admin else "deadline",
     )
 
 
 def _entry_day(entry: WeekEntry) -> str:
-    """One Lesson's or Holiday's weekday and `d.m.` day, per ./realizations.sdd.
+    """One entry's weekday and `d.m.` day, per ./realizations.sdd.
 
-    The week row's `Week` cell already carries the week's full date range, so the sub-row repeats only the
-    weekday and the `d.m.` day.
+    The week head already carries the week's full date range, so the entry repeats only the weekday and the
+    `d.m.` day.
     """
     day = entry.entry_date
     return f"{day.strftime('%a')} {day.day}.{day.month}."
@@ -367,53 +311,6 @@ def _entry_day(entry: WeekEntry) -> str:
 def _lesson_when(entry: WeekEntry) -> str:
     """One Lesson's day over its time range, per ./realizations.sdd."""
     return f"{_entry_day(entry)} {entry.start_time}\u2013{entry.end_time}"
-
-
-def _deadlines_cell(week: WeekRow, realization, is_admin: bool, rowspan: int):
-    """One week's `Deadline` cell, per ./realizations.sdd.
-
-    The cell lists the week's ../deadlines/deadlines.sdd Deadlines by title over their `d.m.yyyy` date and stays
-    blank when the week has none. For the admin the cell itself is the trigger opening that week's add dialog; the
-    per-Deadline controls inside it stop their own clicks so they do not open that add dialog behind their own.
-    """
-    return Td(
-        Div(*[_deadline_entry(entry, is_admin) for entry in week.deadlines]),
-        rowspan=rowspan,
-        onclick=_open_dialog(deadline_dialog_id(week)) if is_admin else "",
-        cls=f"{_CELL_CLS} w-48" + (" cursor-pointer" if is_admin else ""),
-    )
-
-
-def _deadline_entry(entry: DeadlineEntry, is_admin: bool):
-    return Div(
-        Div(entry.title, cls="text-gray-900"),
-        Div(dates.format_date(entry.date), cls="text-xs text-gray-500"),
-        _deadline_controls(entry) if is_admin else "",
-        cls="mb-1 last:mb-0",
-    )
-
-
-def _deadline_controls(entry: DeadlineEntry):
-    """The admin's per-Deadline edit and delete controls.
-
-    Each click stops its own propagation first: the cell around them is the trigger for that week's Deadline add
-    dialog, which would otherwise open behind the control's own dialog.
-    """
-    return Div(
-        A(
-            "Edit",
-            href="#",
-            onclick=_open_dialog(f"deadline-edit-dialog-{entry.id}", stop_propagation=True),
-            cls="text-xs text-blue-700 hover:text-blue-900",
-        ),
-        A(
-            "Delete",
-            href="#",
-            onclick=_open_dialog(f"deadline-delete-dialog-{entry.id}", stop_propagation=True),
-            cls="text-xs text-red-700 hover:text-red-900",
-        ),
-        cls="flex items-center gap-2 mt-1",
-    )
 
 
 def _open_dialog(dialog_id: str, stop_propagation: bool = False, close_id: str = "") -> str:
@@ -434,29 +331,31 @@ def _lesson_edit_dialog(entry: WeekEntry):
     """
     return Dialog(
         Form(
-            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            Span("Date", cls="label"),
             layout.day_calendar(entry.entry_date),
             Div(
                 Div(
-                    Span("Start time", cls="text-xs font-semibold text-gray-500"),
+                    Span("Start time", cls="label"),
                     day_dialog_view.time_select(
                         "start_time", entry.start_time, day_dialog_view.START_TIME_LATEST
                     ),
-                    cls="flex flex-col gap-1 flex-1",
+                    cls="form-field",
                 ),
                 Div(
-                    Span("End time", cls="text-xs font-semibold text-gray-500"),
+                    Span("End time", cls="label"),
                     day_dialog_view.time_select(
                         "end_time", entry.end_time, day_dialog_view.END_TIME_LATEST
                     ),
-                    cls="flex flex-col gap-1 flex-1",
+                    cls="form-field",
                 ),
-                cls="flex gap-2",
+                cls="form-row",
             ),
-            Input(name="topic", value=entry.title, required=True, cls=_INPUT_CLS),
-            Input(name="notes", value=entry.notes, cls=_INPUT_CLS),
+            Span("Topic", cls="label"),
+            Input(name="topic", value=entry.title, required=True, cls="input"),
+            Span("Notes", cls="label"),
+            Input(name="notes", value=entry.notes, cls="input"),
             Div(
-                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button("Save", type="submit", cls="btn"),
                 A(
                     "Delete",
                     href="#",
@@ -464,22 +363,21 @@ def _lesson_edit_dialog(entry: WeekEntry):
                         f"lesson-delete-dialog-{entry.lesson_id}",
                         close_id=f"lesson-edit-dialog-{entry.lesson_id}",
                     ),
-                    cls="text-xs text-red-700 hover:text-red-900 self-center",
+                    cls="link link--small link--danger",
                 ),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex items-center gap-2 mt-3",
+                cls="form-actions",
             ),
             method="post",
             action=lesson_path(entry.lesson_id),
-            cls="flex flex-col gap-1",
+            cls="form",
         ),
         id=f"lesson-edit-dialog-{entry.lesson_id}",
-        cls="rounded p-4 w-96",
     )
 
 
@@ -488,38 +386,37 @@ def _lesson_delete_dialog(entry: WeekEntry):
     return Dialog(
         Div(
             f"Delete the Lesson {entry.title} on {dates.format_date(entry.entry_date)}?",
-            cls="font-semibold text-sm mb-2",
+            cls="dialog-title",
         ),
         Form(
             Div(
-                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button("Delete", type="submit", cls="btn btn--danger"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 justify-end",
+                cls="form-actions form-actions--end",
             ),
             method="post",
             action=lesson_delete_path(entry.lesson_id),
         ),
         id=f"lesson-delete-dialog-{entry.lesson_id}",
-        cls="rounded p-4 w-96",
     )
 
 
 def _week_theme_dialog(week: WeekRow, realization):
     """One week's WeekTheme form: the add form when the week has no theme, the edit form when it has one.
 
-    The admin edits the title only: the week is the one whose `Week` cell opened this dialog, so its Monday is a
-    hidden field, and the add form names the shown realization as a hidden field too.
+    The admin edits the title only: the week is the one whose head opened this dialog, so its Monday is a hidden
+    field, and the add form names the shown realization as a hidden field too.
     """
     date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
     return Dialog(
-        Div(f"Theme of week {week.week_number}, {date_range}", cls="font-semibold text-sm mb-2"),
+        Div(f"Theme of week {week.week_number}, {date_range}", cls="dialog-title"),
         Form(
-            Input(name="title", value=week.theme, required=True, cls=_INPUT_CLS),
+            Input(name="title", value=week.theme, required=True, cls="input"),
             Input(name="week_start", type="hidden", value=week.start.isoformat()),
             *(
                 [Input(name="realization_id", type="hidden", value=realization.id)]
@@ -527,12 +424,12 @@ def _week_theme_dialog(week: WeekRow, realization):
                 else []
             ),
             Div(
-                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button("Save", type="submit", cls="btn"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
                 *(
                     [
@@ -542,20 +439,19 @@ def _week_theme_dialog(week: WeekRow, realization):
                             onclick=_open_dialog(
                                 week_theme_delete_dialog_id(week), stop_propagation=True
                             ),
-                            cls="text-xs text-red-700 hover:text-red-900 self-center",
+                            cls="link link--small link--danger",
                         )
                     ]
                     if week.theme_id is not None
                     else []
                 ),
-                cls="flex items-center gap-2 mt-3",
+                cls="form-actions",
             ),
             method="post",
             action=_WEEK_THEME_PATH if week.theme_id is None else week_theme_path(week.theme_id),
-            cls="flex flex-col gap-1",
+            cls="form",
         ),
         id=week_theme_dialog_id(week),
-        cls="rounded p-4 w-96",
     )
 
 
@@ -566,86 +462,95 @@ def _week_theme_delete_dialog(week: WeekRow):
     return Dialog(
         Div(
             f"Delete the week {week.week_number} theme {week.theme}?",
-            cls="font-semibold text-sm mb-2",
+            cls="dialog-title",
         ),
         Form(
             Div(
-                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button("Delete", type="submit", cls="btn btn--danger"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 justify-end",
+                cls="form-actions form-actions--end",
             ),
             method="post",
             action=week_theme_delete_path(week.theme_id),
         ),
         id=week_theme_delete_dialog_id(week),
-        cls="rounded p-4 w-96",
     )
 
 
 def _deadline_dialog(week: WeekRow, realization):
-    """One week's Deadline add form, opened from that week row's `Deadline` cell, per ./realizations.sdd.
+    """One week's Deadline add form, opened from that week card's Deadlines section, per ./realizations.sdd.
 
     The add dialog adds only within its own week: its date field is ../shared/shared.sdd's @day_calendar over that
-    week's Monday and the shown realization is a hidden field, since the cell that opened it names both.
+    week's Monday and the shown realization is a hidden field, since the section that opened it names both.
     """
     date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
     return Dialog(
-        Div(f"Add a Deadline in week {week.week_number}, {date_range}", cls="font-semibold text-sm mb-2"),
+        Div(f"Add a Deadline in week {week.week_number}, {date_range}", cls="dialog-title"),
         Form(
-            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            Span("Date", cls="label"),
             layout.day_calendar(week.start),
-            Input(name="title", required=True, cls=_INPUT_CLS),
+            Span("Title", cls="label"),
+            Input(name="title", required=True, cls="input"),
             Input(name="realization_id", type="hidden", value=realization.id),
             Div(
-                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button("Save", type="submit", cls="btn"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 mt-3",
+                cls="form-actions",
             ),
             method="post",
             action=_DEADLINE_PATH,
-            cls="flex flex-col gap-1",
+            cls="form",
         ),
         id=deadline_dialog_id(week),
-        cls="rounded p-4 w-96",
     )
 
 
 def _deadline_edit_dialog(entry: DeadlineEntry):
     """One Deadline's edit form, prefilled with its date and title.
 
-    The Deadline stays in the realization it already belongs to, so no realization field is carried here.
+    The Deadline stays in the realization it already belongs to, so no realization field is carried here. Its
+    `Delete` control closes the edit dialog and opens the delete confirmation, like a Lesson's edit dialog does.
     """
     return Dialog(
         Form(
-            Span("Date", cls="text-xs font-semibold text-gray-500"),
+            Span("Date", cls="label"),
             layout.day_calendar(entry.date),
-            Input(name="title", value=entry.title, required=True, cls=_INPUT_CLS),
+            Span("Title", cls="label"),
+            Input(name="title", value=entry.title, required=True, cls="input"),
             Div(
-                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button("Save", type="submit", cls="btn"),
+                A(
+                    "Delete",
+                    href="#",
+                    onclick=_open_dialog(
+                        f"deadline-delete-dialog-{entry.id}",
+                        close_id=f"deadline-edit-dialog-{entry.id}",
+                    ),
+                    cls="link link--small link--danger",
+                ),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 mt-3",
+                cls="form-actions",
             ),
             method="post",
             action=deadline_path(entry.id),
-            cls="flex flex-col gap-1",
+            cls="form",
         ),
         id=f"deadline-edit-dialog-{entry.id}",
-        cls="rounded p-4 w-96",
     )
 
 
@@ -654,22 +559,21 @@ def _deadline_delete_dialog(entry: DeadlineEntry):
     return Dialog(
         Div(
             f"Delete the Deadline {entry.title} on {dates.format_date(entry.date)}?",
-            cls="font-semibold text-sm mb-2",
+            cls="dialog-title",
         ),
         Form(
             Div(
-                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button("Delete", type="submit", cls="btn btn--danger"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 justify-end",
+                cls="form-actions form-actions--end",
             ),
             method="post",
             action=deadline_delete_path(entry.id),
         ),
         id=f"deadline-delete-dialog-{entry.id}",
-        cls="rounded p-4 w-96",
     )

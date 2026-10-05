@@ -49,12 +49,12 @@ def register_routes(
         return semester_view.semester_grid(semester_service.build_semester_view_model(semester), is_admin=True)
 
     def write_response(semester_id: int | None, realization_id: int | None):
-        """The bare containing view a successful write swaps in: the weekly table or the wall planner grid."""
+        """The bare containing view a successful write swaps in: the week cards or the wall planner grid."""
         if realization_id is not None:
             view_model = realization_service.build_realization_view_model(realization_id)
             if view_model is None:
                 return ""
-            return realizations_view.week_table(view_model, is_admin=True)
+            return realizations_view.week_cards(view_model, is_admin=True)
         return grid(semester_id)
 
     def holiday_on(day: date):

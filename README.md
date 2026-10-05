@@ -3,7 +3,7 @@
 Aikana (_"time" or "within time" in Finnish_) is a small time-keeping app for teachers. One admin records courses, course realizations,
 lessons and holidays. Students can view the calendar without logging in.
 
-Built with Python, FastHTML, HTMX, SQLite and Tailwind CSS (compiled with the Tailwind CLI).
+Built with Python, FastHTML, HTMX, SQLite and hand-written vanilla CSS.
 
 Views:
 
@@ -108,13 +108,8 @@ uv run pytest              # run the tests in tests/
 uv run python -m aikana.main
 ```
 
-The compiled stylesheet (`src/aikana/shared/static/app.css`) is normally produced by `Dockerfile`'s `css` stage. For
-this run mode, generate it once with the [standalone Tailwind CLI](https://tailwindcss.com/blog/standalone-cli):
-
-```sh
-tailwindcss -i src/aikana/shared/static/input.css -o src/aikana/shared/static/app.css
-```
-
+The stylesheet (`src/aikana/shared/static/app.css`) is hand-written and committed to the repository, so this run mode
+needs no build step.
 ## Deployment
 
 Production is hosted on the maintainer's Dokku server at `ssh.munpaas.com` as the Dokku app `aikana`, served at

@@ -4,11 +4,11 @@ Purpose:
   The CourseRealization entity: one offering of a Course, taught during one Semester for one group. It is the hub
   that ties a Course and a Semester to the Lessons taught in it. For example, the Course `Machine Learning` has a
   realization for group `TTV24SP` during the fall 2026 Semester; that realization is what the Lessons actually taught
-  in that offering reference. The package also owns the per-CourseRealization weekly table (one row per calendar
-  week, with `Week`, `Lessons` and `Deadline` columns), the single view a visitor or the admin lands on
-  to see one
-  realization's Lessons, resolving ../courses/courses.sdd's former open decision in favor of "one selected
-  realization" over an aggregated per-Course or date-range view. Creating, editing and removing one is driven from
+  in that offering reference. The package also owns the per-CourseRealization weekly view, the single view a visitor
+  or the admin lands on to see one realization's Lessons, resolving ../courses/courses.sdd's former open decision in
+  favor of "one selected realization" over an aggregated per-Course or date-range view. The weekly view renders one
+  stacked card per calendar week, each card with the week head on the left, the week's Lessons in the middle and its
+  Deadlines on the right. Creating, editing and removing one is driven from
   ../courses/courses.sdd's page, which lists a Course's realizations.
 
 Owns:
@@ -72,105 +72,95 @@ Must:
   Semester selector, so switching the Semester filters the realizations shown; the weekly view's realization
   dropdown lists only the realizations of the active Semester, never every realization ever created, to avoid
   clutter; switching either dropdown updates its own query parameter without a full page reload and preserves the
-  other.
-  Each week is one table row: a `Week` column with the ISO week number (in a larger, dominant font) and the week's
-  date range underneath, a `Lessons` column and a rightmost `Deadline` column; there is no separate `Notes` column. A
-  week with more than one Lesson (or a Lesson and a Holiday) shows one sub-row per entry under that single week; the
-  `Week` cell spans all of that week's sub-rows (`rowspan`) so it still reads as one row. A Lesson sub-row shows its
-  topic, under it one line reading the Lesson's abbreviated weekday, its `d.m.` day and its time range, such as
-  `Mon 21.9. 08:00\u201310:00`, and, under that line, its free-text note when it has one; the day omits the year
-  because the row's `Week` cell already carries the week's full date range. A Holiday, read through
-  ../holidays/holidays.sdd, shows its title in the `Lessons` column over a second line carrying that Holiday's own
-  abbreviated weekday and `d.m.` day, such as `Wed 21.10.`, in red italics instead of the black of a Lesson, with no
-  time range or note. A ../conferences/conferences.sdd Conference, read through that package, is laid out the same way
-  as a Holiday and in the same place, only in purple instead of red, since it blocks no teaching; a day carrying both
-  shows one sub-row for each. A visitor's week with neither shows a single empty sub-row.
-  A week's `Week` cell shows that week's ../week_themes/week_themes.sdd WeekTheme, when one exists, on the same line
-  as the week number, with the date range on the line below; the theme is shown to visitors and the admin alike, and
-  a week without one shows no placeholder.
-  The week row containing today carries a green bar along its left edge; no other week row does.
+  other. The realization dropdown sits in the weekly view's own bar, not in ../shared/shared.sdd's header.
+  Each week is one card, the cards stacking vertically in calendar order. The card's left section is the week head:
+  the ISO week number (in a larger, dominant font) with the week's ../week_themes/week_themes.sdd WeekTheme, when one
+  exists, on the same line, the week's date range on the line below, and the week's Holiday and Conference flags below
+  that. The middle section lists the week's Lessons stacked: a Lesson shows its topic, under it one line reading the
+  Lesson's abbreviated weekday, its `d.m.` day and its time range, such as `Mon 21.9. 08:00–10:00`, and, under that
+  line, its free-text note when it has one; the day omits the year because the week head already carries the week's
+  full date range. The right section lists the week's Deadlines. There are no column headers and no `Notes` section.
+  A week head shows that week's Holidays and Conferences as small square flags: a red square per Holiday, read
+    through ../holidays/holidays.sdd, and a purple square per ../conferences/conferences.sdd Conference. Each flag is
+    a ../shared/shared.sdd `data-tip` tooltip anchor whose tooltip names the entry and its own abbreviated weekday
+    and `d.m.` day, such as `Wed 21.10.`. The flags are always shown, to visitors and the admin alike; the view has
+    no hide/show toggle for them. The week cards' container is the flags' `data-tip-area`: it scrolls, so it would
+    clip a tooltip overflowing its edge, and the area marking makes ../shared/shared.sdd's tooltip script clamp the
+    tooltip inside it instead.
+  The week card containing today carries a green bar along its left edge; no other week card does.
   A NoTeachWeek of the realization's Semester, read through ../no_teach_weeks/no_teach_weeks.sdd, consumes its whole
-  week: that week shows exactly one sub-row whose `Lessons` cell reads the NoTeachWeek's title; no Lesson sub-row is
-  shown for it, because no Lesson is ever added inside a NoTeachWeek.
-  Every sub-row of such a week carries the mild red background tint that ../semester/semester.sdd's wall planner gives
-    a blocked day row, so the week reads as blocked without reading its title; the tint is shown to visitors and the
-    admin alike and no other week row carries it. Hovering a tinted admin week row deepens the red instead of turning
-    gray, so the week stays visibly blocked while the pointer is on it.
+  week: the card carries the mild red background tint that ../semester/semester.sdd's wall planner gives a blocked
+  day row, so the week reads as blocked without reading its title; the tint is shown to visitors and the admin alike
+  and no other week card carries it. The card's Lessons section reads the NoTeachWeek's title in red and shows no
+  Lessons, because no Lesson is ever added inside a NoTeachWeek; the week can still carry a theme and Deadlines,
+  since a deadline is an obligation rather than teaching.
   Clicking a lesson square in ../semester/semester.sdd's wall planner navigates to this view with that lesson's
     `realization_id`.
   ./view.py and ./routes.py depend on ../lessons/lessons.sdd even though ../lessons/lessons.sdd also depends on this
     package: this is the same safe join-entity pattern as the ../courses/courses.sdd and ../semester/semester.sdd
     mutual dependencies, since ./domain.py and ./ports.py never import another feature and only ./services.py crosses
     the boundary.
-  For the admin, clicking a Lesson sub-row opens that Lesson's edit dialog; clicking the empty add slot at the bottom
-    of a week's `Lessons` column opens ../day_dialog/day_dialog.sdd's add-Lesson form for that week, defaulting to the
+  For the admin, clicking a Lesson opens that Lesson's edit dialog; clicking empty space in a week's Lessons section
+    opens ../day_dialog/day_dialog.sdd's add-Lesson form for that week, defaulting to the
     week's Monday and to the shown realization, with ../shared/shared.sdd's @day_calendar to pick the actual day; a
-    week blocked by a NoTeachWeek and every visitor's week carry no add slot, and a visitor is shown neither trigger.
-  Clicking a week row's `Week` cell is the admin's affordance for that week's ../week_themes/week_themes.sdd
+    week blocked by a NoTeachWeek and every visitor's week carry no add trigger, and a visitor is shown neither
+    trigger.
+  Clicking a week card's head is the admin's affordance for that week's ../week_themes/week_themes.sdd
     WeekTheme: it opens that week's own `<dialog>`, which offers the add form when the week has no theme and the edit
-    form prefilled with the stored title when it has one. A visitor's `Week` cell carries no such trigger.
-  The `Week` cell's dialog posts to `/realizations/week-themes` for a new theme and to
+    form prefilled with the stored title when it has one. A visitor's week head carries no such trigger.
+  The week head's dialog posts to `/realizations/week-themes` for a new theme and to
     `/realizations/week-themes/{week_theme_id}` for an edited one, and its `Delete` control confirms before posting
     to `/realizations/week-themes/{week_theme_id}/delete`, naming the theme and its week. These routes write through
     ../week_themes/week_themes.sdd's @WeekThemeService and, like the per-Lesson routes, redirect back to the shown
     realization's weekly view carrying a rejected write's message as an `error` query parameter. Those dialogs sit
-    beside the weekly table rows inside its swap target, like the per-Lesson dialogs; a write, which swaps only the
-    bare table, leaves every control and its dialog in place, and a write is rejected by ../auth/auth.sdd's guard for
+    beside the week cards inside the swap target, like the per-Lesson dialogs; a write, which swaps only the
+    bare cards, leaves every control and its dialog in place, and a write is rejected by ../auth/auth.sdd's guard for
     a non-admin session and leaves the WeekTheme unstored.
-  A successful write re-renders the weekly table in place: the table carries the id
+  A successful write re-renders the week cards in place: the cards' container carries the id
     ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID names as the dialog's swap target in this view.
-  A Lesson sub-row is the admin's edit trigger: clicking it opens that Lesson's `<dialog>`, whose date field is
+  A Lesson is the admin's edit trigger: clicking it opens that Lesson's `<dialog>`, whose date field is
     ../shared/shared.sdd's @day_calendar, a Monday-first month grid with that Lesson's date checked, whose start time
     and end time are prefilled ../day_dialog/day_dialog.sdd's @time_select dropdowns side by side on one row, and whose
     topic and notes fields are prefilled, posting to `/realizations/lessons/{lesson_id}`, which writes through
     ../lessons/lessons.sdd's @LessonService.update_lesson and keeps the Lesson in the CourseRealization it already
-    belongs to. A Holiday, Conference or NoTeachWeek sub-row is not clickable, since ../lessons/lessons.sdd owns only
-    Lesson writes.
+    belongs to. A Holiday or Conference flag and a NoTeachWeek's title are not clickable, since
+    ../lessons/lessons.sdd owns only Lesson writes.
   The edit dialog carries a `Delete` control that closes the edit dialog and opens a confirmation `<dialog>` naming
     the Lesson's topic and date, posting to `/realizations/lessons/{lesson_id}/delete`, which writes through
     @LessonService.delete_lesson and leaves the realization and its other Lessons in place.
-  The per-Lesson dialogs sit inside the weekly table's swap target, so a dialog write, which swaps only the bare
-    table, leaves the week cells' own controls and the add slot in place.
+  The per-Lesson dialogs sit inside the week cards' swap target, so a dialog write, which swaps only the bare
+    cards, leaves the week heads' own controls and the add trigger in place.
   Both routes redirect back to the shown realization's weekly view, carrying the validation message from
-    ../lessons/lessons.sdd as an `error` query parameter that this view renders above the table; a write is rejected
+    ../lessons/lessons.sdd as an `error` query parameter that this view renders above the cards; a write is rejected
     by ../auth/auth.sdd's guard for a non-admin session and leaves the Lesson unstored.
   ./routes.py must not crash when ../semester/semester.sdd has no active Semester at all (none created yet); it
     renders ./view.py's `no_semester_state()` immediately in that case instead of dereferencing a Semester, while an
     active Semester without CourseRealizations renders `empty_state()`.
-  The weekly view shows one Share button for every visitor and for the admin, above the weekly table; clicking it
-    copies the canonical absolute URL of the shown realization, built by ./routes.py from the request's base URL and
-    the resolved selection, so the copied link always carries both `realization_id` and `semester_id` even when the
-    current address bar carries only one of them.
-  The weekly view also shows a `Hide Conferences`/`Show Conferences` toggle and a `Hide Holidays`/`Show Holidays`
-    toggle left of the Share button, for visitors and the admin alike. A visitor's weekly view starts with Conferences
-    and Holidays hidden and the admin's starts with them shown; each toggle switches its own kind and relabels itself.
-    Only a Conference and a single-day Holiday are affected: a NoTeachWeek, a Lesson and a Deadline stay visible
-    whichever way the toggles are set.
-  The toggles and the hidden state sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
-    which swaps only the weekly table, leaves them in place. A hidden kind is hidden through the content inside its
-    `Lessons` cell, never by removing the cell from the table grid, so a hidden entry never shifts a later sub-row's
-    Lesson into the `Deadline` column; the cell drops its padding instead, so its row collapses to the row border.
-  The Share button's URL and label sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
-    which swaps only the weekly table, leaves the button in place.
-  The rightmost column is `Deadline` and carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline
-    shows in the `Deadline` cell of the row of the week it falls in, with its title over its `d.m.yyyy` date, and a
-    week with none leaves the cell blank. The cell spans that week's sub-rows (`rowspan`) like the `Week` cell, and
-    both are shown to visitors and the admin alike.
-  For the admin, the `Deadline` cell is also the trigger adding a Deadline to that week: it opens that week row's own
-    `<dialog>`, whose date field is ../shared/shared.sdd's @day_calendar over that week's Monday and whose title
-    field is empty. Each listed Deadline carries its own `Edit` and `Delete` controls, which stop the click's
-    propagation first so they do not open that week's add dialog behind their own.
-  `Edit` opens a `<dialog>` whose date field is @day_calendar with that Deadline's date checked and whose title is
+  The weekly view's own bar carries the realization dropdown and one Share button, for every visitor and for the
+    admin; clicking the Share button copies the canonical absolute URL of the shown realization, built by ./routes.py
+    from the request's base URL and the resolved selection, so the copied link always carries both `realization_id`
+    and `semester_id` even when the current address bar carries only one of them.
+  The bar sits outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write, which swaps only the week
+    cards, leaves the selector and the Share button in place.
+  The week card's right section carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline shows in
+    the card of the week it falls in, with its title over its `d.m.yyyy` date, and a week with none leaves the
+    section blank. Deadlines are shown to visitors and the admin alike.
+  For the admin, the Deadlines section is also the trigger adding a Deadline to that week: clicking empty space in it
+    opens that week card's own `<dialog>`, whose date field is ../shared/shared.sdd's @day_calendar over that week's
+    Monday and whose title field is empty. Clicking a listed Deadline opens its edit dialog; the click stops
+    propagation first so it does not open that week's add dialog behind its own.
+  The Deadline edit dialog's date field is @day_calendar with that Deadline's date checked and its title is
     prefilled, posting to `/realizations/deadlines/{deadline_id}`, which writes through
     ../deadlines/deadlines.sdd's @DeadlineService.update_deadline and keeps the Deadline in the realization it
-    already belongs to. `Delete` opens a confirmation `<dialog>` naming the Deadline and its date, posting to
+    already belongs to. The edit dialog carries a `Delete` control that closes the edit dialog and opens a
+    confirmation `<dialog>` naming the Deadline and its date, posting to
     `/realizations/deadlines/{deadline_id}/delete`, which writes through @DeadlineService.delete_deadline and
     leaves the realization and its other entries in place.
-  A week row's add dialog posts to `/realizations/deadlines`, which writes through @DeadlineService.add_deadline.
+  A week card's add dialog posts to `/realizations/deadlines`, which writes through @DeadlineService.add_deadline.
     Like the per-Lesson and per-week theme routes, all three routes redirect back to the shown realization's weekly
     view carrying a rejected write's message as an `error` query parameter, a write is rejected by
     ../auth/auth.sdd's guard for a non-admin session and leaves the Deadline unstored, and every one of these
-    dialogs sits inside the weekly table's swap target, so a write leaves the cell's trigger and its dialogs in
+    dialogs sits inside the week cards' swap target, so a write leaves the section's trigger and its dialogs in
     place.
 
 Scenario: Deleting a realization takes its Lessons with it
@@ -179,24 +169,24 @@ Scenario: Deleting a realization takes its Lessons with it
   Then neither Lesson remains for that CourseRealization
 
 Scenario: Admin deletes one Lesson from the weekly view
-  Given a CourseRealization's weekly table shows two Lessons
+  Given a CourseRealization's weekly view shows two Lessons
   And the admin is logged in
   When the admin clicks the first Lesson and confirms the delete dialog its edit dialog opened, which names the
     Lesson and its date
-  Then the weekly table shows the other Lesson and the realization keeps both its Course and its other entries
+  Then the weekly view shows the other Lesson and the realization keeps both its Course and its other entries
 
-Scenario: Admin adds a Lesson from a week's empty add slot
-  Given a CourseRealization's weekly table shows a week without a Lesson
+Scenario: Admin adds a Lesson from a week's empty space
+  Given a CourseRealization's weekly view shows a week without a Lesson
   And the admin is logged in
-  When the admin clicks the week's empty add slot, picks the day on the Monday-first calendar, enters a topic, a start
-    time and an end time and submits
-  Then the weekly table re-renders in place with the new Lesson in that week
+  When the admin clicks empty space in the week's Lessons section, picks the day on the Monday-first calendar,
+    enters a topic, a start time and an end time and submits
+  Then the week cards re-render in place with the new Lesson in that week
 
 Scenario: Admin themes one week from the weekly view
-  Given a CourseRealization's weekly table shows a week without a WeekTheme
+  Given a CourseRealization's weekly view shows a week without a WeekTheme
   And the admin is logged in
-  When the admin clicks that week's `Week` cell, enters a title and submits
-  Then the week shows the theme next to its week number and the Lessons column is untouched
+  When the admin clicks that week's head, enters a title and submits
+  Then the week shows the theme next to its week number and the Lessons section is untouched
 
 Tasks:
   [x] Implement @CourseRealization in ./domain.py and a hardcoded ./services.py returning two placeholder
@@ -250,3 +240,8 @@ Tasks:
     view's only writes are Lessons, week themes and Deadlines
   [x] Add the `Hide/Show Conferences` and `Hide/Show Holidays` toggles left of the Share button in ./view.py, hidden
     by default for a visitor and shown for the admin, leaving NoTeachWeeks always visible
+  [x] Rebuild the weekly view as stacked week cards in ./view.py, replacing the table: the week head (number, theme,
+    date range) carries the Holiday and Conference flags with hover tooltips instead of `Lessons`-column sub-rows, the
+    toggles are removed, the view gets its own bar with the realization dropdown and the Share button, clicking empty
+    space in a week's Lessons or Deadlines section adds there, and a Deadline's Delete control moves into its edit
+    dialog

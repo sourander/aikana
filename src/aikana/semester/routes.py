@@ -25,17 +25,17 @@ def register_routes(app, semester_service: SemesterService, auth_service: AuthSe
         if semester is None:
             content = view.create_semester_form() if is_admin else view.no_semester_notice()
             return layout.page(
-                content, active_nav="semester", semester_options=semester_options, admin_link=admin_link
+                content, active_nav="semester", semester_options=semester_options,
+                is_admin=is_admin, admin_link=admin_link,
             )
 
         view_model = semester_service.build_semester_view_model(semester)
-        selector = view.new_semester_control() if is_admin else None
         return layout.page(
             view.semester_view(view_model, is_admin=is_admin),
             active_nav="semester",
             semester_options=semester_options,
             selected_semester_id=semester.id,
-            selector=selector,
+            is_admin=is_admin,
             admin_link=admin_link,
         )
 
@@ -44,7 +44,9 @@ def register_routes(app, semester_service: SemesterService, auth_service: AuthSe
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         admin_link = auth_view.header_link(True)
-        return layout.page(view.create_semester_form(error=error), active_nav="semester", admin_link=admin_link)
+        return layout.page(
+            view.create_semester_form(error=error), active_nav="semester", is_admin=True, admin_link=admin_link
+        )
 
     @app.post("/semesters")
     def create_semester(session, year: int = 0, term: str = "fall"):

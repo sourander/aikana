@@ -1,4 +1,4 @@
-"""Tests of the Deadline package's validation, of the weekly view's `Deadline` column with its dialogs and admin
+"""Tests of the Deadline package's validation, of the weekly view's Deadlines section with its dialogs and admin
 guard, and of the wall planner's deadline circles, per ./tests.sdd.
 """
 
@@ -11,6 +11,7 @@ from aikana.deadlines.services import (
     UnknownDeadlineError,
     UnknownRealizationError,
 )
+from conftest import week_card_html
 
 DEADLINE_DATE = date(2026, 9, 21)
 WEEK_START = date(2026, 9, 21)
@@ -68,15 +69,6 @@ def _circle_anchor(html: str, realization_id: int) -> str:
     """The rendered `<a>` of the realization's one deadline circle, which links to that realization's weekly view."""
     start = html.index(f'<a href="/realizations?realization_id={realization_id}"')
     return html[start : html.index(">", start)]
-
-
-def _week_row(html: str, week_number: int) -> str:
-    """The rendered rows of one week, from its own week-number anchor up to the next week's, so a test asserts on
-    that week's own `Deadline` cell and on no other. The fall-2026 Semester's ISO week numbers only increase."""
-    start = html.rindex("<tr", 0, html.index(f">{week_number}<"))
-    following = f">{week_number + 1}<"
-    end = html.index(following) if following in html else html.index("</table>")
-    return html[start:end]
 
 
 # The service layer
@@ -153,34 +145,37 @@ def test_the_deadlines_of_a_date_range_are_listed_across_realizations(services, 
     assert [deadline.title for deadline in deadlines] == ["Reading", "Assignment 1"]
 
 
-# The weekly view's Deadline column
+# The weekly view's Deadlines section
 
 
-def test_the_deadline_column_is_the_last_column_of_the_weekly_table(
+def test_the_deadlines_section_is_the_last_section_of_the_week_card(
     admin_client, realization_id, semester_id
 ):
     html = _weekly_view(admin_client, realization_id, semester_id).text
 
+    card = week_card_html(html, WEEK_START.isocalendar()[1])
     assert ">Notes<" not in html
-    assert html.index(">Week<") < html.index(">Lessons<") < html.index(">Deadline<")
+    assert card.index('class="week-head') < card.index('class="week-lessons') < card.index('class="week-deadlines')
 
 
-def test_a_deadline_shows_in_the_row_of_the_week_it_falls_in(
+def test_a_deadline_shows_in_the_week_card_it_falls_in(
     admin_client, realization_id, semester_id, services
 ):
     services.deadlines.add_deadline(realization_id, DEADLINE_DATE, "Assignment 1")
 
-    row = _week_row(_weekly_view(admin_client, realization_id, semester_id).text, WEEK_START.isocalendar()[1])
+    card = week_card_html(_weekly_view(admin_client, realization_id, semester_id).text, WEEK_START.isocalendar()[1])
 
-    assert "Assignment 1" in row
-    assert "21.9.2026" in row
+    deadlines = card[card.index('class="week-deadlines') :]
+    assert "Assignment 1" in deadlines
+    assert "21.9.2026" in deadlines
 
 
-def test_a_week_without_a_deadline_shows_the_column_empty(admin_client, realization_id, semester_id):
-    row = _week_row(_weekly_view(admin_client, realization_id, semester_id).text, WEEK_START.isocalendar()[1])
+def test_a_week_without_a_deadline_shows_the_section_empty(admin_client, realization_id, semester_id):
+    card = week_card_html(_weekly_view(admin_client, realization_id, semester_id).text, WEEK_START.isocalendar()[1])
 
-    assert "\u2014" not in row
-    assert "Assignment 1" not in row
+    deadlines = card[card.index('class="week-deadlines') :]
+    assert "\u2014" not in deadlines
+    assert "deadline-title" not in deadlines
 
 
 def test_the_admin_deadline_cell_has_an_add_dialog(admin_client, realization_id, semester_id):
@@ -217,20 +212,22 @@ def test_a_deadline_has_an_edit_dialog_and_a_delete_confirmation(
     assert "Delete the Deadline Assignment 1 on 21.9.2026?" in html
 
 
-def test_a_deadline_control_stops_the_click_that_opens_the_add_dialog(
+def test_clicking_a_deadline_opens_its_edit_dialog_without_opening_the_add_dialog(
     admin_client, realization_id, semester_id, services
 ):
     deadline = services.deadlines.add_deadline(realization_id, DEADLINE_DATE, "Assignment 1")
 
     html = _weekly_view(admin_client, realization_id, semester_id).text
 
+    # The Deadline's own click stops propagation first, so the section's add dialog does not open behind the edit one.
     assert (
         "event.stopPropagation(); var d = document.getElementById("
         f"'deadline-edit-dialog-{deadline.id}')" in html
     )
+    # The edit dialog's Delete closes the edit dialog before opening the confirmation, like a Lesson's does.
     assert (
-        "event.stopPropagation(); var d = document.getElementById("
-        f"'deadline-delete-dialog-{deadline.id}')" in html
+        f"document.getElementById('deadline-edit-dialog-{deadline.id}').close();"
+        f" var d = document.getElementById('deadline-delete-dialog-{deadline.id}')" in html
     )
 
 
@@ -330,15 +327,22 @@ def test_a_visitor_cannot_write_a_deadline(admin_client, client, realization_id,
 # The wall planner's deadline circles
 
 
-def test_a_deadline_is_a_half_transparent_circle_in_its_realizations_color(
+def test_a_deadline_is_a_donut_in_its_realizations_color_with_a_tooltip(
     admin_client, realization_id, semester_id, services
 ):
     services.deadlines.add_deadline(realization_id, LESSON_DATE, "Assignment 1")
 
     html = admin_client.get(f"/?semester_id={semester_id}").text
 
-    assert f"background-color:{PALETTE_BLUE}; opacity:0.5;" in html
-    assert 'title="Assignment 1"' in html
+    # The donut's ring carries the realization's square color; the fill and ring styles live in the stylesheet's
+    # `marker--deadline` rule, so the marker and its tooltip render at full opacity.
+    assert f'class="marker marker--deadline" style="border-color:{PALETTE_BLUE};"' in html
+    # The circle is a tooltip anchor like a Lesson square, and the tooltip names the Deadline and its realization.
+    circle = html[html.index(f'<a href="/realizations?realization_id={realization_id}"') :][:600]
+    assert 'data-tip=""' in circle
+    assert 'data-tip-body=""' in circle
+    assert "Assignment 1" in circle
+    assert "Machine Learning (TTV24SP)" in circle
 
 
 def test_a_deadline_circle_links_to_its_realizations_weekly_view(
@@ -350,7 +354,7 @@ def test_a_deadline_circle_links_to_its_realizations_weekly_view(
         circle = _circle_anchor(page.get(f"/?semester_id={semester_id}").text, realization_id)
 
         assert f'href="/realizations?realization_id={realization_id}"' in circle
-        assert 'title="Assignment 1"' in circle
+        assert 'class="marker marker--deadline"' in circle
 
 
 def test_a_deadline_circle_is_drawn_after_the_squares_of_the_same_day(
@@ -361,17 +365,19 @@ def test_a_deadline_circle_is_drawn_after_the_squares_of_the_same_day(
 
     html = admin_client.get(f"/?semester_id={semester_id}").text
 
-    # The single lesson square and the single deadline circle of that day both carry the realization's color, as does
-    # ../semester/semester.sdd's legend chip for that realization, so the two day markers are told apart by the square
-    # and circle classes that only they carry.
+    # The single lesson square and the single deadline circle of that day both carry the realization's color; the
+    # square comes first, so a Deadline dated on a day with a Lesson overlaps that square instead of pushing it away.
     square = (
-        f'<a href="/realizations?realization_id={realization_id}" data-tip="" hx-on:click='
-        f'"event.stopPropagation()" class="group relative inline-block w-3 h-3 rounded-sm" '
-        f'style="background-color:{PALETTE_BLUE};">'
+        f'<a href="/realizations?realization_id={realization_id}" data-tip="" hx-on:click="event.stopPropagation()" '
+        f'class="marker marker--lesson" style="background-color:{PALETTE_BLUE};">'
+    )
+    circle = (
+        f'<a href="/realizations?realization_id={realization_id}" data-tip="" hx-on:click="event.stopPropagation()" '
+        f'class="marker marker--deadline" style="border-color:{PALETTE_BLUE};">'
     )
     assert html.count(square) == 1
-    assert html.count(f"background-color:{PALETTE_BLUE}; opacity:0.5;") == 1
-    assert html.index(square) < html.index("opacity:0.5")
+    assert html.count(circle) == 1
+    assert html.index(square) < html.index(circle)
 
 
 def test_an_admins_deadline_circle_does_not_also_open_the_day_dialog(

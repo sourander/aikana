@@ -6,30 +6,28 @@ from fasthtml.common import A, Button, Dialog, Div, Form, Input, Option, P, Sele
 
 from .domain import Course
 
-_INPUT_CLS = "border border-gray-300 rounded px-2 py-1"
-_DELETE_BTN_CLS = "bg-red-600 text-white rounded px-3 py-1"
-_CANCEL_BTN_CLS = "border border-gray-300 rounded px-3 py-1"
-
 
 def create_course_form(error: str = ""):
     return Div(
-        Div("Create a Course to get started.", cls="font-semibold text-lg mb-2"),
+        Div("Create a Course to get started.", cls="create-title"),
         Form(
-            Input(name="name", placeholder="Name", required=True, cls=_INPUT_CLS),
-            Input(name="description", placeholder="Description", cls=f"{_INPUT_CLS} flex-1"),
-            Input(name="ects_credits", type="number", min="0", placeholder="ECTS credits", cls=f"{_INPUT_CLS} w-32"),
-            Button("Create Course", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
-            P(error, cls="text-red-600 text-sm") if error else "",
+            Input(name="name", placeholder="Name", required=True, cls="input"),
+            Input(name="description", placeholder="Description", cls="input input--grow"),
+            Input(
+                name="ects_credits", type="number", min="0", placeholder="ECTS credits", cls="input input--ects"
+            ),
+            Button("Create Course", type="submit", cls="btn"),
+            P(error, cls="error") if error else "",
             method="post",
             action="/courses",
-            cls="flex items-center gap-2",
+            cls="create-row",
         ),
-        cls="p-4",
+        cls="create-form",
     )
 
 
 def no_course_notice():
-    return P("No Course has been created yet.", cls="p-4 text-sm text-gray-500")
+    return P("No Course has been created yet.", cls="notice")
 
 
 def courses_page(
@@ -59,18 +57,18 @@ def courses_page(
                 selected_semester_id,
                 realization_lesson_counts,
             ),
-            cls="border border-gray-200 rounded px-3 py-2",
+            cls="course-card",
         )
 
     if is_admin:
         return Div(
             Div(
-                Div("Courses", cls="font-semibold text-lg"),
-                A("+ New Course", href="/courses/new", cls="text-sm text-blue-700 hover:text-blue-900"),
-                cls="flex items-center justify-between mb-2",
+                Div("Courses", cls="page-title"),
+                A("+ New Course", href="/courses/new", cls="link"),
+                cls="courses-head",
             ),
-            P(error, cls="text-red-600 text-sm mb-2") if error else "",
-            Div(*[course_block(course) for course in courses], cls="flex flex-col gap-2"),
+            P(error, cls="error") if error else "",
+            *[course_block(course) for course in courses],
             *[_course_edit_dialog(course) for course in courses],
             *[
                 _course_delete_dialog(course, *course_delete_counts.get(course.id, (0, 0)))
@@ -87,31 +85,31 @@ def courses_page(
                 for course in courses
                 for row in realizations_by_course.get(course.id, [])
             ],
-            cls="p-4",
+            cls="courses",
         )
     return Div(
-        Div("Courses", cls="font-semibold text-lg mb-2"),
-        Div(*[course_block(course) for course in courses], cls="flex flex-col gap-2"),
-        cls="p-4",
+        Div("Courses", cls="page-title"),
+        *[course_block(course) for course in courses],
+        cls="courses",
     )
 
 
 def _course_details(course: Course):
     return (
-        Div(course.name, cls="font-semibold text-gray-900"),
-        Div(course.description, cls="text-sm text-gray-600") if course.description else "",
-        Div(f"{course.ects_credits} ECTS", cls="text-xs text-gray-500"),
+        Div(course.name, cls="course-name"),
+        Div(course.description, cls="course-desc") if course.description else "",
+        Div(f"{course.ects_credits} ECTS", cls="course-ects"),
     )
 
 
 def _course_details_row(course: Course, is_admin: bool):
     """The Course's own values; for the admin the row opens the edit dialog, the block around it does not."""
     if not is_admin:
-        return Div(*_course_details(course))
+        return Div(*_course_details(course), cls="course-head")
     return Div(
         *_course_details(course),
         onclick=f"document.getElementById('course-dialog-{course.id}').showModal()",
-        cls="cursor-pointer hover:bg-gray-50",
+        cls="course-head course-head--clickable",
     )
 
 
@@ -129,16 +127,16 @@ def _realizations_block(
             "+ Add Realization",
             href="#",
             onclick=_open_dialog(f"realization-dialog-{course.id}"),
-            cls="text-sm text-blue-700 hover:text-blue-900",
+            cls="link",
         )
         if is_admin
         else ""
     )
     return Div(
         Div(
-            Span("Realizations", cls="text-xs font-semibold text-gray-500"),
+            Span("Realizations", cls="label"),
             add_control,
-            cls="flex items-center gap-3 justify-between border-t border-gray-100 mt-2 pt-1",
+            cls="realizations-head",
         ),
         Div(
             *[
@@ -151,9 +149,10 @@ def _realizations_block(
                 )
                 for row in rows
             ]
-            or Div("No realization yet.", cls="text-xs text-gray-400"),
-            cls="flex flex-col gap-1 mt-1",
+            or Div("No realization yet.", cls="empty-note"),
+            cls="realization-list",
         ),
+        cls="realizations",
     )
 
 
@@ -170,26 +169,26 @@ def _realization_row(
         A(
             label,
             href=_realization_href(realization_id, selected_semester_id),
-            cls="text-sm text-gray-700 hover:text-blue-900",
+            cls="realization-link",
         ),
         Div(
             A(
                 "Edit",
                 href="#",
                 onclick=_open_dialog(f"realization-edit-dialog-{realization_id}"),
-                cls="text-xs text-blue-700 hover:text-blue-900",
+                cls="link link--small",
             ),
             A(
                 "Delete",
                 href="#",
                 onclick=_open_dialog(f"realization-delete-dialog-{realization_id}"),
-                cls="text-xs text-red-700 hover:text-red-900",
+                cls="link link--small link--danger",
             ),
-            cls="flex items-center gap-3",
+            cls="row-actions",
         )
         if is_admin
         else "",
-        cls="flex items-center gap-3 justify-between",
+        cls="realization-row",
     )
 
 
@@ -207,64 +206,62 @@ def _realization_href(realization_id: int, selected_semester_id: int | None) -> 
 def _course_edit_dialog(course: Course):
     return Dialog(
         Form(
-            Input(name="name", value=course.name, required=True, cls=_INPUT_CLS),
-            Input(name="description", value=course.description, cls=_INPUT_CLS),
-            Input(name="ects_credits", type="number", min="0", value=str(course.ects_credits), cls=_INPUT_CLS),
+            Input(name="name", value=course.name, required=True, cls="input"),
+            Input(name="description", value=course.description, cls="input"),
+            Input(name="ects_credits", type="number", min="0", value=str(course.ects_credits), cls="input"),
             Div(
-                Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                Button("Save", type="submit", cls="btn"),
                 Button(
                     "Delete Course",
                     type="button",
                     onclick=_open_dialog(f"course-delete-dialog-{course.id}"),
-                    cls=_DELETE_BTN_CLS,
+                    cls="btn btn--danger",
                 ),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2",
+                cls="form-actions",
             ),
             method="post",
             action=f"/courses/{course.id}",
-            cls="flex flex-col gap-2",
+            cls="form",
         ),
         id=f"course-dialog-{course.id}",
-        cls="rounded p-4 w-96",
     )
 
 
 def _course_delete_dialog(course: Course, realization_count: int, lesson_count: int):
     """The confirmation before a Course is removed; names what the cascade takes with it."""
     return Dialog(
-        Div(f"Delete the Course {course.name}?", cls="font-semibold text-sm mb-2"),
+        Div(f"Delete the Course {course.name}?", cls="dialog-title"),
         (
             P(
                 f"This also deletes its {realization_count} "
                 f"{'realization' if realization_count == 1 else 'realizations'} and {lesson_count} "
                 f"{'lesson' if lesson_count == 1 else 'lessons'}.",
-                cls="text-sm text-gray-600 mb-2",
+                cls="dialog-note",
             )
             if realization_count
             else ""
         ),
         Form(
             Div(
-                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button("Delete", type="submit", cls="btn btn--danger"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 justify-end",
+                cls="form-actions form-actions--end",
             ),
             method="post",
             action=f"/courses/{course.id}/delete",
         ),
         id=f"course-delete-dialog-{course.id}",
-        cls="rounded p-4 w-96",
     )
 
 
@@ -275,7 +272,7 @@ def realization_dialog(
 ):
     """The add-realization form for one Course; reports the missing Semester instead of an unusable select."""
     return Dialog(
-        Div(f"Add a realization of {course.name}.", cls="font-semibold text-sm mb-2"),
+        Div(f"Add a realization of {course.name}.", cls="dialog-title"),
         (
             _realization_form(
                 course.id,
@@ -284,10 +281,9 @@ def realization_dialog(
                 selected_semester_id,
             )
             if semester_options
-            else P("No Semester has been created yet.", cls="text-sm text-gray-500")
+            else P("No Semester has been created yet.", cls="muted")
         ),
         id=f"realization-dialog-{course.id}",
-        cls="rounded p-4 w-96",
     )
 
 
@@ -295,7 +291,7 @@ def _realization_edit_dialog(course: Course, row: tuple[int, str, str, int], sem
     """One realization's edit form, prefilled with its group and Semester."""
     realization_id, label, group, semester_id = row
     return Dialog(
-        Div(f"Edit the realization {label}.", cls="font-semibold text-sm mb-2"),
+        Div(f"Edit the realization {label}.", cls="dialog-title"),
         (
             _realization_form(
                 course.id,
@@ -306,10 +302,9 @@ def _realization_edit_dialog(course: Course, row: tuple[int, str, str, int], sem
                 submit_label="Save",
             )
             if semester_options
-            else P("No Semester has been created yet.", cls="text-sm text-gray-500")
+            else P("No Semester has been created yet.", cls="muted")
         ),
         id=f"realization-edit-dialog-{realization_id}",
-        cls="rounded p-4 w-96",
     )
 
 
@@ -317,31 +312,30 @@ def _realization_delete_dialog(course: Course, row: tuple[int, str, str, int], l
     """The confirmation before one realization is removed; names the Lessons removed with it."""
     realization_id, label = row[0], row[1]
     return Dialog(
-        Div(f"Delete the realization {label}?", cls="font-semibold text-sm mb-2"),
+        Div(f"Delete the realization {label}?", cls="dialog-title"),
         (
             P(
                 f"This also deletes its {lesson_count} {'lesson' if lesson_count == 1 else 'lessons'}.",
-                cls="text-sm text-gray-600 mb-2",
+                cls="dialog-note",
             )
             if lesson_count
             else ""
         ),
         Form(
             Div(
-                Button("Delete", type="submit", cls=_DELETE_BTN_CLS),
+                Button("Delete", type="submit", cls="btn btn--danger"),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
-                    cls=_CANCEL_BTN_CLS,
+                    cls="btn btn--plain",
                 ),
-                cls="flex gap-2 justify-end",
+                cls="form-actions form-actions--end",
             ),
             method="post",
             action=f"/courses/{course.id}/realizations/{realization_id}/delete",
         ),
         id=f"realization-delete-dialog-{realization_id}",
-        cls="rounded p-4 w-96",
     )
 
 
@@ -357,28 +351,28 @@ def _realization_form(
     selected = selected_semester_id if selected_semester_id in option_ids else option_ids[0]
     return Form(
         Input(name="course_id", type="hidden", value=course_id),
-        Span("Group", cls="text-xs font-semibold text-gray-500"),
-        Input(name="group", placeholder="Group", required=True, value=group, cls=_INPUT_CLS),
-        Span("Semester", cls="text-xs font-semibold text-gray-500"),
+        Span("Group", cls="label"),
+        Input(name="group", placeholder="Group", required=True, value=group, cls="input"),
+        Span("Semester", cls="label"),
         Select(
             *[
                 Option(label, value=option_id, selected=(option_id == selected))
                 for option_id, label in semester_options
             ],
             name="semester_id",
-            cls=_INPUT_CLS,
+            cls="input",
         ),
         Div(
-            Button(submit_label, type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+            Button(submit_label, type="submit", cls="btn"),
             Button(
                 "Cancel",
                 type="button",
                 onclick="this.closest('dialog').close()",
-                cls=_CANCEL_BTN_CLS,
+                cls="btn btn--plain",
             ),
-            cls="flex gap-2 mt-3",
+            cls="form-actions",
         ),
         method="post",
         action=action,
-        cls="flex flex-col gap-1",
+        cls="form",
     )

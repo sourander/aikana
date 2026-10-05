@@ -86,6 +86,7 @@ def register_routes(
                 view.no_semester_state(),
                 active_nav="realizations",
                 semester_options=semester_options,
+                is_admin=is_admin,
                 admin_link=admin_link,
             )
 
@@ -103,14 +104,16 @@ def register_routes(
                 active_nav="realizations",
                 semester_options=semester_options,
                 selected_semester_id=active_semester.id,
+                is_admin=is_admin,
                 admin_link=admin_link,
             )
 
         view_model = realization_service.build_realization_view_model(selected_id)
-        selector = view.realization_selector(options, selected_id)
         return layout.page(
             view.realization_view(
                 view_model,
+                options=options,
+                selected_id=selected_id,
                 is_admin=is_admin,
                 share_url=share_url(request, selected_id, active_semester.id),
                 error=error,
@@ -118,7 +121,7 @@ def register_routes(
             active_nav="realizations",
             semester_options=semester_options,
             selected_semester_id=active_semester.id,
-            selector=selector,
+            is_admin=is_admin,
             admin_link=admin_link,
         )
 

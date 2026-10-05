@@ -26,16 +26,11 @@ _REOPEN_JS = "if (!this.querySelector('dialog[open]')) this.querySelector('dialo
 _ALLOW_ERROR_SWAP_JS = "if (event.detail.xhr.status === 422) event.detail.shouldSwap = true"
 _CLOSE_ON_SUCCESS_JS = "if (event.detail.successful) this.closest('dialog').close()"
 
-_INPUT_CLS = "border border-gray-300 rounded px-2 py-1"
-_LABEL_CLS = "text-xs font-semibold text-gray-500"
-_SAVE_CLS = "bg-blue-600 text-white rounded px-3 py-1"
 # Lessons are always taught between 08:00 and 21:00 and start on a quarter hour, so the Lesson forms offer
 # only those times instead of free text.
 START_TIME_LATEST = "20:45"
 END_TIME_LATEST = "21:00"
 _TIME_VALUES = tuple(f"{hour:02d}:{minute:02d}" for hour in range(8, 22) for minute in (0, 15, 30, 45))
-_TAB_CLS = "rounded px-2 py-1 text-sm"
-_ACTIVE_TAB_CLS = "bg-blue-600 text-white"
 _TABS = (
     ("lesson", "Lesson"),
     ("holiday", "Holiday"),
@@ -59,16 +54,16 @@ def day_dialog(
 ):
     """The dialog for one day, with a tab per kind of entry the admin can add on that day.
 
-    A `realization_id` marks the dialog as opened from that realization's weekly table: then only the add-Lesson form
+    A `realization_id` marks the dialog as opened from that realization's weekly view: then only the add-Lesson form
     is offered, with no tabs, because ../realizations/realizations.sdd's weekly view edits only Lessons; the date is
-    editable and a successful write re-renders the weekly table instead of the wall planner grid. Opened from the wall
+    editable and a successful write re-renders the week cards instead of the wall planner grid. Opened from the wall
     planner, a Holiday already stored on that date, a NoTeachWeek already blocking it and a
     ../conferences/conferences.sdd Conference already on it replace their tab's add form with a prefilled edit form.
     """
     values = values or {}
     return Dialog(
         _tabs(kind, semester_id, day, realization_id) if realization_id is None else "",
-        Div(f"{day.strftime('%A')}, {dates.format_date(day)}", cls="font-semibold text-sm text-gray-700"),
+        Div(f"{day.strftime('%A')}, {dates.format_date(day)}", cls="dialog-title"),
         _body(
             kind,
             day,
@@ -81,15 +76,14 @@ def day_dialog(
             no_teach_week,
             conference,
         ),
-        P(error, cls="text-red-600 text-sm mt-2") if error else "",
+        P(error, cls="error dialog-close") if error else "",
         Button(
             "Close",
             type="button",
             onclick="this.closest('dialog').close()",
-            cls="mt-3 border border-gray-300 rounded px-3 py-1 text-sm",
+            cls="btn btn--plain dialog-close",
         ),
         id=DIALOG_ID,
-        cls="rounded p-4 w-96",
     )
 
 
@@ -133,8 +127,8 @@ def holiday_form(day: date, semester_id: int | None, values: dict, realization_i
         f"{DIALOG_PATH}/holiday",
         day,
         semester_id,
-        Span("Title", cls=_LABEL_CLS),
-        Input(name="title", value=values.get("title", ""), required=True, cls=_INPUT_CLS),
+        Span("Title", cls="label"),
+        Input(name="title", value=values.get("title", ""), required=True, cls="input"),
         realization_id=realization_id,
         editable_day=realization_id is not None,
     )
@@ -147,9 +141,9 @@ def no_teach_week_form(day: date, semester_id: int | None, default_no_teach_titl
         semester_id,
         P(
             "Blocks Monday to Friday of that week; nothing is taught in it.",
-            cls="text-xs text-gray-500",
+            cls="dialog-note",
         ),
-        Span("Week number", cls=_LABEL_CLS),
+        Span("Week number", cls="label"),
         Input(
             name="week_number",
             type="number",
@@ -157,14 +151,14 @@ def no_teach_week_form(day: date, semester_id: int | None, default_no_teach_titl
             max="53",
             value=values.get("week_number") or str(day.isocalendar().week),
             required=True,
-            cls=_INPUT_CLS,
+            cls="input",
         ),
-        Span("Title", cls=_LABEL_CLS),
+        Span("Title", cls="label"),
         Input(
             name="title",
             value=values.get("title", default_no_teach_title),
             required=True,
-            cls=_INPUT_CLS,
+            cls="input",
         ),
     )
 
@@ -177,10 +171,10 @@ def conference_form(day: date, semester_id: int | None, values: dict, realizatio
         P(
             "A conference or event that does not necessarily block teaching; "
             "store one per day of a conference that spans several.",
-            cls="text-xs text-gray-500",
+            cls="dialog-note",
         ),
-        Span("Title", cls=_LABEL_CLS),
-        Input(name="title", value=values.get("title", ""), required=True, cls=_INPUT_CLS),
+        Span("Title", cls="label"),
+        Input(name="title", value=values.get("title", ""), required=True, cls="input"),
         realization_id=realization_id,
         editable_day=realization_id is not None,
     )
@@ -205,7 +199,7 @@ def time_select(name: str, selected: str, latest: str):
         *[Option(value, value=value, selected=(value == selected)) for value in values],
         name=name,
         required=True,
-        cls=f"{_INPUT_CLS} w-full",
+        cls="input input--full",
     )
 
 
@@ -218,7 +212,7 @@ def lesson_form(
 ):
     options = list(realization_options)
     if not options:
-        return P("No CourseRealizations in this Semester yet.", cls="text-sm text-gray-500")
+        return P("No CourseRealizations in this Semester yet.", cls="muted")
     option_ids = [option_id for option_id, _ in options]
     selected = values.get("course_realization_id") or (
         realization_id if realization_id in option_ids else options[0][0]
@@ -227,32 +221,32 @@ def lesson_form(
         f"{DIALOG_PATH}/lesson",
         day,
         semester_id,
-        Span("CourseRealization", cls=_LABEL_CLS),
+        Span("CourseRealization", cls="label"),
         Select(
             *[
                 Option(label, value=option_id, selected=(option_id == selected))
                 for option_id, label in options
             ],
             name="course_realization_id",
-            cls=_INPUT_CLS,
+            cls="input",
         ),
         Div(
             Div(
-                Span("Start time", cls=_LABEL_CLS),
+                Span("Start time", cls="label"),
                 time_select("start_time", values.get("start_time", "08:00"), START_TIME_LATEST),
-                cls="flex flex-col gap-1 flex-1",
+                cls="form-field",
             ),
             Div(
-                Span("End time", cls=_LABEL_CLS),
+                Span("End time", cls="label"),
                 time_select("end_time", values.get("end_time", "10:00"), END_TIME_LATEST),
-                cls="flex flex-col gap-1 flex-1",
+                cls="form-field",
             ),
-            cls="flex gap-2",
+            cls="form-row",
         ),
-        Span("Topic", cls=_LABEL_CLS),
-        Input(name="topic", value=values.get("topic", ""), required=True, cls=_INPUT_CLS),
-        Span("Notes", cls=_LABEL_CLS),
-        Input(name="notes", value=values.get("notes", ""), cls=_INPUT_CLS),
+        Span("Topic", cls="label"),
+        Input(name="topic", value=values.get("topic", ""), required=True, cls="input"),
+        Span("Notes", cls="label"),
+        Input(name="notes", value=values.get("notes", ""), cls="input"),
         realization_id=realization_id,
         editable_day=realization_id is not None,
     )
@@ -275,16 +269,15 @@ def _form(
     """
     if editable_day:
         day_fields = (
-            Span("Date", cls=_LABEL_CLS),
+            Span("Date", cls="label"),
             layout.day_calendar(day),
         )
     else:
         day_fields = (Input(name="day", type="hidden", value=day.isoformat()),)
-    save = Button("Save", type="submit", cls=_SAVE_CLS)
-    submit = (
-        Button("Save", type="submit", cls=f"mt-3 {_SAVE_CLS}")
-        if delete is None
-        else Div(save, _delete_button(*delete), cls="flex gap-2 mt-3")
+    submit = Div(
+        Button("Save", type="submit", cls="btn"),
+        *([_delete_button(*delete)] if delete is not None else []),
+        cls="form-actions",
     )
     return Form(
         Input(name="semester_id", type="hidden", value=semester_id),
@@ -301,7 +294,7 @@ def _form(
             "hx-on::before-swap": _ALLOW_ERROR_SWAP_JS,
             "hx-on::after-request": _CLOSE_ON_SUCCESS_JS,
         },
-        cls="flex flex-col gap-1",
+        cls="form",
     )
 
 
@@ -317,7 +310,7 @@ def _delete_button(path: str, confirmation: str, realization_id: int | None = No
             "hx-on::before-swap": _ALLOW_ERROR_SWAP_JS,
             "hx-on::after-request": _CLOSE_ON_SUCCESS_JS,
         },
-        cls="bg-red-600 text-white rounded px-3 py-1",
+        cls="btn btn--danger",
     )
 
 
@@ -336,11 +329,11 @@ def _tabs(kind: str, semester_id: int | None, day: date, realization_id: int | N
                 hx_get=f"{DIALOG_PATH}?{urlencode({**params, 'kind': tab_kind})}",
                 hx_target=f"#{CONTAINER_ID}",
                 hx_swap="innerHTML",
-                cls=f"{_TAB_CLS} {_ACTIVE_TAB_CLS if tab_kind == kind else 'text-gray-600 hover:bg-gray-100'}",
+                cls=f"tab {'tab--active' if tab_kind == kind else ''}".strip(),
             )
             for tab_kind, label in _TABS
         ],
-        cls="flex gap-1 mb-3 border-b border-gray-200 pb-2",
+        cls="tabs",
     )
 
 
@@ -357,7 +350,7 @@ def _body(
     conference=None,
 ):
     if realization_id is not None:
-        # Opened from the weekly table: only the add-Lesson form is offered, whatever kind the request carried.
+        # Opened from the weekly view: only the add-Lesson form is offered, whatever kind the request carried.
         return lesson_form(day, semester_id, realization_options, values, realization_id)
     if kind == "no_teach_week":
         if no_teach_week is not None:
@@ -384,13 +377,13 @@ def _holiday_edit_form(holiday, day, semester_id, values, realization_id: int | 
     holiday_day = _submitted_day(values, holiday.date) if edited else holiday.date
     title = values.get("title", "") if edited else holiday.title
     return Div(
-        P("This day already has a Holiday. Edit it or remove it.", cls="text-xs text-gray-500"),
+        P("This day already has a Holiday. Edit it or remove it.", cls="dialog-note"),
         _form(
             holiday_path(holiday.id),
             holiday_day,
             semester_id,
-            Span("Title", cls=_LABEL_CLS),
-            Input(name="title", value=title, required=True, cls=_INPUT_CLS),
+            Span("Title", cls="label"),
+            Input(name="title", value=title, required=True, cls="input"),
             Input(name="holiday_id", type="hidden", value=holiday.id),
             realization_id=realization_id,
             editable_day=True,
@@ -415,7 +408,7 @@ def _no_teach_week_edit_form(no_teach_week, day, semester_id, values, realizatio
     return Div(
         P(
             f"This day is inside week {no_teach_week.week_number}. Edit or remove that NoTeachWeek.",
-            cls="text-xs text-gray-500",
+            cls="dialog-note",
         ),
         _form(
             no_teach_week_path(no_teach_week.id),
@@ -423,9 +416,9 @@ def _no_teach_week_edit_form(no_teach_week, day, semester_id, values, realizatio
             semester_id,
             P(
                 "Blocks Monday to Friday of that week; nothing is taught in it.",
-                cls="text-xs text-gray-500",
+                cls="dialog-note",
             ),
-            Span("Week number", cls=_LABEL_CLS),
+            Span("Week number", cls="label"),
             Input(
                 name="week_number",
                 type="number",
@@ -433,10 +426,10 @@ def _no_teach_week_edit_form(no_teach_week, day, semester_id, values, realizatio
                 max="53",
                 value=week_number or str(day.isocalendar().week),
                 required=True,
-                cls=_INPUT_CLS,
+                cls="input",
             ),
-            Span("Title", cls=_LABEL_CLS),
-            Input(name="title", value=title or "", required=True, cls=_INPUT_CLS),
+            Span("Title", cls="label"),
+            Input(name="title", value=title or "", required=True, cls="input"),
             Input(name="no_teach_week_id", type="hidden", value=no_teach_week.id),
             realization_id=realization_id,
             delete=(
@@ -459,13 +452,13 @@ def _conference_edit_form(conference, day, semester_id, values, realization_id: 
     conference_day = _submitted_day(values, conference.date) if edited else conference.date
     title = values.get("title", "") if edited else conference.title
     return Div(
-        P("This day already has a Conference. Edit it or remove it.", cls="text-xs text-gray-500"),
+        P("This day already has a Conference. Edit it or remove it.", cls="dialog-note"),
         _form(
             conference_path(conference.id),
             conference_day,
             semester_id,
-            Span("Title", cls=_LABEL_CLS),
-            Input(name="title", value=title, required=True, cls=_INPUT_CLS),
+            Span("Title", cls="label"),
+            Input(name="title", value=title, required=True, cls="input"),
             Input(name="conference_id", type="hidden", value=conference.id),
             realization_id=realization_id,
             editable_day=True,

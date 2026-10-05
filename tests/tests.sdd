@@ -5,19 +5,20 @@ Purpose:
 
 Structure:
   ./conftest.py: shared fixtures wiring an in-process client and every feature's services on a temporary database,
-    plus the shared assertion that a page's day calendar has a given day checked
+    plus the shared assertions that a page's day calendar has a given day checked and that slice one week card out
+    of the weekly view
   ./test_auth.py: in-process client tests of the admin login and logout, the shell's login/logout link and the
     password's secrecy
   ./test_conferences.py: service-layer validation tests for the Conference package, in-process client tests of the
-    day dialog's Conference tab with its admin guard, and of the wall planner's and the weekly view's purple
-    Conference titles
+    day dialog's Conference tab with its admin guard, and of the wall planner's purple Conference title and the
+    weekly view's Conference flag
   ./test_courses.py: in-process client tests of the courses page, its create form and its edit and delete dialogs
   ./test_dates.py: unit tests for the shared Europe/Helsinki date policy
   ./test_deadlines.py: service-layer validation tests for the Deadline package, in-process client tests of the
-    weekly view's `Deadline` column with its add, edit and delete dialogs and their admin guard, and tests of the
-    wall planner's deadline circles
+    weekly view's Deadlines section with its add, edit and delete dialogs and their admin guard, and tests of the
+    wall planner's deadline circles with their tooltips
   ./test_day_dialog.py: in-process client tests of the admin day dialog's forms, its guard, its grid and
-    weekly-table swaps and the weekly table's lesson-only dialog, and of editing and removing the Holiday and
+    week-cards swaps and the weekly view's lesson-only dialog, and of editing and removing the Holiday and
     NoTeachWeek already on the clicked date
   ./test_main.py: in-process client tests of the app entry point, the semester routes and the wall planner's
     rendering
@@ -25,14 +26,16 @@ Structure:
     tests of the `/mcp` endpoint's anonymous reads and token-gated writes
   ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
   ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs, of
-    the weekly view's states, fallbacks, week sub-rows, Share button and Hide/Show Conferences and Holidays toggles,
-    and of its click-to-edit Lesson dialogs, its per-week empty Lesson add slot and the note read under a Lesson
+    the weekly view's states, fallbacks, week cards, view bar with the realization selector and Share button and
+    Holiday flags, and of its click-to-edit Lesson dialogs, its per-week Lesson add trigger and the note read under
+    a Lesson
   ./test_schema.py: data-integrity tests of the SQLite schema's foreign keys with cascade, unique constraints,
     NOT NULL columns, STRICT types and integer primary keys
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules
   ./test_services.py: service-layer validation tests against temporary databases, and the default NoTeachWeeks and
     public holidays a created Semester starts with
-  ./test_shared.py: tests of the shared kernel's database factory, page shell and its Monday-first day calendar
+  ./test_shared.py: tests of the shared kernel's database factory, page shell and its Monday-first day calendar,
+    and of the hand-written stylesheet being linked and served
   ./test_week_themes.py: service-layer validation tests for the WeekTheme package and in-process client tests of the
     weekly view's week theme, its add, edit and delete dialogs and their admin guard
 

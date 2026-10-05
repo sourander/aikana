@@ -1,5 +1,5 @@
 """Tests of the Conference package's validation, of the day dialog's Conference tab with its admin guard, and of
-the wall planner's and the weekly view's purple Conference titles, per ./tests.sdd.
+the wall planner's purple Conference title and the weekly view's Conference flag, per ./tests.sdd.
 """
 
 from datetime import date, time
@@ -11,7 +11,7 @@ from aikana.conferences.services import (
     InvalidConferenceError,
     UnknownConferenceError,
 )
-from conftest import has_checked_calendar_day
+from conftest import has_checked_calendar_day, week_card_html
 
 # The dialog is only reachable through an HTMX request, per ./src/aikana/day_dialog/day_dialog.sdd.
 HTMX = {"HX-Request": "true"}
@@ -57,12 +57,12 @@ def _assert_bare_grid(response):
 
 
 def _day_row(html: str, day: str) -> str:
-    """One admin day row, from its own dialog trigger up to the next row's, so a test asserts on that day's markers
-    and on no other. Every day row carries the date in its trigger, unlike a visitor's."""
-    row_cls = 'class="flex items-center gap-1 border-b border-gray-100'
-    start = html.index(f"day={day}")
-    # The row's own class follows its trigger, so the next one marks the following row.
-    end = html.index(row_cls, html.index(row_cls, start) + len(row_cls))
+    """One admin day row, from its opening element up to the next row's, so a test asserts on that day's markers
+    and on no other. Every admin day row carries the date in its dialog trigger, unlike a visitor's."""
+    anchor = html.index(f"day={day}")
+    start = html.rindex("<div", 0, anchor)
+    # The next row's own trigger marks this row's end.
+    end = html.index('<div hx-get="/day/dialog', anchor)
     return html[start:end]
 
 
@@ -345,7 +345,7 @@ def test_a_conference_shows_in_purple_with_a_tooltip_carrying_its_title_and_stat
     services.conferences.add_conference(LESSON_DAY, "Nordic Conference")
 
     row = _day_row(admin_client.get(f"/?semester_id={semester.id}").text, FREE_DAY)
-    assert "text-purple-600" in row
+    assert 'class="day-conference"' in row
     assert "Nordic Conference" in row
     # The title is the tooltip's anchor and the tooltip body carries the title over the state a Conference states.
     assert 'data-tip=""' in row
@@ -360,7 +360,8 @@ def test_a_conference_day_is_not_tinted(admin_client, services):
     row = _day_row(admin_client.get(f"/?semester_id={semester.id}").text, MONDAY)
 
     # A Monday's row is never tinted by the weekend rule, so a Conference adds no tint of its own.
-    assert "bg-red-50" not in row
+    assert "day--blocked" not in row
+    assert "day--weekend" not in row
 
 
 def test_a_conference_coexists_with_a_holiday_and_that_holidays_tint(admin_client, services):
@@ -370,9 +371,12 @@ def test_a_conference_coexists_with_a_holiday_and_that_holidays_tint(admin_clien
 
     row = _day_row(admin_client.get(f"/?semester_id={semester.id}").text, MONDAY)
 
-    assert "text-red-600" in row
-    assert "text-purple-600" in row
-    assert "bg-red-50" in row
+    # The Holiday's red title and tint and the Conference's purple title sit side by side on the same row.
+    assert 'class="day-note"' in row
+    assert "Autumn break" in row
+    assert 'class="day-conference"' in row
+    assert "Nordic Conference" in row
+    assert "day--blocked" in row
 
 
 def test_a_conference_day_keeps_its_lesson_squares(admin_client, services):
@@ -384,7 +388,7 @@ def test_a_conference_day_keeps_its_lesson_squares(admin_client, services):
 
     # A Conference does not block teaching, so the day's realization square is still drawn on the row.
     assert 'href="/realizations?realization_id=' in row
-    assert "text-purple-600" in row
+    assert 'class="day-conference"' in row
 
 
 def test_an_admin_row_holding_a_conference_opens_the_dialog_on_the_conference_tab(admin_client, services):
@@ -396,18 +400,20 @@ def test_an_admin_row_holding_a_conference_opens_the_dialog_on_the_conference_ta
     assert "day=2026-10-20&amp;kind=conference" in html
 
 
-# The weekly view's purple sub-row
+# The weekly view's Conference flag
 
 
-def test_a_conference_is_a_purple_sub_row_in_the_weekly_view(client, services):
+def test_a_conference_is_a_purple_flag_in_the_weekly_view(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     realization = _add_realization_with_lesson(services, semester)
     services.conferences.add_conference(LESSON_DAY, "Nordic Conference")
 
     html = client.get(f"/realizations?realization_id={realization.id}").text
+    card = week_card_html(html, 43)
 
-    assert "text-purple-600 italic" in html
-    assert "text-purple-400 italic" in html
-    assert "Nordic Conference" in html
-    # The sub-row shows the Conference's own day under its title, like a Lesson's, and carries no time range.
-    assert "Tue 20.10." in html
+    # The Conference is a purple flag in the week head whose tooltip names it and its own weekday and d.m. day.
+    assert card.index('class="week-head"') < card.index('class="flag flag--conference"') < card.index(
+        'class="week-lessons"'
+    )
+    assert "Nordic Conference" in card
+    assert "Tue 20.10." in card

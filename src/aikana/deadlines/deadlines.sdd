@@ -4,7 +4,7 @@ Purpose:
   The Deadline entity: one dated obligation of a CourseRealization, such as `Assignment 1` due on `2026-09-21`.
   It carries a date and a title and nothing else, so a realization can hold many of them: one per assignment,
   exam or report the group owes. A view-less, route-less package used by ../realizations/realizations.sdd,
-  whose `Deadline` column owns the affordances that create, edit and remove one, and by
+  whose weekly view owns the affordances that create, edit and remove one, and by
   ../semester/semester.sdd, which draws each one as a circle.
 
 Owns:
@@ -38,7 +38,7 @@ Must:
   @DeadlineService.delete_deadline removes one Deadline and leaves the realization's other Deadlines untouched,
     rejecting an unknown id with @UnknownDeadlineError.
   @DeadlineService.list_deadlines_for_realization returns one CourseRealization's Deadlines ordered by date, which is
-    what ../realizations/realizations.sdd's weekly view-model reads once for every week row's `Deadline` cell and
+    what ../realizations/realizations.sdd's weekly view-model reads once for every week card's Deadlines section and
     every per-Deadline dialog it renders.
   @DeadlineService.list_deadlines_for_range returns every Deadline dated between two dates across all
     CourseRealizations, ordered by date, which is what ../semester/semester.sdd's wall planner reads for its
@@ -57,10 +57,11 @@ Scenario: A realization's deadlines are removed with it
   Then neither Deadline remains
 
 Scenario: Admin removes one Deadline from the weekly view
-  Given a CourseRealization's weekly table shows two Deadlines in its `Deadline` column
+  Given a CourseRealization's weekly view shows two Deadlines
   And the admin is logged in
-  When the admin confirms the first Deadline's delete dialog, which names the Deadline and its date
-  Then the `Deadline` column shows the other one and the realization keeps its Lessons and its other entries
+  When the admin opens the first Deadline's edit dialog and confirms the delete dialog it opened, which names the
+    Deadline and its date
+  Then the week card shows the other one and the realization keeps its Lessons and its other entries
 
 Tasks:
   [x] Implement @Deadline in ./domain.py, and ./ports.py, ./services.py and ./repository_sqlite.py with

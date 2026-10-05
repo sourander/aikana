@@ -12,6 +12,7 @@ from aikana.week_themes.services import (
     UnknownRealizationError,
     UnknownWeekThemeError,
 )
+from conftest import week_card_html
 
 WEEK_START = date(2026, 9, 14)
 WEEK_NUMBER = WEEK_START.isocalendar()[1]
@@ -63,10 +64,10 @@ def _delete_theme(client, theme_id):
     return client.post(f"/realizations/week-themes/{theme_id}/delete", follow_redirects=True)
 
 
-def _week_cell(html: str) -> str:
-    """The rendered `Week` cell of the themed week, so a test asserts on that cell's own content."""
-    anchor = html.index(f">{WEEK_NUMBER}<")
-    return html[html.rindex("<td", 0, anchor) : html.index("</td>", anchor)]
+def _week_head(html: str) -> str:
+    """The rendered head of the themed week's card, so a test asserts on that head's own content."""
+    card = week_card_html(html, WEEK_NUMBER)
+    return card[card.index('class="week-head') : card.index('class="week-lessons')]
 
 
 # The service layer
@@ -128,10 +129,10 @@ def test_a_week_shows_its_theme_on_the_week_numbers_line(
 ):
     services.week_themes.add_week_theme(realization_id, WEEK_START, "Gradient descent")
 
-    cell = _week_cell(_weekly_view(admin_client, realization_id, semester_id).text)
+    head = _week_head(_weekly_view(admin_client, realization_id, semester_id).text)
 
-    assert f">{WEEK_NUMBER}<" in cell
-    assert cell.index(f">{WEEK_NUMBER}<") < cell.index("Gradient descent") < cell.index("14.9.2026")
+    assert f">{WEEK_NUMBER}<" in head
+    assert head.index(f">{WEEK_NUMBER}<") < head.index("Gradient descent") < head.index("14.9.2026")
 
 
 def test_a_week_without_a_theme_offers_an_empty_add_form(admin_client, realization_id, semester_id):

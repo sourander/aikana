@@ -192,31 +192,15 @@ def test_wall_planner_renders_one_column_per_month(client, services):
     fall = services.semesters.create_semester(2026, "fall")
     spring = services.semesters.create_semester(2027, "spring")
 
-    assert "repeat(5, 1fr)" in client.get(f"/?semester_id={fall.id}").text
-    assert "repeat(6, 1fr)" in client.get(f"/?semester_id={spring.id}").text
+    fall_page = client.get(f"/?semester_id={fall.id}").text
+    spring_page = client.get(f"/?semester_id={spring.id}").text
 
-
-def test_wall_planner_grid_scrolls_instead_of_clipping(client, services):
-    fall = services.semesters.create_semester(2026, "fall")
-
-    text = client.get(f"/?semester_id={fall.id}").text
-
-    grid = text[text.index('id="semester-grid"') : text.index('id="semester-grid"') + 200]
-
-    assert "overflow:auto;" in grid
-    assert "overflow:hidden;" not in grid
-
-
-def test_wall_planner_day_rows_and_month_columns_have_a_minimum_width(client, services):
-    fall = services.semesters.create_semester(2026, "fall")
-
-    text = client.get(f"/?semester_id={fall.id}").text
-
-    # A month column never gets narrower than a day row, so a column's rows cannot overlap the next column.
-    assert "display:flex; flex-direction:column; min-width:8rem;" in text
-
-    vm = services.semesters.build_semester_view_model(fall)
-    assert text.count("flex:1; min-width:8rem;") == sum(len(month.days) for month in vm.months)
+    # The grid hands the month count to the stylesheet through the `--months` custom property, and renders one
+    # column element per month.
+    assert 'style="--months: 5;"' in fall_page
+    assert fall_page.count('class="month"') == 5
+    assert 'style="--months: 6;"' in spring_page
+    assert spring_page.count('class="month"') == 6
 
 
 def test_wall_planner_shows_each_spanned_month_as_a_column(client, services):
@@ -248,7 +232,8 @@ def test_weekend_rows_are_tinted_even_without_holidays(client, services):
 
     response = client.get(f"/?semester_id={semester.id}")
 
-    assert response.text.count("bg-red-50") == _weekend_days(date(2026, 8, 1), date(2026, 12, 31))
+    assert response.text.count("day--weekend") == _weekend_days(date(2026, 8, 1), date(2026, 12, 31))
+    assert "day--blocked" not in response.text
 
 
 def test_a_holiday_row_is_tinted_and_titled(client, services):
@@ -256,12 +241,12 @@ def test_a_holiday_row_is_tinted_and_titled(client, services):
     for week in services.no_teach_weeks.list_no_teach_weeks(semester.id):
         services.no_teach_weeks.delete_no_teach_week(week.id)
     _clear_holidays(services, semester, date(2026, 8, 1), date(2026, 12, 31))
-    # 2026-09-07 is a Monday, so the row's tint cannot come from the weekend rule.
+    # 2026-09-07 is a Monday, so the row's blocked tint cannot come from the weekend rule.
     services.holidays.add_holiday(date(2026, 9, 7), "Autumn break")
 
     response = client.get(f"/?semester_id={semester.id}")
 
-    assert response.text.count("bg-red-50") == _weekend_days(date(2026, 8, 1), date(2026, 12, 31)) + 1
+    assert response.text.count("day--blocked") == 1
     assert "Autumn break" in response.text
 
 
@@ -282,7 +267,7 @@ def test_a_lesson_square_is_a_tooltip_anchor_and_the_grid_its_area(client, servi
 
 def _week_gutter_numbers(html: str) -> list[str]:
     """The content of every day row's week-number gutter, in render order: a number on a Monday, empty elsewhere."""
-    return re.findall(r'<span class="w-6 text-xs text-gray-300 text-center shrink-0">(\d*)</span>', html)
+    return re.findall(r'<span class="day-week">(\d*)</span>', html)
 
 
 def test_wall_planner_numbers_each_monday_of_the_semester(client, services):
@@ -341,7 +326,7 @@ def test_wall_planner_legend_names_every_realization_in_its_own_color(client, se
 
 
 def _legend_chip(color: str) -> str:
-    return f'<div class="w-3 h-3 rounded-sm shrink-0" style="background-color:{color};"></div>'
+    return f'<div class="marker marker--lesson" style="background-color:{color};"></div>'
 
 
 def test_wall_planner_legend_marks_a_square_a_lesson_and_a_circle_a_deadline(client, services):
@@ -350,8 +335,8 @@ def test_wall_planner_legend_marks_a_square_a_lesson_and_a_circle_a_deadline(cli
     response = client.get(f"/?semester_id={semester.id}")
 
     legend = _legend_html(response.text)
-    assert '<div class="w-3 h-3 rounded-sm bg-gray-400 shrink-0"></div>' in legend
-    assert '<div class="w-3 h-3 rounded-full bg-gray-400 opacity-50 shrink-0"></div>' in legend
+    assert '<div class="marker marker--lesson marker--plain"></div>' in legend
+    assert '<div class="marker marker--deadline"></div>' in legend
     assert ">Lesson</span>" in legend
     assert ">Deadline</span>" in legend
 
@@ -435,55 +420,44 @@ def test_realizations_view_shows_a_custom_no_teach_week_title_alone(client, serv
     assert "No teaching week" not in response.text
 
 
-# The NoTeachWeek week row's background tint
+# The NoTeachWeek week card's background tint
 
 
-def _tinted_week_rows(html: str) -> list[str]:
-    """The `class` of every rendered week row that carries the tint, so a test asserts on the rows themselves and on
-    no other week's row."""
-    return [c for c in re.findall(r'<tr [^>]*class="([^"]*)"', html) if "bg-red-50" in c]
-
-
-def test_a_no_teach_week_row_is_tinted_to_a_visitor(client, services):
+def test_a_no_teach_week_card_is_tinted_to_a_visitor(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
     response = client.get(f"/realizations?realization_id={realization.id}")
 
-    # The fall-2026 Semester's two NoTeachWeeks, weeks 42 and 51, are the only tinted rows, and a visitor's row
-    # carries nothing but the tint.
+    # The fall-2026 Semester's two NoTeachWeeks, weeks 42 and 51, are the only tinted week cards.
     assert response.status_code == 200
-    assert _tinted_week_rows(response.text) == ["bg-red-50", "bg-red-50"]
+    assert response.text.count("week-card--blocked") == 2
 
 
-def test_a_no_teach_week_row_is_tinted_to_the_admin(admin_client, services):
+def test_a_no_teach_week_card_is_tinted_to_the_admin(admin_client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
     response = admin_client.get(f"/realizations?realization_id={realization.id}")
 
-    # The admin's tinted row keeps its hover deepening the red instead of turning gray, and carries no trigger.
     assert response.status_code == 200
-    assert _tinted_week_rows(response.text) == [
-        "bg-red-50 hover:bg-red-100",
-        "bg-red-50 hover:bg-red-100",
-    ]
+    assert response.text.count("week-card--blocked") == 2
     assert "Syysvapaat" in response.text
 
 
-def test_an_ordinary_week_row_carries_no_tint(admin_client, services):
+def test_an_ordinary_week_card_carries_no_tint(admin_client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
     realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
 
     html = admin_client.get(f"/realizations?realization_id={realization.id}").text
 
-    row_classes = re.findall(r'<tr [^>]*class="([^"]*)"', html)
-    assert not [c for c in row_classes if "bg-red-50" in c and "hover:bg-gray-100" in c]
-    # The week rows themselves carry no trigger; the Lessons column's add slot is the clickable affordance.
-    assert "cursor-pointer hover:bg-gray-100" in html
+    # Only the two NoTeachWeeks are tinted; every other week is a plain card whose Lessons section is the
+    # admin's clickable add affordance.
+    assert html.count("week-card--blocked") == 2
+    assert "week-lessons--clickable" in html
 
 
 # Current day and current week highlighting
@@ -496,7 +470,7 @@ def test_wall_planner_renders_a_green_bar_on_today(client, services, monkeypatch
     response = client.get(f"/?semester_id={semester.id}")
 
     assert response.status_code == 200
-    assert response.text.count("border-l-green-500") == 1
+    assert response.text.count("day--today") == 1
 
 
 def test_wall_planner_renders_no_green_bar_when_today_is_outside_the_semester(client, services, monkeypatch):
@@ -506,7 +480,7 @@ def test_wall_planner_renders_no_green_bar_when_today_is_outside_the_semester(cl
     response = client.get(f"/?semester_id={semester.id}")
 
     assert response.status_code == 200
-    assert "border-l-green-500" not in response.text
+    assert "day--today" not in response.text
 
 
 def test_realizations_view_renders_a_green_bar_on_the_current_week(client, services, monkeypatch):
@@ -518,7 +492,7 @@ def test_realizations_view_renders_a_green_bar_on_the_current_week(client, servi
     response = client.get(f"/realizations?realization_id={realization.id}")
 
     assert response.status_code == 200
-    assert response.text.count("border-l-green-500") == 1
+    assert response.text.count("week-card--current") == 1
 
 
 def test_realizations_view_renders_week_date_ranges_in_the_european_form(client, services):

@@ -4,7 +4,7 @@ Purpose:
   The WeekTheme entity: the theme of one calendar week of one CourseRealization, a single free-text title such as
   `Introduction to gradient descent`. It is per realization, not per Semester, so two groups of the same Course can
   theme the same week differently, and it labels the week rather than changing what is taught in it. A view-less,
-  route-less package used by ../realizations/realizations.sdd, whose weekly table owns the affordances that create,
+  route-less package used by ../realizations/realizations.sdd, whose weekly view owns the affordances that create,
   edit and remove one.
 
 Owns:
@@ -47,7 +47,7 @@ Must:
 
 Must not:
   This package must not gain a view.py or routes.py: a WeekTheme is created, edited and removed only through
-    ../realizations/realizations.sdd's weekly table, so the feature's affordances and routes stay owned there.
+    ../realizations/realizations.sdd's weekly view, so the feature's affordances and routes stay owned there.
 
 Tasks:
   [x] Implement @WeekTheme in ./domain.py, and ./ports.py, ./services.py and ./repository_sqlite.py with

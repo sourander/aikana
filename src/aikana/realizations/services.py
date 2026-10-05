@@ -180,7 +180,7 @@ class RealizationService:
             no_teach_title = no_teach_titles_by_week.get(week_number)
             day = week_start
             if no_teach_title is not None:
-                # A NoTeachWeek consumes its whole week, so no Lesson sub-row is shown for it, per
+                # A NoTeachWeek consumes its whole week, so no Lesson entry is shown for it, per
                 # ../no_teach_weeks/no_teach_weeks.sdd.
                 entries.append(
                     WeekEntry(
@@ -260,7 +260,7 @@ class RealizationService:
 
 @dataclass(frozen=True)
 class WeekEntry:
-    """One Lesson, Holiday or ../conferences/conferences.sdd Conference shown in a WeekRow's `Lessons` sub-rows.
+    """One Lesson, Holiday or ../conferences/conferences.sdd Conference shown in a WeekRow's `Lessons` section.
 
     `lesson_id` is set only for a Lesson and is what ../realizations.sdd's admin controls address it by;
     `entry_date` is the day a Lesson, a Holiday or a Conference falls on, which its cell's own day line shows, and is

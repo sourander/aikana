@@ -9,7 +9,6 @@ Owns:
   ./ids.py
   ./layout.py
   ./dates.py
-  ./static/input.css
   ./static/app.css
   ./static/favicon.svg
 
@@ -24,7 +23,7 @@ Must:
   ./ids.py exposes @parse_id, which turns a route path or query value into the integer id the services expect,
   returning `None` for an empty or non-numeric value so a route can treat it as absent; routes.py parse ids
   with it instead of passing raw strings to services.py.
-  ./layout.py renders the shared page shell: header, a `<link>` to the compiled Tailwind stylesheet and the HTMX
+  ./layout.py renders the shared page shell: header, a `<link>` to the hand-written stylesheet and the HTMX
   script tag, used by every feature's view.py.
   ./layout.py also emits one inline script for the whole page that keeps a hover tooltip inside the visible area:
     an element marked `data-tip` is the tooltip's anchor, its `data-tip-body` child is the tooltip, and the tooltip
@@ -32,27 +31,27 @@ Must:
     centres the tooltip on its anchor, opens it below the anchor when there is no room above, and clamps it to the
     area's edges, so a tooltip never leaves the viewport or slides under the header. The reveal stays in CSS, so an
     anchor still shows its tooltip when the script is unavailable.
-  ./static/input.css is the Tailwind CLI input (`@import "tailwindcss"` plus an explicit `@source` covering every
-  feature package's Python files, since utility classes live in `cls="..."` strings rather than templates).
-  ./static/app.css is the compiled, minified stylesheet produced from ./static/input.css by the standalone
-  Tailwind CLI in the `css` stage of /Dockerfile; it is a build artifact and is `.gitignore`d, not hand edited.
+  ./static/app.css is the site's whole stylesheet: hand-written vanilla CSS with semantic class names, committed
+  to the repository; it is never generated, minified or processed, per /aikana.sdd's Forbids.
   `main.py` serves ./static/app.css at `/static/app.css` via `app.static_route`, using `layout.STATIC_DIR` so the
     path resolves regardless of the process's working directory.
   ./static/favicon.svg is the site's icon: `main.py` serves it at `/static/favicon.svg` and ./layout.py links it as
     `rel="icon"` with type `image/svg+xml`, since `app.static_route` serves a single extension per call and the
     stylesheet's `.css` route does not cover it.
-  ./layout.py's header renders a horizontal top-bar nav linking the Semester view (`/`), the Courses view
-  (`/courses`) and the Realization view (`/realizations`) in that order, highlighting whichever one the calling
-  route registers as active, a persistent Semester selector, and a slot for that page's own selector control (for
-  example a CourseRealization dropdown); it takes the active link name, the Semester selector's `(id, label)`
-  options and selected id, and the already-rendered page selector as plain arguments so it still needs no feature
-  imports.
+  ./layout.py's header is the same top bar on every view: on the left the `Aikana` brand and a horizontal nav
+  linking the Semester view (`/`), the Courses view (`/courses`) and the Realization view (`/realizations`) in that
+  order, highlighting whichever one the calling route registers as active; on the right a persistent Semester
+  selector, an admin-only `+ New Semester` link (rendered whenever the calling route passes `is_admin`) and the
+  login/logout link. It takes the active link name, the Semester selector's `(id, label)` options and selected id
+  and plain flags and rendered controls as arguments, so it still needs no feature imports. A view's own selector
+  control (for example ../realizations/realizations.sdd's CourseRealization dropdown) lives in that view, not in
+  the shared header.
   The header renders the persistent Semester selector whenever the calling route passes at least one option, on
   every tab. Changing it re-renders the current tab through the `semester_id` query parameter without a full page
   reload, and the nav links carry the selected `semester_id`, so the selection persists across tabs.
-  ./layout.py exposes @dropdown as the shared header select renderer: name, `(id, label)` options, selected id, the
-    `hx_get` path to re-render, and an optional `hx_include`; the shell's Semester selector and each feature view.py's
-    own selector use it, so all header selects behave consistently.
+  ./layout.py exposes @dropdown as the shared select renderer: name, `(id, label)` options, selected id, the
+    `hx_get` path to re-render, and an optional `hx_include`; the shell's Semester selector and a feature view.py's
+    own selector use it, so all selects behave consistently.
   ./layout.py exposes @day_calendar as the shared Monday-first month calendar: a weekday header running `Mon` to
     `Sun`, the selected date's month as whole Monday-to-Sunday weeks, and one `day` radio input per day cell with
     `selected` checked, so the grid is the form's own field and picking a day needs no script. The browser's own date
@@ -92,3 +91,5 @@ Tasks:
   [x] Let ./layout.py's header wrap its groups onto further lines and keep the title and nav labels unwrapped, so the
     shared shell stays readable on a phone-sized screen
   [x] Add ./static/favicon.svg and link it from ./layout.py, served by a second `app.static_route` in `main.py`
+  [x] Replace the Tailwind CLI build with the hand-written vanilla ./static/app.css: committed source with semantic
+    class names, no `css` stage in /Dockerfile and no input.css; ./layout.py links it unchanged at `/static/app.css`

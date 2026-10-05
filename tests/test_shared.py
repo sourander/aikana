@@ -21,12 +21,16 @@ def test_day_calendar_week_header_runs_from_monday_to_sunday():
     assert positions == sorted(positions)
 
 
-def test_pages_link_the_compiled_stylesheet_and_never_the_play_cdn(client):
+def test_pages_link_the_stylesheet_and_it_is_served(client):
     for path in ("/", "/courses", "/realizations"):
         response = client.get(path)
         assert 'href="/static/app.css"' in response.text
-        assert "cdn.tailwindcss.com" not in response.text
         assert "htmx" in response.text
+
+    # The stylesheet is hand-written source committed to the repository, so it is served without any build step.
+    response = client.get("/static/app.css")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/css")
 
 
 def test_pages_link_the_favicon_and_it_is_served(client):

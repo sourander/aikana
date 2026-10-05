@@ -75,6 +75,7 @@ def register_routes(
                 active_nav="courses",
                 semester_options=semester_options,
                 selected_semester_id=selected_semester_id,
+                is_admin=is_admin,
                 admin_link=admin_link,
             )
         semesters_by_id = {semester.id: semester for semester in semester_service.list_semesters()}
@@ -97,6 +98,7 @@ def register_routes(
             active_nav="courses",
             semester_options=semester_options,
             selected_semester_id=selected_semester_id,
+            is_admin=is_admin,
             admin_link=admin_link,
         )
 
@@ -105,7 +107,10 @@ def register_routes(
         if not auth_service.is_admin(session):
             return RedirectResponse("/login", status_code=303)
         return layout.page(
-            view.create_course_form(error=error), active_nav="courses", admin_link=auth_view.header_link(True)
+            view.create_course_form(error=error),
+            active_nav="courses",
+            is_admin=True,
+            admin_link=auth_view.header_link(True),
         )
 
     @app.post("/courses")

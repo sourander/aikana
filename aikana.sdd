@@ -1,5 +1,5 @@
 Spec: Aikana
-Platform: Python/FastHTML/HTMX/SQLite/Tailwind CSS
+Platform: Python/FastHTML/HTMX/SQLite/CSS
 
 Purpose:
   Aikana is a time-keeping and lesson calendar. A single admin (the teacher) records courses, course realizations,
@@ -49,10 +49,9 @@ Must:
   ./src/aikana/mcp_server/mcp_server.sdd uses ISO 8601 dates and times on the wire.
   Weeks start on Monday and week numbering follows the ISO 8601 European standard, where week `1` is the week that
   contains the year's first Thursday.
-  Tailwind CSS is compiled ahead of time with the standalone Tailwind CLI in `Dockerfile`'s `css` stage (no
-  Node.js/npm toolchain) and served as a static file; the Play CDN script (`cdn.tailwindcss.com`) must not be used.
-  The CLI download is pinned to an exact version and verified against its SHA-256 checksum at build time, so the
-  build never executes an unvetted upstream binary.
+  The site is styled by a single hand-written vanilla CSS stylesheet,
+    ./src/aikana/shared/static/app.css, which is committed to the repository and served as a static file at
+    `/static/app.css`; there is no CSS build step and no CSS framework.
   Dependencies are declared in `pyproject.toml` and locked in `uv.lock`, and every Docker stage installs exactly the
   locked set with `uv`.
   `Dockerfile` has a `base` stage with the common setup, a `test` stage and a `prod` stage that both inherit from
@@ -76,7 +75,9 @@ Must not:
 Forbids:
   Any database other than SQLite.
   Any ORM other than `fastlite`'s MiniDataAPI Spec implementation, as detailed in ./src/aikana/architecture.sdd.
-  Frontend frameworks other than HTMX and Tailwind CSS.
+  CSS frameworks and CSS build toolchains (for example Tailwind CSS, Bootstrap or a Node.js-based Sass build): the
+  stylesheet is hand-written vanilla CSS.
+  Frontend frameworks other than HTMX.
 
 Tasks:
   [x] #1 Scaffold `Dockerfile`, `compose.yml`, `.dockerignore`, `requirements.txt`, `Procfile`, `.gitignore` and a minimal `main.py` that serves a page on `$PORT`
@@ -116,10 +117,15 @@ Tasks:
     ./src/aikana/mcp_server/mcp_server.sdd
   [ ] #16 Add the Conference entity (./src/aikana/conferences/conferences.sdd): a one-day dated event that does not
     block teaching and coexists with a Holiday and that day's Lessons, drawn as purple text with a hover tooltip in
-    ./src/aikana/semester/semester.sdd, laid out like a Holiday in purple in
+    ./src/aikana/semester/semester.sdd, shown as a purple flag in the week head of
     ./src/aikana/realizations/realizations.sdd's weekly view, and created, edited and removed through a Conference
     tab in ./src/aikana/day_dialog/day_dialog.sdd, with read and token-gated write tools in
     ./src/aikana/mcp_server/mcp_server.sdd
+  [x] #17 Replace the Tailwind CSS frontend with hand-written vanilla CSS: ./src/aikana/shared/static/app.css is
+    committed source, `Dockerfile`'s `css` stage and ./src/aikana/shared/static/input.css are gone, and the
+    realizations weekly view is rebuilt as stacked week cards with Holiday and Conference flags in the week head,
+    per ./src/aikana/shared/shared.sdd, ./src/aikana/semester/semester.sdd and
+    ./src/aikana/realizations/realizations.sdd
 
 Done when:
   The app starts in local Docker with `AIKANA_PASSWD` set and serves both calendar views.

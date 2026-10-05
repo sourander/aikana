@@ -55,21 +55,23 @@ Must:
   The semester periods follow a fixed rule from the year and term alone, so any arbitrary Semester's period is
   computed, never looked up: a `fall` Semester spans `<year>-08-01` to `<year>-12-31`; a `spring` Semester spans
   `<year>-01-01` to `<year>-06-30`.
-  The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
-  semester, `, 1fr)`, and `gap: 10px`. A semester of five months renders five columns.
+  The container is a CSS grid with one column per month of the selected semester: ./view.py hands the month count
+  to ../shared/shared.sdd's stylesheet through the `--months` custom property, and the stylesheet resolves it as
+  `repeat(var(--months), minmax(8rem, 1fr))` with `gap: 10px`. A semester of five months renders five columns.
   The container height is `100vh` minus the header height and the legend bar's height, so a 1080p screen shows the
   whole semester without vertical or horizontal scrolling. The container itself scrolls in both directions rather
   than clipping, so content that does not fit stays reachable: a viewport too narrow for the columns' minimum widths
   scrolls horizontally, and day rows that no longer fit the container's height scroll vertically.
-  The view is laid out for a desktop screen, and a small screen still shows a readable planner rather than a
-  crushed one: the weekday abbreviation, the date number and the lesson squares keep their width on a narrow viewport
-  and the rest of the semester is reached by scrolling. Complete mobile support is out of scope, so the header and
-  the legend bar keep ../shared/shared.sdd's desktop layout.
-  Every day row and the month column around it share a minimum width of `8rem`, so no column is narrowed below the
-  width its week-number gutter, weekday abbreviation, date number and lesson squares need.
+  On a viewport narrower than `48rem` the grid collapses to a single column, so the months stack vertically in
+  calendar order and a phone shows the whole semester as one long planner. Wider viewports always get the
+  multi-column desktop layout.
+  The grid tracks carry the `8rem` minimum column width, so no column is narrowed below the width its week-number
+  gutter, weekday abbreviation, date number and lesson squares need.
   Each month is a flex column (`display: flex; flex-direction: column`) with the month name as header at its top.
   Each month contains one row per day of that month, and each row has `flex: 1` so all rows share height equally.
-  A day row shows the weekday abbreviation, the date number and a wider space for lesson indicators.
+  A day row shows, from left to right: the week-number gutter, the weekday abbreviation, the date number, a wider
+  space for the lesson squares and deadline circles, and on the right the Holiday or NoTeachWeek title and the
+  Conference title.
   A Monday row shows that Monday's ISO week number in a fixed-width light-grey gutter left of the weekday
   abbreviation, so the number sits in the middle of the Monday that starts the week. No other row shows a number, and
   every row reserves the same gutter, so the weekday labels of a column stay aligned. A week whose Monday falls
@@ -79,11 +81,13 @@ Must:
   Lessons appear as inline-block squares of `12px` by `12px`. The view assigns each CourseRealization a color from a
   fixed palette of ten distinct colors at render time, so a Semester with up to ten CourseRealizations gives each one
   its own color; no color is stored in the database.
-  A ../deadlines/deadlines.sdd Deadline appears on its day row as a circle of the same `12px` by `12px`, drawn in the
-    color of the CourseRealization it belongs to, the color its Lesson squares share, and at `50%` opacity. Clicking
+  A ../deadlines/deadlines.sdd Deadline appears on its day row as a donut of the same `12px` by `12px`: a hollow
+    circle whose ring carries the color of the CourseRealization it belongs to, the color its Lesson squares share,
+    with a transparent fill, so both the marker and its tooltip render at full opacity. Clicking
     a circle navigates to ../realizations/realizations.sdd's weekly view for that Deadline's CourseRealization, the
     same target one of that realization's Lesson squares links to, so an admin's click on a circle opens neither this
-    view's day dialog nor any other.
+    view's day dialog nor any other. Hovering a circle shows the same kind of tooltip as a Lesson square, naming the
+    Deadline and its CourseRealization.
   A day row draws its Lesson squares first and its Deadline circles after them, so a Deadline dated on a day with a
     Lesson overlaps that square instead of pushing it away. A NoTeachWeek's rows suppress the Lesson squares but
     keep the Deadline circles, since a deadline is an obligation rather than teaching.
@@ -135,9 +139,9 @@ Must not:
 
 Example:
   semester 1: `2026-08` to `2026-12`
-  columns: `repeat(5, 1fr)`
+  columns: `--months: 5`
   semester 2: `2027-01` to `2027-06`
-  columns: `repeat(6, 1fr)`
+  columns: `--months: 6`
 
 Tasks:
   [x] Implement @Semester and the hardcoded academic-year-2026-2027 period rules in ./domain.py, and a hardcoded
@@ -185,4 +189,7 @@ Tasks:
     directions instead of clipping, so the wall planner stays readable on a narrow viewport
   [x] Render each ../conferences/conferences.sdd Conference as purple text with a hover tooltip on its day row, read
     through @ConferenceService in ./services.py, and open the day dialog's Conference tab from a row that holds one
+  [x] Re-class the wall planner onto ../shared/shared.sdd's hand-written stylesheet: the month count goes through
+    the `--months` custom property, months stack into one column on viewports narrower than `48rem`, and each
+    ../deadlines/deadlines.sdd deadline circle gains the lesson squares' hover tooltip
 

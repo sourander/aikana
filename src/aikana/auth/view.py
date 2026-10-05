@@ -9,21 +9,21 @@ def login_form(error: bool = False):
             name="password",
             type="password",
             placeholder="Password",
-            cls="border border-gray-300 rounded px-2 py-1",
+            cls="input",
         ),
-        Button("Log in", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
-        P("Incorrect password.", cls="text-red-600 text-sm") if error else "",
+        Button("Log in", type="submit", cls="btn"),
+        P("Incorrect password.", cls="error") if error else "",
         method="post",
         action="/login",
-        cls="flex flex-col gap-2 p-4 max-w-xs",
+        cls="login-form",
     )
 
 
 def header_link(is_admin: bool):
     if is_admin:
         return Form(
-            Button("Log out", type="submit", cls="text-sm text-gray-600 hover:text-gray-900"),
+            Button("Log out", type="submit", cls="linkbtn"),
             method="post",
             action="/logout",
         )
-    return A("Log in", href="/login", cls="text-sm text-gray-600 hover:text-gray-900")
+    return A("Log in", href="/login", cls="link link--muted")

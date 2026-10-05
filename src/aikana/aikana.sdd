@@ -33,7 +33,7 @@ Owns:
 
 Must:
   `python -m aikana.main` starts the server on port `80`; the port is not configurable through the environment.
-  `main.py` registers the compiled Tailwind stylesheet as a static route (`app.static_route`) at `/static/app.css`,
+  `main.py` registers the hand-written stylesheet as a static route (`app.static_route`) at `/static/app.css`,
   using `./shared/layout.py`'s `STATIC_DIR`, per ./shared/shared.sdd.
   `main.py` builds ./mcp_server/'s MCP server from the shared feature services and mounts its Streamable HTTP app
   after every feature's routes, so the endpoint lands at `/mcp`; it runs the SDK's session manager through the
