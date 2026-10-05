@@ -337,27 +337,6 @@ def test_a_visitor_can_neither_add_nor_delete_a_conference(client, semester, ser
     ]
 
 
-def test_a_conference_is_added_from_a_week_row_through_the_weekly_table_swap(admin_client, semester, services):
-    """The weekly view's dialog re-renders the weekly table, not the grid, as the other tabs do."""
-    realization = _add_realization_with_lesson(services, semester)
-
-    response = admin_client.post(
-        "/day/dialog/conference",
-        data={
-            "semester_id": semester.id,
-            "day": FREE_DAY,
-            "title": "Nordic Conference",
-            "realization_id": realization.id,
-        },
-        headers=HTMX,
-    )
-
-    assert response.status_code == 200
-    assert 'id="realization-week-table"' in response.text
-    assert 'id="semester-grid"' not in response.text
-    assert len(services.conferences.list_conferences_for_range(*_range(FREE_DAY))) == 1
-
-
 # The wall planner's purple title
 
 

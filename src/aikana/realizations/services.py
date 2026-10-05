@@ -260,7 +260,7 @@ class RealizationService:
 
 @dataclass(frozen=True)
 class WeekEntry:
-    """One Lesson, Holiday or ../conferences/conferences.sdd Conference shown in a WeekRow's Lessons/Notes sub-rows.
+    """One Lesson, Holiday or ../conferences/conferences.sdd Conference shown in a WeekRow's `Lessons` sub-rows.
 
     `lesson_id` is set only for a Lesson and is what ../realizations.sdd's admin controls address it by;
     `entry_date` is the day a Lesson, a Holiday or a Conference falls on, which its cell's own day line shows, and is

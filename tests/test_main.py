@@ -464,11 +464,11 @@ def test_a_no_teach_week_row_is_tinted_to_the_admin(admin_client, services):
 
     response = admin_client.get(f"/realizations?realization_id={realization.id}")
 
-    # The admin's own week-row trigger stays on the tinted row, and its hover deepens the red instead of turning gray.
+    # The admin's tinted row keeps its hover deepening the red instead of turning gray, and carries no trigger.
     assert response.status_code == 200
     assert _tinted_week_rows(response.text) == [
-        "bg-red-50 cursor-pointer hover:bg-red-100",
-        "bg-red-50 cursor-pointer hover:bg-red-100",
+        "bg-red-50 hover:bg-red-100",
+        "bg-red-50 hover:bg-red-100",
     ]
     assert "Syysvapaat" in response.text
 
@@ -480,10 +480,10 @@ def test_an_ordinary_week_row_carries_no_tint(admin_client, services):
 
     html = admin_client.get(f"/realizations?realization_id={realization.id}").text
 
-    # Every week row is a trigger for the admin, so the untinted rows are exactly the tinted ones' complement.
     row_classes = re.findall(r'<tr [^>]*class="([^"]*)"', html)
-    assert "cursor-pointer hover:bg-gray-100" in row_classes
     assert not [c for c in row_classes if "bg-red-50" in c and "hover:bg-gray-100" in c]
+    # The week rows themselves carry no trigger; the Lessons column's add slot is the clickable affordance.
+    assert "cursor-pointer hover:bg-gray-100" in html
 
 
 # Current day and current week highlighting

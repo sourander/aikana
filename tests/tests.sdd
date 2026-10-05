@@ -16,16 +16,17 @@ Structure:
   ./test_deadlines.py: service-layer validation tests for the Deadline package, in-process client tests of the
     weekly view's `Deadline` column with its add, edit and delete dialogs and their admin guard, and tests of the
     wall planner's deadline circles
-  ./test_day_dialog.py: in-process client tests of the admin day dialog's forms, its guard and its grid and
-    weekly-table swaps, and of editing and removing the Holiday and NoTeachWeek already on the clicked date
+  ./test_day_dialog.py: in-process client tests of the admin day dialog's forms, its guard, its grid and
+    weekly-table swaps and the weekly table's lesson-only dialog, and of editing and removing the Holiday and
+    NoTeachWeek already on the clicked date
   ./test_main.py: in-process client tests of the app entry point, the semester routes and the wall planner's
     rendering
   ./test_mcp_server.py: unit tests for the MCP package's write guard and service mapping, and in-process JSON-RPC
     tests of the `/mcp` endpoint's anonymous reads and token-gated writes
   ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
   ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs, of
-    the weekly view's states, fallbacks, week sub-rows and Share button, and of its per-Lesson edit and delete
-    dialogs
+    the weekly view's states, fallbacks, week sub-rows and Share button, and of its click-to-edit Lesson dialogs,
+    its per-week empty Lesson add slot and the note read under a Lesson
   ./test_schema.py: data-integrity tests of the SQLite schema's foreign keys with cascade, unique constraints,
     NOT NULL columns, STRICT types and integer primary keys
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules

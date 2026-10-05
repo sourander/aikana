@@ -59,14 +59,15 @@ def day_dialog(
 ):
     """The dialog for one day, with a tab per kind of entry the admin can add on that day.
 
-    A `realization_id` marks the dialog as opened from that realization's weekly table: the date is editable and a
-    successful write re-renders the weekly table instead of the wall planner grid. A Holiday already stored on
-    that date, a NoTeachWeek already blocking it and a ../conferences/conferences.sdd Conference already on it replace
-    their tab's add form with a prefilled edit form.
+    A `realization_id` marks the dialog as opened from that realization's weekly table: then only the add-Lesson form
+    is offered, with no tabs, because ../realizations/realizations.sdd's weekly view edits only Lessons; the date is
+    editable and a successful write re-renders the weekly table instead of the wall planner grid. Opened from the wall
+    planner, a Holiday already stored on that date, a NoTeachWeek already blocking it and a
+    ../conferences/conferences.sdd Conference already on it replace their tab's add form with a prefilled edit form.
     """
     values = values or {}
     return Dialog(
-        _tabs(kind, semester_id, day, realization_id),
+        _tabs(kind, semester_id, day, realization_id) if realization_id is None else "",
         Div(f"{day.strftime('%A')}, {dates.format_date(day)}", cls="font-semibold text-sm text-gray-700"),
         _body(
             kind,
@@ -355,6 +356,9 @@ def _body(
     no_teach_week=None,
     conference=None,
 ):
+    if realization_id is not None:
+        # Opened from the weekly table: only the add-Lesson form is offered, whatever kind the request carried.
+        return lesson_form(day, semester_id, realization_options, values, realization_id)
     if kind == "no_teach_week":
         if no_teach_week is not None:
             return _no_teach_week_edit_form(no_teach_week, day, semester_id, values, realization_id)

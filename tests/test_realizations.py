@@ -1,5 +1,5 @@
 """In-process client tests of the courses page's realization dialogs, of their edits and deletions, of the weekly
-view and of its per-Lesson edit and delete dialogs, per ./tests.sdd.
+view and of its click-to-edit Lesson dialogs and per-week empty Lesson add slot, per ./tests.sdd.
 """
 
 from datetime import date, time
@@ -163,6 +163,32 @@ def test_a_week_with_a_lesson_and_a_holiday_spans_two_sub_rows(client, services)
     # The sub-row states the weekday, day and time range; the year stays in the Week cell.
     assert "Tue 20.10. 08:00\u201310:00" in response.text
     assert "Room B" in response.text
+
+
+def test_the_weekly_table_has_no_notes_column(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    assert ">Week<" in html
+    assert ">Lessons<" in html
+    assert ">Deadline<" in html
+    assert ">Notes<" not in html
+
+
+def test_a_lesson_note_reads_under_its_day_and_time_line(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    services.lessons.add_lesson(realization.id, date(2026, 10, 20), time(8, 0), time(10, 0), "Intro", "Room B")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    note = '<div class="text-sm text-gray-600">Room B</div>'
+    assert note in html
+    assert html.index("Tue 20.10. 08:00\u201310:00") < html.index(note)
 
 
 def test_share_button_copies_the_url_with_both_ids(admin_client, course_id, semester_id, realization_service):
@@ -487,24 +513,85 @@ def test_the_lesson_delete_dialog_names_the_lesson_and_its_date(admin_client, le
     assert "Delete the Lesson Intro on 20.10.2026?" in response.text
 
 
-def test_the_lesson_controls_stop_the_click_that_opens_the_day_dialog(admin_client, lesson_id):
+def test_clicking_a_lesson_opens_its_edit_dialog(admin_client, lesson_id):
     lesson, _, semester = lesson_id
 
     response = admin_client.get(f"/realizations?semester_id={semester}")
 
-    assert f"event.stopPropagation(); var d = document.getElementById('lesson-edit-dialog-{lesson}')" in response.text
+    assert (
+        f"var d = document.getElementById('lesson-edit-dialog-{lesson}');"
+        " if (d.open) d.close(); d.showModal();" in response.text
+    )
 
 
-def test_only_a_lesson_sub_row_carries_the_lesson_controls(admin_client, lesson_id, services):
+def test_the_lesson_edit_dialog_carries_a_delete_control(admin_client, lesson_id):
+    lesson, _, semester = lesson_id
+
+    response = admin_client.get(f"/realizations?semester_id={semester}")
+
+    # The edit dialog's Delete closes the edit dialog before opening the confirmation, per realizations.sdd.
+    assert (
+        f"document.getElementById('lesson-edit-dialog-{lesson}').close();"
+        f" var d = document.getElementById('lesson-delete-dialog-{lesson}')" in response.text
+    )
+    assert f'id="lesson-delete-dialog-{lesson}"' in response.text
+
+
+def test_only_a_lesson_sub_row_opens_the_lesson_edit_dialog(admin_client, lesson_id, services):
     lesson, realization, semester = lesson_id
-    # A Holiday shares the week with the Lesson, so a second pair of dialogs would mean both kinds were addressed.
+    # A Holiday shares the week with the Lesson, so a second dialog reference would mean both kinds were addressed.
     services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
 
     response = admin_client.get(f"/realizations?semester_id={semester}")
 
-    assert response.text.count("lesson-edit-dialog") == 2
+    # The one Lesson's dialog is referenced by its cell, its dialog id and its Delete control, so a second Lesson
+    # dialog or a Holiday sub-row trigger would raise the count.
+    assert response.text.count("lesson-edit-dialog") == 3
     assert response.text.count(f'id="lesson-edit-dialog-{lesson}"') == 1
     assert "Autumn break" in response.text
+
+
+def test_every_admin_week_has_an_empty_lesson_add_slot(admin_client, lesson_id):
+    _, realization, semester = lesson_id
+
+    html = admin_client.get(f"/realizations?semester_id={semester}").text
+
+    # Week 43 (Monday 2026-10-19) holds the fixture's Lesson and still offers the add slot under it.
+    assert (
+        f'hx-get="/day/dialog?semester_id={semester}&amp;day=2026-10-19&amp;kind=lesson'
+        f'&amp;realization_id={realization}"' in html
+    )
+
+
+def test_the_admin_add_slot_is_spanned_by_the_week_cell(admin_client, lesson_id):
+    _, _, semester = lesson_id
+
+    html = admin_client.get(f"/realizations?semester_id={semester}").text
+
+    # Week 43 holds the fixture's Lesson plus the admin's add slot, so its Week and Deadline cells span two sub-rows.
+    anchor = html.index(">43<")
+    week_cell = html[html.rindex("<td", 0, anchor) : html.index("</td>", anchor)]
+    assert 'rowspan="2"' in week_cell
+
+
+def test_a_no_teach_week_has_no_lesson_add_slot(admin_client, lesson_id):
+    _, _, semester = lesson_id
+
+    html = admin_client.get(f"/realizations?semester_id={semester}").text
+
+    # The fall 2026 Semester's default NoTeachWeek in week 42 starts Monday 2026-10-12.
+    assert "day=2026-10-12&amp;kind=lesson" not in html
+    assert "Syysvapaat" in html
+
+
+def test_a_visitor_week_has_no_lesson_add_slot(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    assert "/day/dialog" not in html
 
 
 def test_admin_edits_a_lesson_from_the_weekly_view(admin_client, lesson_id, services):

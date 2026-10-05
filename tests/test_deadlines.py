@@ -161,12 +161,8 @@ def test_the_deadline_column_is_the_last_column_of_the_weekly_table(
 ):
     html = _weekly_view(admin_client, realization_id, semester_id).text
 
-    assert (
-        html.index(">Week<")
-        < html.index(">Lessons<")
-        < html.index(">Notes<")
-        < html.index(">Deadline<")
-    )
+    assert ">Notes<" not in html
+    assert html.index(">Week<") < html.index(">Lessons<") < html.index(">Deadline<")
 
 
 def test_a_deadline_shows_in_the_row_of_the_week_it_falls_in(
@@ -197,14 +193,12 @@ def test_the_admin_deadline_cell_has_an_add_dialog(admin_client, realization_id,
     assert f'type="radio" name="day" value="{WEEK_START.isoformat()}" checked' in html
 
 
-def test_the_deadline_cell_stops_the_click_that_opens_the_day_dialog(
-    admin_client, realization_id, semester_id
-):
+def test_the_deadline_cell_opens_the_add_dialog(admin_client, realization_id, semester_id):
     html = _weekly_view(admin_client, realization_id, semester_id).text
 
     assert (
-        "event.stopPropagation(); var d = document.getElementById("
-        f"'deadline-dialog-{WEEK_START.isoformat()}')" in html
+        "var d = document.getElementById("
+        f"'deadline-dialog-{WEEK_START.isoformat()}'); if (d.open) d.close(); d.showModal();" in html
     )
 
 

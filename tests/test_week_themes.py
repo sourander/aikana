@@ -151,14 +151,12 @@ def test_the_admin_week_cell_has_an_add_dialog(admin_client, realization_id, sem
     assert f'<input name="realization_id" type="hidden" value="{realization_id}"' in response.text
 
 
-def test_the_week_cell_stops_the_click_that_opens_the_day_dialog(
-    admin_client, realization_id, semester_id
-):
+def test_the_week_cell_opens_the_theme_dialog(admin_client, realization_id, semester_id):
     response = _weekly_view(admin_client, realization_id, semester_id)
 
     assert (
-        "event.stopPropagation(); var d = document.getElementById("
-        f"'week-theme-dialog-{WEEK_START.isoformat()}')" in response.text
+        "var d = document.getElementById("
+        f"'week-theme-dialog-{WEEK_START.isoformat()}'); if (d.open) d.close(); d.showModal();" in response.text
     )
 
 

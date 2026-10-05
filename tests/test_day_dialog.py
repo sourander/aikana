@@ -352,13 +352,14 @@ def test_a_visitor_can_neither_open_the_dialog_nor_add_through_it(client, semest
     assert len(services.no_teach_weeks.list_no_teach_weeks(semester.id)) == 2
 
 
-# The Realizations weekly view's week-row dialog, per ./src/aikana/realizations/realizations.sdd.
+# The Realizations weekly view's lesson add slot and its lesson-only dialog, per
+# ./src/aikana/realizations/realizations.sdd.
 
 # Monday of FREE_DAY's week, outside the fall 2026 Semester's default NoTeachWeeks.
 FREE_WEEK_MONDAY = "2026-10-19"
 
 
-def test_admin_sees_a_week_row_dialog_trigger_in_the_realizations_view(admin_client, semester, services):
+def test_admin_sees_a_lesson_add_slot_in_the_realizations_view(admin_client, semester, services):
     realization = _add_realization(services, semester)
 
     response = admin_client.get(f"/realizations?realization_id={realization.id}")
@@ -372,7 +373,7 @@ def test_admin_sees_a_week_row_dialog_trigger_in_the_realizations_view(admin_cli
     )
 
 
-def test_visitor_sees_no_week_row_dialog_trigger(client, semester, services):
+def test_visitor_sees_no_lesson_add_slot(client, semester, services):
     realization = _add_realization(services, semester)
 
     response = client.get(f"/realizations?realization_id={realization.id}")
@@ -390,7 +391,7 @@ def test_admin_opens_the_weekly_dialog_with_the_week_s_monday_checked(admin_clie
         params={
             "semester_id": semester.id,
             "day": FREE_WEEK_MONDAY,
-            "kind": "holiday",
+            "kind": "lesson",
             "realization_id": realization.id,
         },
         headers=HTMX,
@@ -401,6 +402,27 @@ def test_admin_opens_the_weekly_dialog_with_the_week_s_monday_checked(admin_clie
     assert f'name="realization_id" type="hidden" value="{realization.id}"' in response.text
     assert 'hx-target="#realization-week-table"' in response.text
     assert 'hx-target="#semester-grid"' not in response.text
+
+
+def test_the_weekly_dialog_offers_only_the_lesson_form(admin_client, semester, services):
+    realization = _add_realization(services, semester)
+
+    response = admin_client.get(
+        "/day/dialog",
+        params={
+            "semester_id": semester.id,
+            "day": FREE_WEEK_MONDAY,
+            "kind": "lesson",
+            "realization_id": realization.id,
+        },
+        headers=HTMX,
+    )
+
+    assert 'hx-post="/day/dialog/lesson"' in response.text
+    # No tabs and no other kind's form, per ./src/aikana/day_dialog/day_dialog.sdd.
+    assert "/day/dialog/holiday" not in response.text
+    assert "/day/dialog/no-teach-week" not in response.text
+    assert "/day/dialog/conference" not in response.text
 
 
 def test_the_weekly_lesson_form_defaults_to_the_week_s_realization(admin_client, semester, services):
@@ -423,29 +445,7 @@ def test_the_weekly_lesson_form_defaults_to_the_week_s_realization(admin_client,
     assert f'<option value="{first.id}">' in response.text
 
 
-def test_admin_adds_a_holiday_from_a_week_row(admin_client, semester, services):
-    realization = _add_realization(services, semester)
-
-    response = admin_client.post(
-        "/day/dialog/holiday",
-        data={
-            "semester_id": semester.id,
-            "day": "2026-10-21",
-            "title": "Autumn break",
-            "realization_id": realization.id,
-        },
-        headers=HTMX,
-    )
-
-    assert response.status_code == 200
-    _assert_bare_week_table(response)
-    assert "Autumn break" in response.text
-    assert [holiday.title for holiday in services.holidays.list_holidays_for_range(*_range("2026-10-21"))] == [
-        "Autumn break"
-    ]
-
-
-def test_admin_adds_a_lesson_from_a_week_row(admin_client, semester, services):
+def test_admin_adds_a_lesson_from_the_add_slot(admin_client, semester, services):
     realization = _add_realization(services, semester)
 
     response = admin_client.post(
@@ -467,48 +467,6 @@ def test_admin_adds_a_lesson_from_a_week_row(admin_client, semester, services):
     _assert_bare_week_table(response)
     assert "Intro" in response.text
     assert services.lessons.list_lessons_for_realization(realization.id)[0].date == date(2026, 10, 21)
-
-
-def test_admin_adds_a_no_teach_week_from_a_week_row(admin_client, semester, services):
-    realization = _add_realization(services, semester)
-
-    response = admin_client.post(
-        "/day/dialog/no-teach-week",
-        data={
-            "semester_id": semester.id,
-            "day": FREE_WEEK_MONDAY,
-            "week_number": FREE_WEEK,
-            "title": "Staff training",
-            "realization_id": realization.id,
-        },
-        headers=HTMX,
-    )
-
-    assert response.status_code == 200
-    _assert_bare_week_table(response)
-    # The week consumes its whole week row, so its title is read once.
-    assert response.text.count("Staff training") == 1
-
-
-def test_a_rejected_weekly_form_keeps_the_date_and_the_realization(admin_client, semester, services):
-    realization = _add_realization(services, semester)
-
-    response = admin_client.post(
-        "/day/dialog/holiday",
-        data={
-            "semester_id": semester.id,
-            "day": "2026-10-21",
-            "title": "   ",
-            "realization_id": realization.id,
-        },
-        headers=HTMX,
-    )
-
-    assert response.status_code == 422
-    assert response.headers["HX-Retarget"] == "#day-dialog"
-    assert has_checked_calendar_day(response.text, "2026-10-21")
-    assert f'name="realization_id" type="hidden" value="{realization.id}"' in response.text
-    assert services.holidays.list_holidays_for_range(*_range("2026-10-21")) == []
 
 
 def _assert_bare_week_table(response):
@@ -717,62 +675,3 @@ def test_a_visitor_can_neither_edit_nor_delete_through_the_dialog(client, semest
         assert response.headers["location"] == "/login"
 
     assert (services.holidays.get_holiday(holiday.id).title, week.week_number) == ("Autumn break", 42)
-
-
-def test_a_holiday_edit_from_the_weekly_view_keeps_the_weekly_table_swap(admin_client, semester, services):
-    realization = _add_realization(services, semester)
-    holiday = services.holidays.add_holiday(date(2026, 10, 21), "Staff day")
-
-    response = admin_client.post(
-        f"/day/dialog/holidays/{holiday.id}",
-        data={
-            "semester_id": semester.id,
-            "realization_id": realization.id,
-            "day": "2026-10-21",
-            "title": "Staff day off",
-        },
-        headers=HTMX,
-    )
-
-    assert response.status_code == 200
-    _assert_bare_week_table(response)
-    assert "Staff day off" in response.text
-    assert services.holidays.get_holiday(holiday.id).title == "Staff day off"
-
-
-def test_a_no_teach_week_edit_from_the_weekly_view_keeps_the_weekly_table_swap(admin_client, semester, services):
-    realization = _add_realization(services, semester)
-    week = next(w for w in services.no_teach_weeks.list_no_teach_weeks(semester.id) if w.week_number == 42)
-
-    dialog = admin_client.get(
-        "/day/dialog",
-        params={
-            "semester_id": semester.id,
-            "day": "2026-10-13",
-            "kind": "no_teach_week",
-            "realization_id": realization.id,
-        },
-        headers=HTMX,
-    )
-    assert 'hx-target="#realization-week-table"' in dialog.text
-    assert (
-        f'hx-post="/day/dialog/no-teach-weeks/{week.id}/delete" '
-        'hx-confirm="Delete the NoTeachWeek in week 42?" hx-swap="outerHTML"'
-    ) in dialog.text
-
-    response = admin_client.post(
-        f"/day/dialog/no-teach-weeks/{week.id}",
-        data={
-            "semester_id": semester.id,
-            "realization_id": realization.id,
-            "day": "2026-10-13",
-            "week_number": "42",
-            "title": "Sick leave",
-        },
-        headers=HTMX,
-    )
-
-    assert response.status_code == 200
-    _assert_bare_week_table(response)
-    assert "Sick leave" in response.text
-    assert services.no_teach_weeks.get_no_teach_week(week.id).title == "Sick leave"

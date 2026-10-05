@@ -1,6 +1,6 @@
 """Pure rendering of the per-CourseRealization weekly table, its realization selector and, for the admin, the
-per-Lesson edit and delete controls, the per-week deadline controls and the per-week theme dialogs with their
-dialogs, per ./realizations.sdd.
+clickable Lesson sub-rows with their edit and delete dialogs, the empty Lesson add slot of every week, the per-week
+deadline controls and the per-week theme dialogs with their dialogs, per ./realizations.sdd.
 """
 
 from fasthtml.common import (
@@ -150,7 +150,6 @@ def week_table(vm: RealizationViewModel, is_admin: bool = False):
                 Tr(
                     Th("Week", cls=_HEADER_CLS),
                     Th("Lessons", cls=_HEADER_CLS),
-                    Th("Notes", cls=_HEADER_CLS),
                     Th("Deadline", cls=_HEADER_CLS),
                 )
             ),
@@ -183,51 +182,54 @@ def week_table(vm: RealizationViewModel, is_admin: bool = False):
 
 
 def _week_rows(week: WeekRow, realization, is_admin: bool):
-    entries: list[WeekEntry | None] = list(week.entries) or [None]
+    """One sub-row per entry, plus, for the admin, the week's empty Lesson add slot, per ./realizations.sdd.
+
+    The `Week` and `Deadline` cells span every sub-row of their week (`rowspan`), including the add slot, so the
+    week still reads as one row. A NoTeachWeek consumes its whole week and takes no add slot, since no Lesson is ever
+    added inside it, and a visitor's empty week keeps its placeholder sub-row.
+    """
+    entries: list[WeekEntry | None] = list(week.entries)
+    is_no_teach_week = any(entry.is_no_teach_week for entry in entries)
+    show_add_slot = is_admin and not is_no_teach_week
+    if not entries and not show_add_slot:
+        entries = [None]
+    rows: list[WeekEntry | None] = entries + ([None] if show_add_slot else [])
+    rowspan = len(rows)
     return [
         Tr(
-            *([_week_cell(week, is_admin, len(entries))] if i == 0 else []),
-            _lessons_cell(entry, is_admin),
-            _notes_cell(entry),
+            *([_week_cell(week, is_admin, rowspan)] if i == 0 else []),
+            (
+                _add_lesson_cell(week, realization)
+                if show_add_slot and i == len(entries)
+                else _lessons_cell(entry, is_admin)
+            ),
             # The Deadline cell spans the whole week, so it is rendered on the first sub-row only and spans the rest,
             # like the Week cell.
-            *([_deadlines_cell(week, realization, is_admin, len(entries))] if i == 0 else []),
-            **_week_row_attrs(week, realization, is_admin),
+            *([_deadlines_cell(week, realization, is_admin, rowspan)] if i == 0 else []),
+            **_week_row_attrs(week, is_admin),
         )
-        for i, entry in enumerate(entries)
+        for i, entry in enumerate(rows)
     ]
 
 
-def _week_row_attrs(week: WeekRow, realization, is_admin: bool):
-    """Clicking a week row opens the dialog for that week's Monday, per ./realizations.sdd.
+def _week_row_attrs(week: WeekRow, is_admin: bool):
+    """The tint of a week blocked by a NoTeachWeek, per ./realizations.sdd.
 
     A NoTeachWeek consumes its whole week, so the row is tinted the mild red of ../semester/semester.sdd's wall
-    planner's blocked day rows for a visitor and the admin alike; its hover deepens that red instead of turning gray,
-    so the week stays visibly blocked while the pointer is on it.
+    planner's blocked day rows for a visitor and the admin alike; the admin's hover deepens that red instead of
+    turning gray, so the week stays visibly blocked while the pointer is on it. The week row itself carries no
+    trigger: the admin's affordances are the `Week` cell, the `Lessons` add slot and the `Deadline` cell.
     """
     is_no_teach_week = any(entry.is_no_teach_week for entry in week.entries)
     if not is_admin:
         return {"cls": "bg-red-50"} if is_no_teach_week else {}
-    return {
-        "hx_get": (
-            f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
-            f"&day={week.start.isoformat()}&kind=lesson&realization_id={realization.id}"
-        ),
-        "hx_target": f"#{day_dialog_view.CONTAINER_ID}",
-        "hx_swap": "innerHTML",
-        "cls": (
-            "bg-red-50 cursor-pointer hover:bg-red-100"
-            if is_no_teach_week
-            else "cursor-pointer hover:bg-gray-100"
-        ),
-    }
+    return {"cls": "bg-red-50 hover:bg-red-100"} if is_no_teach_week else {}
 
 
 def _week_cell(week: WeekRow, is_admin: bool, rowspan: int):
     """One week's number and its theme on one line, its date range below, per ./realizations.sdd.
 
-    For the admin the cell is the trigger opening that week's WeekTheme dialog, which sits beside the table, and the
-    click's propagation stops here so the surrounding week row does not open the day dialog behind it.
+    For the admin the cell is the trigger opening that week's WeekTheme dialog, which sits beside the table.
     """
     date_range = f"{dates.format_date(week.start)} \u2013 {dates.format_date(week.end)}"
     today_cls = " border-l-4 border-l-green-500" if week.is_current_week else ""
@@ -240,9 +242,8 @@ def _week_cell(week: WeekRow, is_admin: bool, rowspan: int):
         Div(
             head,
             Div(date_range, cls="text-xs text-gray-500 whitespace-nowrap"),
-            # The week row's own trigger covers this cell too, so the click is stopped here; that week's dialogs sit
-            # beside the table, like the per-Lesson ones, so their clicks never reach the row's trigger either.
-            onclick=_open_dialog(week_theme_dialog_id(week), stop_propagation=True),
+            # That week's theme dialogs sit beside the table, so their clicks never reach this cell's trigger.
+            onclick=_open_dialog(week_theme_dialog_id(week)),
             cls="cursor-pointer",
         )
         if is_admin
@@ -273,11 +274,34 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
             Div(_entry_day(entry), cls="text-xs text-purple-400 italic"),
             cls=_CELL_CLS,
         )
+    # A Lesson sub-row is the admin's edit trigger, and its free-text note reads under its day and time line, per
+    # ./realizations.sdd.
     return Td(
-        Div(entry.title, cls="text-gray-900"),
-        Div(_lesson_when(entry), cls="text-xs text-gray-500"),
-        _lesson_controls(entry) if is_admin else "",
+        Div(
+            Div(entry.title, cls="text-gray-900"),
+            Div(_lesson_when(entry), cls="text-xs text-gray-500"),
+            Div(entry.notes, cls="text-sm text-gray-600") if entry.notes else "",
+            onclick=_open_dialog(f"lesson-edit-dialog-{entry.lesson_id}") if is_admin else "",
+            cls="cursor-pointer" if is_admin else "",
+        ),
         cls=_CELL_CLS,
+    )
+
+
+def _add_lesson_cell(week: WeekRow, realization):
+    """The admin's empty add slot at the bottom of a week's `Lessons` column, per ./realizations.sdd.
+
+    Clicking it opens ../day_dialog/day_dialog.sdd's add-Lesson form for that week, defaulting to the week's Monday
+    and to the shown realization; the form's day calendar lets the admin pick the actual day.
+    """
+    return Td(
+        hx_get=(
+            f"{day_dialog_view.DIALOG_PATH}?semester_id={realization.semester_id}"
+            f"&day={week.start.isoformat()}&kind=lesson&realization_id={realization.id}"
+        ),
+        hx_target=f"#{day_dialog_view.CONTAINER_ID}",
+        hx_swap="innerHTML",
+        cls=f"{_CELL_CLS} cursor-pointer hover:bg-gray-100",
     )
 
 
@@ -296,26 +320,17 @@ def _lesson_when(entry: WeekEntry) -> str:
     return f"{_entry_day(entry)} {entry.start_time}\u2013{entry.end_time}"
 
 
-def _notes_cell(entry: WeekEntry | None):
-    text = (
-        entry.notes
-        if entry and not (entry.is_holiday or entry.is_conference or entry.is_no_teach_week)
-        else ""
-    )
-    return Td(text, cls=f"{_CELL_CLS} text-gray-600 text-sm")
-
-
 def _deadlines_cell(week: WeekRow, realization, is_admin: bool, rowspan: int):
     """One week's `Deadline` cell, per ./realizations.sdd.
 
     The cell lists the week's ../deadlines/deadlines.sdd Deadlines by title over their `d.m.yyyy` date. For the admin
-    it is also the trigger opening that week's add dialog, and the click's propagation stops here so the surrounding
-    week row does not open ../day_dialog/day_dialog.sdd's dialog behind it.
+    it is also the trigger opening that week's add dialog; the per-Deadline controls inside it stop their own clicks
+    so they do not open that add dialog behind their own.
     """
     content = Div(
         *[_deadline_entry(entry, is_admin) for entry in week.deadlines],
         "—" if not week.deadlines else "",
-        onclick=_open_dialog(deadline_dialog_id(week), stop_propagation=True) if is_admin else "",
+        onclick=_open_dialog(deadline_dialog_id(week)) if is_admin else "",
         cls="cursor-pointer" if is_admin else "",
     )
     return Td(content, rowspan=rowspan, cls=f"{_CELL_CLS} w-48")
@@ -353,37 +368,22 @@ def _deadline_controls(entry: DeadlineEntry):
     )
 
 
-def _lesson_controls(entry: WeekEntry):
-    """The admin's per-Lesson edit and delete controls.
-
-    Each click stops its own propagation first: the surrounding week row opens ../day_dialog/day_dialog.sdd's
-    dialog, which would otherwise open behind the control's own dialog.
-    """
-    return Div(
-        A(
-            "Edit",
-            href="#",
-            onclick=_open_dialog(f"lesson-edit-dialog-{entry.lesson_id}", stop_propagation=True),
-            cls="text-xs text-blue-700 hover:text-blue-900",
-        ),
-        A(
-            "Delete",
-            href="#",
-            onclick=_open_dialog(f"lesson-delete-dialog-{entry.lesson_id}", stop_propagation=True),
-            cls="text-xs text-red-700 hover:text-red-900",
-        ),
-        cls="flex items-center gap-2 mt-1",
+def _open_dialog(dialog_id: str, stop_propagation: bool = False, close_id: str = "") -> str:
+    """Opens a dialog, optionally closing the one it was opened from first so a confirm step replaces its opener."""
+    stop = "event.stopPropagation(); " if stop_propagation else ""
+    close = f"document.getElementById('{close_id}').close(); " if close_id else ""
+    return (
+        f"{stop}{close}var d = document.getElementById('{dialog_id}');"
+        " if (d.open) d.close(); d.showModal();"
     )
 
 
-def _open_dialog(dialog_id: str, stop_propagation: bool = False) -> str:
-    """Opens a dialog, closing the one it was opened from first so a confirm step replaces its opener."""
-    stop = "event.stopPropagation(); " if stop_propagation else ""
-    return f"{stop}var d = document.getElementById('{dialog_id}'); if (d.open) d.close(); d.showModal();"
-
-
 def _lesson_edit_dialog(entry: WeekEntry):
-    """One Lesson's edit form, prefilled with its date, times, topic and notes."""
+    """One Lesson's edit form, prefilled with its date, times, topic and notes.
+
+    Its `Delete` control closes the edit dialog and opens the delete confirmation, so a Lesson is removed from the
+    same dialog it is edited in, per ./realizations.sdd.
+    """
     return Dialog(
         Form(
             Span("Date", cls="text-xs font-semibold text-gray-500"),
@@ -409,13 +409,22 @@ def _lesson_edit_dialog(entry: WeekEntry):
             Input(name="notes", value=entry.notes, cls=_INPUT_CLS),
             Div(
                 Button("Save", type="submit", cls="bg-blue-600 text-white rounded px-3 py-1"),
+                A(
+                    "Delete",
+                    href="#",
+                    onclick=_open_dialog(
+                        f"lesson-delete-dialog-{entry.lesson_id}",
+                        close_id=f"lesson-edit-dialog-{entry.lesson_id}",
+                    ),
+                    cls="text-xs text-red-700 hover:text-red-900 self-center",
+                ),
                 Button(
                     "Cancel",
                     type="button",
                     onclick="this.closest('dialog').close()",
                     cls=_CANCEL_BTN_CLS,
                 ),
-                cls="flex gap-2 mt-3",
+                cls="flex items-center gap-2 mt-3",
             ),
             method="post",
             action=lesson_path(entry.lesson_id),

@@ -1,8 +1,9 @@
 Spec: Day dialog
 Purpose:
   Admin-only editing of a single day. A `<dialog>` modal lets the admin add a Holiday, a NoTeachWeek, a Conference or
-  a Lesson, and HTMX swaps the updated wall planner, or the realization weekly table when the dialog is opened from
-  ../realizations/realizations.sdd, into the page without a reload. Orchestrates ../realizations/realizations.sdd,
+  a Lesson from ../semester/semester.sdd's wall planner, and add a Lesson from
+  ../realizations/realizations.sdd's weekly table, and HTMX swaps the updated wall planner, or the weekly table when
+  the dialog is opened from there, into the page without a reload. Orchestrates ../realizations/realizations.sdd,
   ../lessons/lessons.sdd, ../holidays/holidays.sdd, ../no_teach_weeks/no_teach_weeks.sdd and
   ../conferences/conferences.sdd services and renders through ../semester/semester.sdd's and
   ../realizations/realizations.sdd's views, so it owns a view.py and routes.py only.
@@ -41,14 +42,14 @@ Must:
   unauthenticated visitors, who are shown no day-row trigger at all.
   ./view.py exposes @dialog_container, the empty element the containing view renders once; every dialog response is
   the bare `<dialog>` that is swapped into it, never the container itself, so a swap cannot nest a duplicate id.
-  The dialog offers one tab per kind of entry the admin can add on the clicked date, in the order Lesson, Holiday,
-    NoTeachWeek, Conference, and opens on the Lesson tab because a Lesson is the most commonly added entry. Switching
-    tabs re-renders the dialog in place through HTMX.
+  Opened from the wall planner, the dialog offers one tab per kind of entry the admin can add on the clicked date, in
+    the order Lesson, Holiday, NoTeachWeek, Conference, and opens on the Lesson tab because a Lesson is the most
+    commonly added entry. Switching tabs re-renders the dialog in place through HTMX.
   The dialog can also be opened from ../realizations/realizations.sdd's weekly table through a `realization_id`
-    query parameter; then the Holiday and Lesson forms replace the date field with ../shared/shared.sdd's
-    @day_calendar, a Monday-first month grid of the clicked day's month with that day's week Monday checked, so the
-    admin picks the date on a Finnish week instead of a browser date picker that may start its week on Sunday, and the
-    Lesson form defaults to that realization.
+    query parameter; then it offers the add-Lesson form only, with no tabs, because the weekly view edits nothing but
+    Lessons. The Lesson form replaces the date field with ../shared/shared.sdd's @day_calendar, a Monday-first month
+    grid of the clicked day's month with that day's week Monday checked, so the admin picks the date on a Finnish week
+    instead of a browser date picker that may start its week on Sunday, and it defaults to that realization.
   The Holiday form takes a title. The Conference form takes a title and says that a conference spanning several days
     is stored as one entry per day, per ../conferences/conferences.sdd. The NoTeachWeek form takes a week number,
     prefilled with the clicked date's ISO week and editable, and a title, prefilled with
@@ -58,22 +59,23 @@ Must:
   values on a 15-minute grid: the start time runs from `08:00` to `20:45` and the end time from `08:00` to `21:00`.
   It reports that the Semester has no realization instead of offering an unusable form.
   Each form is an HTMX request whose response is the whole re-rendered wall planner, or the whole re-rendered
-  weekly table when a `realization_id` was given, since one entry can change more than the clicked row: a
-  NoTeachWeek tints all five of its Monday-to-Friday rows.
+  weekly table when the add-Lesson form was opened with a `realization_id`, since one entry can change more than the
+  clicked row: a NoTeachWeek tints all five of its Monday-to-Friday rows.
   That response is the bare `semester-grid` element rendered through ../semester/semester.sdd's @semester_grid or
   the bare @WEEK_TABLE_ID element rendered through ../realizations/realizations.sdd's view, never the dialog
   container, so the containing page keeps its appearance and renders the container exactly once.
   A submission that the underlying service rejects, or whose form field cannot be parsed, leaves the entry unstored
   and re-renders the dialog with a validation message and the values the admin submitted.
   Opening the dialog and every submission are rejected by the ../auth/auth.sdd guard for non-admin sessions.
-  When the clicked date already holds a Holiday, the Holiday tab offers that Holiday's edit form instead of the add
-    form: its title and its date through ../shared/shared.sdd's @day_calendar are prefilled, and it posts to
-    `/day/dialog/holidays/{holiday_id}`. When the clicked date already holds a
+  Opened from the wall planner, when the clicked date already holds a Holiday, the Holiday tab offers that Holiday's
+    edit form instead of the add form: its title and its date through ../shared/shared.sdd's @day_calendar are
+    prefilled, and it posts to `/day/dialog/holidays/{holiday_id}`. When the clicked date already holds a
     ../conferences/conferences.sdd Conference, its tab offers that Conference's edit form exactly as the Holiday tab
     does, posting to `/day/dialog/conferences/{conference_id}`. When the clicked date falls inside a NoTeachWeek, the
     NoTeachWeek tab offers that week's edit form instead, prefilled with its stored week number rather than the
     clicked date's ISO week and with its title, posting to `/day/dialog/no-teach-week/{no_teach_week_id}`. A date no
-    NoTeachWeek blocks still offers the add form.
+    NoTeachWeek blocks still offers the add form. The weekly table's dialog offers none of these edit forms: it only
+    adds a Lesson.
   The blocked week is found through the clicked date's own Monday, so a Saturday or Sunday of a blocked week edits
     that same week instead of offering the add form, which that Semester would reject as a duplicate.
   Each edit form carries a `Delete` control that confirms, naming the entry and its date, before removing it
@@ -85,8 +87,8 @@ Must:
     @NoTeachWeekService.update_no_teach_week and re-renders the same containing view an added entry does; a rejected
     edit or delete leaves the stored entry as it was and re-renders the dialog with the validation message and the
     values the admin submitted.
-  The dialog edits only the Holiday, the Conference and the NoTeachWeek; a Lesson is edited from
-    ../realizations/realizations.sdd's weekly table, so no Lesson appears here for editing.
+  Opened from the wall planner, the dialog edits only the Holiday, the Conference and the NoTeachWeek; a Lesson is
+    edited from ../realizations/realizations.sdd's weekly table, so no Lesson appears here for editing.
   This package crosses into ../semester/semester.sdd only through its view.py and services.py, never through its
     domain.py or ports.py, so the pair is the mutual dependency ../architecture.sdd permits.
 
@@ -138,8 +140,8 @@ Scenario: Admin removes a no-teach week
 
 Scenario: Admin adds a lesson from the weekly view
   Given the admin is logged in and views a realization's weekly table
-  When the admin clicks a week row, chooses a course realization, picks the date on the Monday-first calendar, enters
-    a start time, an end time and a topic and submits
+  When the admin clicks a week's empty add slot, chooses a course realization, picks the date on the Monday-first
+    calendar, enters a start time, an end time and a topic and submits
   Then the weekly table re-renders in place with the new lesson
 
 Tasks:
@@ -149,11 +151,13 @@ Tasks:
   [x] Implement editing of existing entries for the Holiday and the NoTeachWeek, prefilled with their stored values
     and deletable through a confirming control, leaving the Lesson to ../realizations/realizations.sdd's weekly table
   [x] Let the admin edit and remove a Semester's NoTeachWeeks through ../no_teach_weeks/no_teach_weeks.sdd
-  [x] Open the dialog from ../realizations/realizations.sdd's week rows, with the Monday-first month calendar for the
-    Holiday and Lesson forms and the weekly-table swap
+  [x] Open the dialog from ../realizations/realizations.sdd's weekly table, with the Monday-first month calendar and
+    the weekly-table swap
   [x] Render the date through ../shared/shared.sdd's @day_calendar instead of a browser date picker, so the dialog's
     week starts on Monday in every locale
   [x] Offer the Lesson form's start and end times side by side as @time_select dropdowns of 15-minute values from
     `08:00` to `20:45` and `21:00` instead of free-text inputs
   [x] Add the Conference tab with its add form and with the prefilled edit and delete controls for the Conference
     already on the clicked date, per ../conferences/conferences.sdd, and route its three guarded writes
+  [x] Offer only the add-Lesson form, without tabs, when the dialog is opened from
+    ../realizations/realizations.sdd's weekly table through a `realization_id`
