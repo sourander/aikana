@@ -216,6 +216,83 @@ def test_share_button_completes_a_url_missing_the_semester(admin_client, course_
         assert f"realization_id={realization.id}&amp;semester_id={semester_id}" in response.text
 
 
+def _cell_before(html: str, text: str) -> str:
+    """The opening cell tag immediately before `text`, so a class check cannot leak from another cell."""
+    anchor = html.index(text)
+    return html[html.rindex("<td", 0, anchor) : anchor]
+
+
+def test_admin_weekly_view_starts_with_conferences_and_holidays_shown(
+    admin_client, course_id, semester_id, realization_service
+):
+    _add_realization(admin_client, course_id, semester_id)
+    realization = realization_service.list_realizations_for_course(course_id)[0]
+
+    response = admin_client.get(f"/realizations?semester_id={semester_id}&realization_id={realization.id}")
+
+    assert "Hide Conferences" in response.text
+    assert "Hide Holidays" in response.text
+    assert "Show Conferences" not in response.text
+    assert "Show Holidays" not in response.text
+    # The admin starts with both kinds shown, so the view carries neither hidden state class...
+    assert "hide-holidays hide-conferences" not in response.text
+    # ...and the two toggles read left of the Share button.
+    assert response.text.index("Hide Conferences") < response.text.index("Share")
+    assert response.text.index("Hide Holidays") < response.text.index("Share")
+
+
+def test_visitor_weekly_view_starts_with_conferences_and_holidays_hidden(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    response = client.get(f"/realizations?semester_id={semester.id}&realization_id={realization.id}")
+
+    assert "Show Conferences" in response.text
+    assert "Show Holidays" in response.text
+    assert "Hide Conferences" not in response.text
+    assert "Hide Holidays" not in response.text
+    # The visitor starts with both kinds hidden, so the stable view container carries both state classes.
+    assert 'id="realization-view"' in response.text
+    assert 'class="group flex flex-col h-full min-h-0 hide-holidays hide-conferences"' in response.text
+
+
+def test_a_holiday_and_a_conference_cell_carry_their_own_toggle_class(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+    # Week 43 (2026-10-19 to 10-25) is outside the Semester's default NoTeachWeeks.
+    services.holidays.add_holiday(date(2026, 10, 21), "Autumn break")
+    services.conferences.add_conference(date(2026, 10, 22), "Educa")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    assert "group-[.hide-holidays]:hidden" in _cell_before(html, "Autumn break")
+    assert "group-[.hide-conferences]:hidden" in _cell_before(html, "Educa")
+
+
+def test_a_no_teach_week_cell_carries_no_toggle_class(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    # The default fall 2026 NoTeachWeek cannot be hidden, whichever way the toggles are set.
+    assert "group-[.hide" not in _cell_before(html, "Syysvapaat")
+
+
+def test_the_entry_toggles_target_the_realization_view_container(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    assert "document.getElementById('realization-view').classList.toggle('hide-conferences')" in html
+    assert "document.getElementById('realization-view').classList.toggle('hide-holidays')" in html
+
+
 def test_realizations_of_every_semester_are_listed(admin_client, course_id, semester_id, realization_service):
     spring_id = _create_semester(admin_client, 2027, "spring")
     _add_realization(admin_client, course_id, semester_id, group="TTV24SP")

@@ -141,6 +141,14 @@ Must:
     copies the canonical absolute URL of the shown realization, built by ./routes.py from the request's base URL and
     the resolved selection, so the copied link always carries both `realization_id` and `semester_id` even when the
     current address bar carries only one of them.
+  The weekly view also shows a `Hide Conferences`/`Show Conferences` toggle and a `Hide Holidays`/`Show Holidays`
+    toggle left of the Share button, for visitors and the admin alike. A visitor's weekly view starts with Conferences
+    and Holidays hidden and the admin's starts with them shown; each toggle switches its own kind and relabels itself.
+    Only a Conference and a single-day Holiday are affected: a NoTeachWeek, a Lesson and a Deadline stay visible
+    whichever way the toggles are set.
+  The toggles and the hidden state sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
+    which swaps only the weekly table, leaves them in place. The hidden kind is hidden through its `Lessons` cell, not
+    its whole row, so a week's `Week` and `Deadline` cells keep spanning every sub-row of that week.
   The Share button's URL and label sit outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write,
     which swaps only the weekly table, leaves the button in place.
   The rightmost column is `Deadline` and carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline
@@ -239,3 +247,5 @@ Tasks:
   [x] Drop the `Notes` column and read each Lesson's note under its day and time line, move the Lesson edit dialog's
     `Delete` into the dialog itself, and give every non-NoTeachWeek week an empty Lesson add slot, so the weekly
     view's only writes are Lessons, week themes and Deadlines
+  [x] Add the `Hide/Show Conferences` and `Hide/Show Holidays` toggles left of the Share button in ./view.py, hidden
+    by default for a visitor and shown for the admin, leaving NoTeachWeeks always visible

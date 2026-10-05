@@ -470,9 +470,11 @@ def test_admin_adds_a_lesson_from_the_add_slot(admin_client, semester, services)
 
 
 def _assert_bare_week_table(response):
-    """A successful weekly-view write responds with the bare weekly table, never a second dialog container."""
+    """A successful weekly-view write responds with the bare weekly table, never a second dialog container or a
+    second toggle-state container, so the page's own toggles and their state stay in place."""
     assert response.text.count('id="realization-week-table"') == 1
     assert 'id="day-dialog"' not in response.text
+    assert 'id="realization-view"' not in response.text
 
 
 def _range(day: str):

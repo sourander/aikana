@@ -1,6 +1,7 @@
-"""Pure rendering of the per-CourseRealization weekly table, its realization selector and, for the admin, the
-clickable Lesson sub-rows with their edit and delete dialogs, the empty Lesson add slot of every week, the per-week
-deadline controls and the per-week theme dialogs with their dialogs, per ./realizations.sdd.
+"""Pure rendering of the per-CourseRealization weekly table, its realization selector, its Hide/Show Conferences and
+Holidays toggles and, for the admin, the clickable Lesson sub-rows with their edit and delete dialogs, the empty
+Lesson add slot of every week, the per-week deadline controls and the per-week theme dialogs with their dialogs, per
+./realizations.sdd.
 """
 
 from fasthtml.common import (
@@ -34,6 +35,16 @@ _CANCEL_BTN_CLS = "border border-gray-300 rounded px-3 py-1"
 _LESSON_PATH = "/realizations/lessons"
 _WEEK_THEME_PATH = "/realizations/week-themes"
 _DEADLINE_PATH = "/realizations/deadlines"
+
+# The toggles mark the hidden kinds as classes on this stable ancestor, outside the weekly table's swap target, so a
+# dialog write, which swaps only the table, keeps the state, per ./realizations.sdd.
+_VIEW_ID = "realization-view"
+_HIDE_HOLIDAYS_CLS = "hide-holidays"
+_HIDE_CONFERENCES_CLS = "hide-conferences"
+# A hidden kind is hidden through its cell, not its whole row: the Week and Deadline cells span a week's sub-rows
+# with `rowspan`, so removing a row would take those cells with it.
+_HOLIDAY_ENTRY_CLS = "group-[.hide-holidays]:hidden"
+_CONFERENCE_ENTRY_CLS = "group-[.hide-conferences]:hidden"
 
 # The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
 _SHARE_JS = (
@@ -116,24 +127,48 @@ def share_button(share_url: str):
     )
 
 
-def realization_view(vm: RealizationViewModel, is_admin: bool = False, share_url: str = "", error: str = ""):
-    """The realization's label, its Share button, a validation message and the weekly table.
+def entry_toggle_button(label: str, state_class: str, shown: bool):
+    """A header button toggling one dated entry kind's visibility, per ./realizations.sdd.
 
-    The label and the Share button sit outside the weekly table so a dialog write, which swaps only
-    #realization-week-table, leaves them in place.
+    Its label names the state it would switch to: `Hide` while the kind is shown, `Show` while it is hidden. The
+    state is a class on the view container, so a dialog write, which swaps only the weekly table, keeps it.
+    """
+    return Button(
+        f"{'Hide' if shown else 'Show'} {label}",
+        type="button",
+        onclick=(
+            f"var hidden = document.getElementById('{_VIEW_ID}').classList.toggle('{state_class}');"
+            f"this.textContent = (hidden ? 'Show' : 'Hide') + ' {label}';"
+        ),
+        cls=_SHARE_CLS,
+    )
+
+
+def realization_view(vm: RealizationViewModel, is_admin: bool = False, share_url: str = "", error: str = ""):
+    """The realization's label, its entry toggles and Share button, a validation message and the weekly table.
+
+    The label, the toggles and the Share button sit outside the weekly table so a dialog write, which swaps only
+    #realization-week-table, leaves them and the toggle state in place.
     """
     header = Div(
         Div(vm.label, cls="font-semibold text-lg"),
-        share_button(share_url) if share_url else "",
+        Div(
+            entry_toggle_button("Conferences", _HIDE_CONFERENCES_CLS, is_admin),
+            entry_toggle_button("Holidays", _HIDE_HOLIDAYS_CLS, is_admin),
+            share_button(share_url) if share_url else "",
+            cls="flex items-center gap-2",
+        ),
         cls="flex items-center justify-between gap-4 px-4 pt-3 pb-2",
     )
     message = P(error, cls="px-4 pb-1 text-red-600 text-sm") if error else ""
     table = week_table(vm, is_admin)
+    # A visitor starts with Conferences and Holidays hidden and the admin with them shown; the state classes sit on
+    # this stable container, outside the table's swap target, so a dialog write leaves the state in place.
+    state_cls = "" if is_admin else f" {_HIDE_HOLIDAYS_CLS} {_HIDE_CONFERENCES_CLS}"
+    container_cls = f"group flex flex-col h-full min-h-0{state_cls}"
     if not is_admin:
-        return Div(header, message, table, cls="flex flex-col h-full min-h-0")
-    return Div(
-        header, message, table, day_dialog_view.dialog_container(), cls="flex flex-col h-full min-h-0"
-    )
+        return Div(header, message, table, id=_VIEW_ID, cls=container_cls)
+    return Div(header, message, table, day_dialog_view.dialog_container(), id=_VIEW_ID, cls=container_cls)
 
 
 def week_table(vm: RealizationViewModel, is_admin: bool = False):
@@ -260,19 +295,21 @@ def _lessons_cell(entry: WeekEntry | None, is_admin: bool = False):
         # A NoTeachWeek's own title already says which break it is, per ../realizations.sdd.
         return Td(entry.title, cls=f"{_CELL_CLS} text-red-600 italic")
     if entry.is_holiday:
-        # A Holiday is laid out like a Lesson, in red: its title over the day it falls on and no time range.
+        # A Holiday is laid out like a Lesson, in red: its title over the day it falls on and no time range. Its cell
+        # carries the visitor's Holiday toggle class, so hiding the kind leaves the week's other rows and spans intact.
         return Td(
             Div(entry.title, cls="text-red-600 italic"),
             Div(_entry_day(entry), cls="text-xs text-red-400 italic"),
-            cls=_CELL_CLS,
+            cls=f"{_CELL_CLS} {_HOLIDAY_ENTRY_CLS}",
         )
     if entry.is_conference:
         # A ../conferences/conferences.sdd Conference is laid out the same way, in purple: it is the one dated entry
-        # that does not block teaching, so it never reads as the red of a blocked day.
+        # that does not block teaching, so it never reads as the red of a blocked day. Its cell carries the visitor's
+        # Conference toggle class like a Holiday's.
         return Td(
             Div(entry.title, cls="text-purple-600 italic"),
             Div(_entry_day(entry), cls="text-xs text-purple-400 italic"),
-            cls=_CELL_CLS,
+            cls=f"{_CELL_CLS} {_CONFERENCE_ENTRY_CLS}",
         )
     # A Lesson sub-row is the admin's edit trigger, and its free-text note reads under its day and time line, per
     # ./realizations.sdd.
