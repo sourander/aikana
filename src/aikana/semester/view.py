@@ -5,6 +5,11 @@ from fasthtml.common import A, Button, Div, Form, Input, Option, P, Select, Span
 from ..day_dialog import view as day_dialog_view
 from .services import DayCell, LegendEntry, MonthColumn, SemesterViewModel
 
+# A day row needs room for its week-number gutter, weekday abbreviation, date number and lesson squares, so a month
+# column never gets narrower than this. A viewport too narrow for every column scrolls the grid instead of squeezing
+# the labels out of sight, per ./semester.sdd.
+_DAY_MIN_WIDTH = "8rem"
+
 
 def create_semester_form(error: str = ""):
     return Div(
@@ -50,8 +55,10 @@ def semester_grid(vm: SemesterViewModel, is_admin: bool):
         # The grid is the tooltip area, so a hovered lesson square's tooltip is kept inside it instead of running off
         # the screen at the left-most column or under the header at the first rows.
         **{"data-tip-area": ""},
+        # The grid scrolls in both directions rather than clipping, so a viewport too narrow for the columns' minimum
+        # widths scrolls sideways and rows too tall for the container scroll down, per ./semester.sdd.
         style=f"display:grid; grid-template-columns:repeat({len(vm.months)}, 1fr); gap:10px; "
-        "height:100%; overflow:hidden;",
+        "height:100%; overflow:auto;",
         cls="p-4",
     )
 
@@ -107,7 +114,9 @@ def _month_column(month: MonthColumn, semester_id: int, is_admin: bool):
     return Div(
         Div(month.label, cls="font-semibold text-center border-b border-gray-300 pb-1 mb-1"),
         Div(*[_day_row(day, semester_id, is_admin) for day in month.days], cls="flex-1 flex flex-col min-h-0"),
-        style="display:flex; flex-direction:column; min-width:0;",
+        # The column carries the same minimum width as its day rows, so the grid track cannot collapse below it and one
+        # column's rows never overlap the next column.
+        style=f"display:flex; flex-direction:column; min-width:{_DAY_MIN_WIDTH};",
     )
 
 
@@ -149,7 +158,7 @@ def _day_row(day: DayCell, semester_id: int, is_admin: bool):
             cls="flex-1 flex items-center gap-1 flex-wrap",
         ),
         Span(title, cls="text-xs text-red-600 truncate pr-2") if title else "",
-        style="flex:1;",
+        style=f"flex:1; min-width:{_DAY_MIN_WIDTH};",
         **row_attrs,
     )
 

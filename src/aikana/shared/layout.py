@@ -154,7 +154,9 @@ def _nav(active: str, selected_semester_id: int | None):
         cls = "font-semibold text-blue-700" if key == active else "text-gray-600 hover:text-gray-900"
         if selected_semester_id is not None:
             href = f"{href}?semester_id={selected_semester_id}"
-        return A(label, href=href, cls=f"text-sm {cls}")
+        # The label stays on one line, so a narrow viewport wraps the nav onto a further header line instead of
+        # breaking a label across two.
+        return A(label, href=href, cls=f"text-sm whitespace-nowrap {cls}")
 
     return Div(*[link(*entry) for entry in _NAV_LINKS], cls="flex flex-row gap-4")
 
@@ -180,10 +182,12 @@ def page(
     trailing = [item for item in (semester_selector, selector, admin_link) if item is not None]
     return Div(
         Header(
-            H1("Aikana", cls="text-xl font-bold"),
+            # The header's groups wrap onto further lines when the viewport is too narrow for one, so nothing is
+            # squeezed or broken mid-label on a phone-sized screen.
+            H1("Aikana", cls="text-xl font-bold whitespace-nowrap"),
             _nav(active_nav, selected_semester_id),
             Div(*trailing, cls="ml-auto flex items-center gap-3") if trailing else "",
-            cls="flex items-center gap-6 px-4 py-2 border-b border-gray-200",
+            cls="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 border-b border-gray-200",
         ),
         Div(*content, cls="flex-1 min-h-0"),
         cls="h-screen flex flex-col",

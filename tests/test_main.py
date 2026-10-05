@@ -196,6 +196,29 @@ def test_wall_planner_renders_one_column_per_month(client, services):
     assert "repeat(6, 1fr)" in client.get(f"/?semester_id={spring.id}").text
 
 
+def test_wall_planner_grid_scrolls_instead_of_clipping(client, services):
+    fall = services.semesters.create_semester(2026, "fall")
+
+    text = client.get(f"/?semester_id={fall.id}").text
+
+    grid = text[text.index('id="semester-grid"') : text.index('id="semester-grid"') + 200]
+
+    assert "overflow:auto;" in grid
+    assert "overflow:hidden;" not in grid
+
+
+def test_wall_planner_day_rows_and_month_columns_have_a_minimum_width(client, services):
+    fall = services.semesters.create_semester(2026, "fall")
+
+    text = client.get(f"/?semester_id={fall.id}").text
+
+    # A month column never gets narrower than a day row, so a column's rows cannot overlap the next column.
+    assert "display:flex; flex-direction:column; min-width:8rem;" in text
+
+    vm = services.semesters.build_semester_view_model(fall)
+    assert text.count("flex:1; min-width:8rem;") == sum(len(month.days) for month in vm.months)
+
+
 def test_wall_planner_shows_each_spanned_month_as_a_column(client, services):
     fall = services.semesters.create_semester(2026, "fall")
 

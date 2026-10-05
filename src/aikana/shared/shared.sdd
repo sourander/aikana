@@ -56,6 +56,9 @@ Must:
     from the page, so a feature that must show a Finnish week renders this grid instead of an `<input type="date">`.
   ./layout.py's header also takes an already-rendered login/logout link as a plain argument, per
   ../auth/auth.sdd, so it still needs no import of ../auth/auth.sdd's services.py or routes.py.
+  The header's groups wrap onto further lines instead of squeezing on a narrow viewport, and the title and each nav
+  label stay on one line rather than breaking mid-label, so the shared shell stays readable on a phone-sized screen
+  without changing its desktop layout.
   ./dates.py is the single source of the date policy in ../aikana.sdd: @today returns the current date in
     `Europe/Helsinki` regardless of the host's time zone, @format_date renders a calendar date in the European
     `d.m.yyyy` form, and @month_grid returns the month containing a date as Monday-first weeks of seven days padded
@@ -82,3 +85,5 @@ Tasks:
     tooltip can be marked as an anchor and kept inside its area
   [x] Add @month_grid to ./dates.py and @day_calendar to ./layout.py, so every rendered week and month starts on its
     Monday and a form can pick a day without a browser date picker
+  [x] Let ./layout.py's header wrap its groups onto further lines and keep the title and nav labels unwrapped, so the
+    shared shell stays readable on a phone-sized screen

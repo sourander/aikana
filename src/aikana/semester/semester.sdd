@@ -57,8 +57,15 @@ Must:
   The container is a CSS grid whose `grid-template-columns` is `repeat(`, one column per month of the selected
   semester, `, 1fr)`, and `gap: 10px`. A semester of five months renders five columns.
   The container height is `100vh` minus the header height and the legend bar's height, so a 1080p screen shows the
-  whole semester without vertical or horizontal scrolling.
-  The view is desktop-only and has no mobile responsiveness.
+  whole semester without vertical or horizontal scrolling. The container itself scrolls in both directions rather
+  than clipping, so content that does not fit stays reachable: a viewport too narrow for the columns' minimum widths
+  scrolls horizontally, and day rows that no longer fit the container's height scroll vertically.
+  The view is laid out for a desktop screen, and a small screen still shows a readable planner rather than a
+  crushed one: the weekday abbreviation, the date number and the lesson squares keep their width on a narrow viewport
+  and the rest of the semester is reached by scrolling. Complete mobile support is out of scope, so the header and
+  the legend bar keep ../shared/shared.sdd's desktop layout.
+  Every day row and the month column around it share a minimum width of `8rem`, so no column is narrowed below the
+  width its week-number gutter, weekday abbreviation, date number and lesson squares need.
   Each month is a flex column (`display: flex; flex-direction: column`) with the month name as header at its top.
   Each month contains one row per day of that month, and each row has `flex: 1` so all rows share height equally.
   A day row shows the weekday abbreviation, the date number and a wider space for lesson indicators.
@@ -112,6 +119,10 @@ Must:
   persistent Semester selector, so the admin or visitor can switch Semesters from any tab; switching updates the
   `semester_id` query parameter without a full page reload.
 
+Must not:
+  The grid's minimum widths must not widen ../shared/shared.sdd's page shell or make the document itself scroll
+  horizontally; the grid stays the only scroll container, so the header and the legend bar never move sideways.
+
 Example:
   semester 1: `2026-08` to `2026-12`
   columns: `repeat(5, 1fr)`
@@ -160,4 +171,6 @@ Tasks:
   [x] Render the legend bar below the grid in ./view.py, listing one entry per CourseRealization in its own color with
     its course name and group plus the Lesson square and Deadline circle markers, and wrap its entries so the bar grows
     downward instead of clipping the grid
+  [x] Give every day row and its month column the `8rem` minimum width in ./view.py and let the grid scroll in both
+    directions instead of clipping, so the wall planner stays readable on a narrow viewport
 
