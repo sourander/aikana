@@ -12,6 +12,8 @@ Structure:
   ./tests/: automated tests
   ./data/: local-only directory mounted into the container at `/data`
   ./README.md: how to launch the app and how to connect an AI agent to its MCP endpoint
+  ./ARCHITECTURE.md: a student-facing explanation of the Ports and Adapters architecture, using this repository as
+    the case study
   ./CONTRIBUTE.md: how to develop iteratively with SpecDD
   ./Dockerfile: multi-stage image definition shared by local testing and production
   ./compose.yml: local run configuration that builds the `prod` stage, publishes container port `80` on host port
@@ -23,6 +25,7 @@ Owns:
   ./pyproject.toml
   ./uv.lock
   ./README.md
+  ./ARCHITECTURE.md
   ./CONTRIBUTE.md
   ./Dockerfile
   ./compose.yml

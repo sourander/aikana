@@ -5,6 +5,8 @@ lessons and holidays. Students can view the calendar without logging in.
 
 Built with Python, FastHTML, HTMX, SQLite and hand-written vanilla CSS.
 
+New to the codebase? [ARCHITECTURE.md](ARCHITECTURE.md) explains how it is organized.
+
 Views:
 
 - **Semester view**: one column per month of the semester on a single screen, one row per day, lessons as small

@@ -21,11 +21,18 @@ Structure:
   ports.py: `typing.Protocol` interfaces that `services.py` depends on for persistence or other external effects;
     depends only on domain.py and `typing`.
   services.py: application use cases that orchestrate domain.py through ports.py; the only business-logic layer.
+    A services.py that builds an aggregated view may also define the view-model dataclasses its view.py renders (for
+    example @RealizationViewModel, @WeekRow, @WeekEntry and @DeadlineEntry in ./realizations/services.py, and
+    @SemesterViewModel, @DayCell, @MonthColumn, @LegendEntry, @LessonSquare and @DeadlineCircle in
+    ./semester/services.py), kept beside the service method that builds them so view.py stays pure rendering over
+    plain data.
   repository_sqlite.py: the adapter that implements ports.py using `fastlite`'s MiniDataAPI Spec; translates between
     SQLite rows and domain.py dataclasses.
-  view.py: pure rendering functions that turn domain objects or view-models into FastHTML FT components.
-  routes.py: the package's inbound adapter; the only module allowed to import both FastHTML and the package's
-    services.py, and the place where a feature's routes are registered on the app.
+  view.py: pure rendering functions that turn domain objects or view-models into FastHTML FT components. It imports
+    FastHTML (rendering is its job) and may import the view-model dataclasses defined in services.py, but it never
+    invokes a use case.
+  routes.py: the package's inbound adapter; the only module allowed to invoke the package's services.py use cases
+    from FastHTML handlers, and the place where a feature's routes are registered on the app.
   server.py: an MCP driving adapter; like routes.py it is the only module in its package allowed to import the
     MCP SDK (the `mcp` package) together with the features' services.py, and the place where the package's MCP
     server is built.
@@ -57,10 +64,20 @@ Must:
   Dependencies point inward only: routes.py depends on services.py and view.py; services.py depends on domain.py and
   ports.py; repository_sqlite.py depends on domain.py and ports.py; domain.py and ports.py depend on nothing local.
   Cross-feature use goes through a dependency's services.py or ports.py, never through another feature's
-  repository_sqlite.py or domain.py directly.
+    repository_sqlite.py: another feature's persistence is private to that feature.
+  A feature's domain.py dataclasses are part of its exposed contract, because its services.py methods accept and
+    return them, so a consumer's dependency on their shape exists whether or not the import is written. A consumer
+    that receives such objects may import the domain.py type to annotate and read them, as ./mcp_server/services.py's
+    serializers and ./realizations/services.py's label composition do; the import is a read-only type dependency, so
+    the consumer must not call another feature's domain.py functions (domain rules are invoked through the owning
+    feature's services.py, for example @SemesterService.semester_bounds) or construct its objects for storage.
   A reference from one feature's entity to another feature's entity (for example CourseRealization's reference to
-  a Course or a Semester) is stored as a plain id in domain.py, never as an imported object; only services.py may
-  import the referenced feature's ports.py to validate that id.
+    a Course or a Semester) is stored as a plain id in domain.py, never as an imported object; services.py validates
+    that id through the referenced feature's services.py or ports.py. The services.py route fits when the
+    referencing feature needs the entity itself or its rules (@RealizationService composes a display label from the
+    Course and reads period bounds from @SemesterService); the ports.py route fits when it only needs the id to
+    exist (@LessonService checks the CourseRealization id through @CourseRealizationRepository, the narrower
+    contract, and sharing the port lets ./main.py hand both services the same repository instance).
   Two feature packages' Depends on may be mutual when every crossing import goes through routes.py, view.py,
   services.py or ports.py and neither package's domain.py or ports.py imports another feature; this is not a
   circular import as long as domain.py and ports.py never depend on another feature, per the rule above.

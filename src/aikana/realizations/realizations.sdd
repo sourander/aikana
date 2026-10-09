@@ -38,7 +38,8 @@ Depends on:
 Must:
   A CourseRealization has a reference to exactly one Course, a reference to exactly one Semester and a free-text
   group label such as `TTV24SP`. Both references are stored as plain ids in ./domain.py, per ../architecture.sdd;
-  only ./services.py imports ../courses/courses.sdd's and ../semester/semester.sdd's ports.py to validate them.
+  ./services.py validates them through ../courses/courses.sdd's @CourseService and ../semester/semester.sdd's
+  @SemesterService, and composes the display label from the returned Course and Semester.
   Both references are declared as foreign keys on the table, so the database enforces them and cascades a deleted
   Course or Semester to its realizations. The group label lives in the `group_label` column because `group` is a
   reserved SQL keyword; ./domain.py's @CourseRealization keeps the `group` attribute and ./repository_sqlite.py
