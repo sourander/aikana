@@ -17,6 +17,7 @@ from fasthtml.common import (
     Form,
     Input,
     P,
+    Script,
     Span,
 )
 
@@ -29,6 +30,56 @@ _WEEK_THEME_PATH = "/realizations/week-themes"
 _DEADLINE_PATH = "/realizations/deadlines"
 
 _VIEW_ID = "realization-view"
+
+REALIZATION_SELECT_ID = "realization-select"
+
+# The client-side memory of the realization last shown in this browser tab, per ./realizations.sdd: session-scoped
+# browser storage under this fixed key, never a cookie and never sent to the server.
+REALIZATION_MEMORY_KEY = "aikana.last-realization"
+
+# The weekly view runs this right after its own bar, so the realization dropdown exists when the script reads it and
+# a restore navigation still happens before the week cards parse. When the server rendered a fallback because the
+# URL named no valid realization, the script navigates once to the remembered realization, so the view opens where
+# the tab left off; otherwise it records the shown realization. `localStorage` is not used: the memory dies with
+# the tab.
+_REALIZATION_MEMORY_JS = """
+(function () {
+  var KEY = "@@KEY@@";
+  var RESTORE = @@RESTORE@@;
+  var select = document.getElementById("realization-select");
+  if (!select) return;
+
+  function read() {
+    try { return sessionStorage.getItem(KEY); } catch (error) { return null; }
+  }
+
+  function write(value) {
+    try { sessionStorage.setItem(KEY, value); } catch (error) {}
+  }
+
+  function isOption(value) {
+    return Array.prototype.some.call(select.options, function (option) { return option.value === value; });
+  }
+
+  // Bound once per document: a swap replaces the select and this script, but not the document element.
+  if (!document.documentElement.dataset.aikanaRealizationBound) {
+    document.documentElement.dataset.aikanaRealizationBound = "1";
+    document.addEventListener("change", function (event) {
+      var target = event.target;
+      if (target && target.id === "realization-select" && target.value) write(target.value);
+    });
+  }
+
+  var remembered = read();
+  if (RESTORE && remembered && remembered !== select.value && isOption(remembered)) {
+    var url = new URL(window.location.href);
+    url.searchParams.set("realization_id", remembered);
+    window.location.replace(url.toString());
+    return;
+  }
+  if (select.value) write(select.value);
+})();
+"""
 
 # The button reads its own data-share-url, so the link stays out of the inline script; the label confirms the copy.
 _SHARE_JS = (
@@ -82,6 +133,13 @@ def deadline_dialog_id(week: WeekRow) -> str:
     return f"deadline-dialog-{week.start.isoformat()}"
 
 
+def realization_memory_script(restore: bool) -> str:
+    """The session-memory script for one render of the weekly view, per ./realizations.sdd."""
+    return _REALIZATION_MEMORY_JS.replace("@@KEY@@", REALIZATION_MEMORY_KEY).replace(
+        "@@RESTORE@@", "true" if restore else "false"
+    )
+
+
 def realization_selector(options: list[tuple[int, str]], selected_id: int):
     return layout.dropdown(
         "realization_id",
@@ -89,6 +147,7 @@ def realization_selector(options: list[tuple[int, str]], selected_id: int):
         selected_id,
         "/realizations",
         hx_include=f"#{layout.SEMESTER_SELECT_ID}",
+        select_id=REALIZATION_SELECT_ID,
     )
 
 
@@ -118,12 +177,15 @@ def realization_view(
     is_admin: bool = False,
     share_url: str = "",
     error: str = "",
+    restore: bool = False,
 ):
     """The view's own bar (the realization selector and the Share button), a validation message and the week cards.
 
     The bar sits outside the week cards' swap target, so a dialog write, which swaps only #realization-week-table,
-    leaves it in place.
+    leaves it in place. The session-memory script sits right after the bar, so the realization dropdown exists when
+    the script runs and a restore navigation still happens before the cards parse, per ./realizations.sdd.
     """
+    memory = Script(realization_memory_script(restore))
     bar = Div(
         realization_selector(options, selected_id) if options else "",
         share_button(share_url) if share_url else "",
@@ -132,8 +194,10 @@ def realization_view(
     message = P(error, cls="error") if error else ""
     cards = week_cards(vm, is_admin)
     if not is_admin:
-        return Div(bar, message, cards, id=_VIEW_ID, cls="realization-view")
-    return Div(bar, message, cards, day_dialog_view.dialog_container(), id=_VIEW_ID, cls="realization-view")
+        return Div(bar, memory, message, cards, id=_VIEW_ID, cls="realization-view")
+    return Div(
+        bar, memory, message, cards, day_dialog_view.dialog_container(), id=_VIEW_ID, cls="realization-view"
+    )
 
 
 def week_cards(vm: RealizationViewModel, is_admin: bool = False):

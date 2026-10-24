@@ -97,6 +97,9 @@ def register_routes(
             if any(option_id == realization_id_value for option_id, _ in options)
             else (options[0][0] if options else None)
         )
+        # A render that did not honor the URL's own realization_id is the fallback the tab-session memory may
+        # replace, per ./realizations.sdd.
+        restore = realization_id_value != selected_id
 
         if selected_id is None:
             return layout.page(
@@ -117,6 +120,7 @@ def register_routes(
                 is_admin=is_admin,
                 share_url=share_url(request, selected_id, active_semester.id),
                 error=error,
+                restore=restore,
             ),
             active_nav="realizations",
             semester_options=semester_options,

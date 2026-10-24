@@ -68,7 +68,17 @@ Must:
   one realization's weekly view is shareable; when `semester_id` is absent or unknown, the active Semester is the
   known `realization_id`'s own Semester when one is given, otherwise ../semester/semester.sdd's default-selection
   rule; when `realization_id` is absent, unknown, or belongs to another Semester, the view falls back to the first
-  realization of the active Semester.
+  realization of the active Semester, unless the tab-session memory below restores another one.
+  When the URL names no usable realization of the active Semester, ./view.py's @realization_view restores the
+  realization most recently shown in the same browser tab session, so leaving for
+  ../semester/semester.sdd's wall planner and returning through the header's Realizations link reopens it. The
+  inline script the view renders after its selection bar replaces the address with the remembered `realization_id`
+  when ./routes.py marked that render as the fallback and the memory holds an id among the active Semester's
+  options; otherwise the script records the shown realization. The memory is session-scoped browser storage under the fixed key
+  `aikana.last-realization`, holding the realization id alone: it is never a cookie, is never sent to the server,
+  carries no visitor identifier or tracking, and is discarded when the browser tab closes. An unavailable storage,
+  a remembered realization that no longer exists, or a render that honored the URL's `realization_id` leaves the
+  resolved selection in place, as a visitor without JavaScript keeps it.
   ./routes.py passes the Semester options and the active Semester's id to ../shared/shared.sdd's persistent
   Semester selector, so switching the Semester filters the realizations shown; the weekly view's realization
   dropdown lists only the realizations of the active Semester, never every realization ever created, to avoid
@@ -171,6 +181,13 @@ Scenario: Deleting a realization takes its Lessons with it
   When @RealizationService.delete_realization removes it
   Then neither Lesson remains for that CourseRealization
 
+Scenario: Returning to the weekly view restores the tab's last realization
+  Given the weekly view showed the second realization of the active Semester in this browser tab
+  When the visitor opens `/realizations` without a `realization_id`, for example through the header's Realizations
+    link
+  Then the memory script replaces the address with that realization's `realization_id`
+  And the first realization of the Semester stays unselected
+
 Scenario: Admin deletes one Lesson from the weekly view
   Given a CourseRealization's weekly view shows two Lessons
   And the admin is logged in
@@ -250,3 +267,6 @@ Tasks:
     dialog
   [x] Add the `Week`/`Lesson`/`Deadline` header row above the week cards and read each Deadline's abbreviated weekday
     before its `d.m.` day, like a Lesson's line, in ./view.py
+  [x] Restore the realization last shown in the browser tab session from session-scoped browser storage in
+    ./view.py, so returning to the weekly view from the wall planner reopens it without a cookie or any
+    server-side state

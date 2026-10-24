@@ -26,9 +26,9 @@ Structure:
     tests of the `/mcp` endpoint's anonymous reads and token-gated writes
   ./test_no_teach_weeks.py: unit tests for the NoTeachWeek package's pure domain rules
   ./test_realizations.py: in-process client tests of the courses page's add, edit and delete realization dialogs, of
-    the weekly view's states, fallbacks, week cards, view bar with the realization selector and Share button and
-    Holiday flags, and of its click-to-edit Lesson dialogs, its per-week Lesson add trigger and the note read under
-    a Lesson
+    the weekly view's states, fallbacks, week cards, view bar with the realization selector and Share button, its
+    tab-session realization memory and Holiday flags, and of its click-to-edit Lesson dialogs, its per-week Lesson
+    add trigger and the note read under a Lesson
   ./test_schema.py: data-integrity tests of the SQLite schema's foreign keys with cascade, unique constraints,
     NOT NULL columns, STRICT types and integer primary keys
   ./test_semester_domain.py: unit tests for the Semester package's pure domain rules

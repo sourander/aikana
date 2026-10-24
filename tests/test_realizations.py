@@ -141,6 +141,36 @@ def test_weekly_view_falls_back_when_the_realization_belongs_to_another_semester
     assert "TTV24SP" not in response.text
 
 
+def test_the_weekly_view_carries_the_session_memory_script(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?semester_id={semester.id}").text
+
+    # A render that ignored a missing realization_id is the one the tab's remembered realization may replace,
+    # per realizations.sdd; the memory is session-scoped browser storage, never a cookie.
+    assert 'id="realization-select"' in html
+    assert "var RESTORE = true;" in html
+    assert "sessionStorage" in html
+    assert "aikana.last-realization" in html
+    assert "document.cookie" not in html
+    # The script reads the dropdown, so it must parse after it; otherwise the full page load restores nothing.
+    assert html.index('id="realization-select"') < html.index("aikana.last-realization")
+
+
+def test_an_explicit_realization_id_wins_over_the_session_memory(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    # The URL named a realization of the active Semester, so the memory must not replace it.
+    assert "var RESTORE = false;" in html
+    assert f'<option value="{realization.id}" selected>' in html
+
+
 def test_a_week_with_a_lesson_and_a_holiday_shows_both(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)

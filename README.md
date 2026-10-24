@@ -17,6 +17,12 @@ Views:
 > admin editing of Courses, CourseRealizations, Lessons and Holidays is being added incrementally. Progress is
 > tracked in the `Tasks` sections of the `.sdd` specs.
 
+## Privacy
+
+The only cookie is the admin's login session, which is strictly necessary and marked `Secure`; visitors get no
+cookies. The realization view remembers the browser tab's last realization in session storage, which is cleared
+when the tab closes, is never sent to the server and carries no identifier.
+
 ## Configuration
 
 | Variable            | Purpose                                                                       |
