@@ -74,13 +74,15 @@ Must:
   dropdown lists only the realizations of the active Semester, never every realization ever created, to avoid
   clutter; switching either dropdown updates its own query parameter without a full page reload and preserves the
   other. The realization dropdown sits in the weekly view's own bar, not in ../shared/shared.sdd's header.
-  Each week is one card, the cards stacking vertically in calendar order. The card's left section is the week head:
+  One header row above the stacked cards names the card's three sections, reading `Week`, `Lesson` and `Deadline` for
+  visitors and the admin alike. Each week is one card, the cards stacking vertically in calendar order. The card's
+  left section is the week head:
   the ISO week number (in a larger, dominant font) with the week's ../week_themes/week_themes.sdd WeekTheme, when one
   exists, on the same line, the week's date range on the line below, and the week's Holiday and Conference flags below
   that. The middle section lists the week's Lessons stacked: a Lesson shows its topic, under it one line reading the
   Lesson's abbreviated weekday, its `d.m.` day and its time range, such as `Mon 21.9. 08:00–10:00`, and, under that
   line, its free-text note when it has one; the day omits the year because the week head already carries the week's
-  full date range. The right section lists the week's Deadlines. There are no column headers and no `Notes` section.
+  full date range. The right section lists the week's Deadlines. There is no `Notes` section.
   A week head shows that week's Holidays and Conferences as small square flags: a red square per Holiday, read
     through ../holidays/holidays.sdd, and a purple square per ../conferences/conferences.sdd Conference. Each flag is
     a ../shared/shared.sdd `data-tip` tooltip anchor whose tooltip names the entry and its own abbreviated weekday
@@ -144,8 +146,8 @@ Must:
   The bar sits outside ../day_dialog/day_dialog.sdd's @WEEK_TABLE_ID, so a dialog write, which swaps only the week
     cards, leaves the selector and the Share button in place.
   The week card's right section carries the realization's ../deadlines/deadlines.sdd Deadlines: a Deadline shows in
-    the card of the week it falls in, with its title over its `d.m.yyyy` date, and a week with none leaves the
-    section blank. Deadlines are shown to visitors and the admin alike.
+  the card of the week it falls in, with its title over its abbreviated weekday and `d.m.` day, such as `Mon 21.9.`,
+  and a week with none leaves the section blank. Deadlines are shown to visitors and the admin alike.
   For the admin, the Deadlines section is also the trigger adding a Deadline to that week: clicking empty space in it
     opens that week card's own `<dialog>`, whose date field is ../shared/shared.sdd's @day_calendar over that week's
     Monday and whose title field is empty. Clicking a listed Deadline opens its edit dialog; the click stops
@@ -246,3 +248,5 @@ Tasks:
     toggles are removed, the view gets its own bar with the realization dropdown and the Share button, clicking empty
     space in a week's Lessons or Deadlines section adds there, and a Deadline's Delete control moves into its edit
     dialog
+  [x] Add the `Week`/`Lesson`/`Deadline` header row above the week cards and read each Deadline's abbreviated weekday
+    before its `d.m.` day, like a Lesson's line, in ./view.py

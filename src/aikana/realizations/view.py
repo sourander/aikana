@@ -1,11 +1,13 @@
 """Pure rendering of the per-CourseRealization weekly view: the view's own bar (the realization selector and the
-Share button) above one stacked card per calendar week, per ./realizations.sdd.
+Share button) above the cards' column header row and one stacked card per calendar week, per ./realizations.sdd.
 
 Each week card has three sections: the week head on the left (week number, optional theme, date range and the week's
 Holiday and Conference flags), the Lessons in the middle and the Deadlines on the right. For the admin, clicking the
 week head opens the WeekTheme dialog, clicking empty space in the Lessons section opens the add-Lesson dialog, clicking
 a Lesson opens its edit dialog, and the Deadlines section behaves the same way for Deadlines.
 """
+
+from datetime import date
 
 from fasthtml.common import (
     A,
@@ -135,7 +137,8 @@ def realization_view(
 
 
 def week_cards(vm: RealizationViewModel, is_admin: bool = False):
-    """The bare stack of week cards, the swap target of the dialog's write responses, per ./realizations.sdd.
+    """The column header row and the bare stack of week cards, the swap target of the dialog's write responses, per
+    ./realizations.sdd.
 
     The per-Lesson, per-week theme and per-Deadline dialogs live inside it so a swap from
     ../day_dialog/day_dialog.sdd's dialog, which returns the bare cards, keeps every control and its dialog.
@@ -143,6 +146,7 @@ def week_cards(vm: RealizationViewModel, is_admin: bool = False):
     lessons = [entry for week in vm.weeks for entry in week.entries if entry.lesson_id] if is_admin else []
     deadlines = [entry for week in vm.weeks for entry in week.deadlines] if is_admin else []
     return Div(
+        _week_header_row(),
         *[_week_card(week, vm.realization, is_admin) for week in vm.weeks],
         *[
             dialog
@@ -169,6 +173,19 @@ def week_cards(vm: RealizationViewModel, is_admin: bool = False):
         # The container scrolls, so it clips any tooltip that overflows its edge; marking it the tooltip area makes
         # ../shared/layout.py's script clamp a week head's Holiday or Conference flag tooltip inside it instead.
         **{"data-tip-area": ""},
+    )
+
+
+def _week_header_row():
+    """The column header row above the cards, naming each card's three sections in order, per ./realizations.sdd.
+
+    Its cells carry the card sections' own classes, so each label aligns with the section it names.
+    """
+    return Div(
+        Div("Week", cls="week-head"),
+        Div("Lesson", cls="week-lessons"),
+        Div("Deadline", cls="week-deadlines"),
+        cls="week-header",
     )
 
 
@@ -292,20 +309,24 @@ def _week_deadlines(week: WeekRow, realization, is_admin: bool):
 def _deadline_item(entry: DeadlineEntry, is_admin: bool):
     return Div(
         Div(entry.title, cls="deadline-title"),
-        Div(dates.format_date(entry.date), cls="deadline-date"),
+        Div(_day_label(entry.date), cls="deadline-date"),
         onclick=_open_dialog(f"deadline-edit-dialog-{entry.id}", stop_propagation=True) if is_admin else None,
         cls="deadline deadline--clickable" if is_admin else "deadline",
     )
 
 
-def _entry_day(entry: WeekEntry) -> str:
-    """One entry's weekday and `d.m.` day, per ./realizations.sdd.
+def _day_label(day: date) -> str:
+    """One day as its abbreviated weekday and `d.m.` day, the line a Lesson and a Deadline both read.
 
     The week head already carries the week's full date range, so the entry repeats only the weekday and the
-    `d.m.` day.
+    `d.m.` day, per ./realizations.sdd.
     """
-    day = entry.entry_date
     return f"{day.strftime('%a')} {day.day}.{day.month}."
+
+
+def _entry_day(entry: WeekEntry) -> str:
+    """One entry's weekday and `d.m.` day, per ./realizations.sdd."""
+    return _day_label(entry.entry_date)
 
 
 def _lesson_when(entry: WeekEntry) -> str:

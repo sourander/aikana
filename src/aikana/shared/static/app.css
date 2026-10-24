@@ -748,6 +748,27 @@ dialog::backdrop {
   gap: 0.5rem;
 }
 
+.week-header {
+  flex-shrink: 0;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+
+/* The header reuses the card sections' classes for geometry, so each label sits over the section it names. */
+.week-header .week-head,
+.week-header .week-lessons,
+.week-header .week-deadlines {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.week-header .week-lessons,
+.week-header .week-deadlines {
+  border-left: none;
+}
+
 .week-card {
   flex-shrink: 0;
   display: flex;
@@ -897,6 +918,10 @@ dialog::backdrop {
 
 /* On a narrow screen the card's three sections stack instead of squeezing. */
 @media (max-width: 40rem) {
+  /* The stacked cards no longer align in three columns, so the header row is hidden. */
+  .week-header {
+    display: none;
+  }
   .week-card {
     flex-direction: column;
   }

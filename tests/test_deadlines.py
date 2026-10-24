@@ -167,7 +167,8 @@ def test_a_deadline_shows_in_the_week_card_it_falls_in(
 
     deadlines = card[card.index('class="week-deadlines') :]
     assert "Assignment 1" in deadlines
-    assert "21.9.2026" in deadlines
+    # The Deadline's date line reads its weekday and d.m. day, like a Lesson's, per realizations.sdd.
+    assert "Mon 21.9." in deadlines
 
 
 def test_a_week_without_a_deadline_shows_the_section_empty(admin_client, realization_id, semester_id):

@@ -179,6 +179,18 @@ def test_the_week_card_has_no_notes_section(client, services):
     assert ">Notes<" not in html
 
 
+def test_the_week_cards_share_a_column_header_row(client, services):
+    semester = services.semesters.create_semester(2026, "fall")
+    course = services.courses.add_course("Machine Learning", "An introduction.", 5)
+    realization = services.realizations.add_realization(course.id, semester.id, "TTV24SP")
+
+    html = client.get(f"/realizations?realization_id={realization.id}").text
+
+    # One header row above the first card names the card's three sections in card order, per realizations.sdd.
+    header = html[html.index('class="week-header"') : html.index('class="week-card')]
+    assert header.index(">Week</div>") < header.index(">Lesson</div>") < header.index(">Deadline</div>")
+
+
 def test_a_lesson_note_reads_under_its_day_and_time_line(client, services):
     semester = services.semesters.create_semester(2026, "fall")
     course = services.courses.add_course("Machine Learning", "An introduction.", 5)
